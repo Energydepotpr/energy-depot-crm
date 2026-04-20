@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
 });
 
 async function initDB() {
@@ -420,11 +420,12 @@ INFORMACIÓN A RECOPILAR: nombre, teléfono/email, número de personas, fecha de
         throw new Error('ADMIN_PASSWORD environment variable is required but not set');
       }
       const hash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@crm.com';
       await client.query(
         `INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, 'admin')`,
-        ['Admin', 'admin@crm.com', hash]
+        ['Admin', adminEmail, hash]
       );
-      console.log('[DB] Usuario admin creado: admin@crm.com');
+      console.log(`[DB] Usuario admin creado: ${adminEmail}`);
     }
 
     // Invoices table

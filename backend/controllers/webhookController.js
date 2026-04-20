@@ -14,52 +14,52 @@ async function sendWelcomeEmail(contactEmail, contactName) {
     const tpl = rows[0]?.value || {};
     if (tpl.enabled === false) return; // desactivado desde config
 
-    const subject = tpl.subject || 'Welcome to Fix A Trip Puerto Rico! 🌴';
+    const subject = tpl.subject || 'Gracias por contactar Energy Depot PR';
     const bodyHtml = tpl.body_html
       ? tpl.body_html.replace(/{{name}}/gi, contactName || 'there')
       : `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;">
-        <div style="background:linear-gradient(135deg,#0ea5e9,#0369a1);padding:40px 32px;text-align:center;">
-          <img src="https://fixatrippr.com/logo.png" alt="Fix A Trip PR" style="height:50px;margin-bottom:16px;" onerror="this.style.display='none'"/>
-          <h1 style="color:#fff;margin:0;font-size:26px;">Welcome to Fix A Trip Puerto Rico!</h1>
+        <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:40px 32px;text-align:center;">
+          <h1 style="color:#fff;margin:0;font-size:26px;">Energy Depot PR</h1>
+          <p style="color:#fef3c7;margin:8px 0 0;font-size:14px;">Energía Solar en Puerto Rico</p>
         </div>
         <div style="padding:32px;">
-          <p style="font-size:16px;color:#333;">Hi <strong>${contactName || 'there'}</strong>,</p>
+          <p style="font-size:16px;color:#333;">Hola <strong>${contactName || 'allí'}</strong>,</p>
           <p style="font-size:15px;color:#555;line-height:1.6;">
-            Thank you for reaching out! We've received your inquiry and one of our travel specialists will be in touch with you shortly to help plan your perfect Puerto Rico experience.
+            Gracias por tu interés en Energy Depot PR. Hemos recibido tu consulta y uno de nuestros asesores de energía solar se pondrá en contacto contigo pronto.
           </p>
           <p style="font-size:15px;color:#555;line-height:1.6;">
-            In the meantime, feel free to browse our tours and experiences at our website.
+            Te ayudaremos a encontrar la mejor solución solar para tu hogar o negocio en Puerto Rico, incluyendo gestión de permisos LUMA y financiamiento.
           </p>
-          <div style="background:#f0f9ff;border-radius:10px;padding:20px;margin:24px 0;">
-            <p style="margin:0;font-size:14px;color:#0369a1;font-weight:bold;">📞 Questions? Reach us anytime:</p>
+          <div style="background:#fffbeb;border-radius:10px;padding:20px;margin:24px 0;border-left:4px solid #f59e0b;">
+            <p style="margin:0;font-size:14px;color:#92400e;font-weight:bold;">Contáctanos directamente:</p>
             <p style="margin:8px 0 0;font-size:14px;color:#555;">
-              Phone / WhatsApp: <a href="tel:+17873700218" style="color:#0369a1;">(787) 370-0218</a><br/>
-              Email: <a href="mailto:info@fixatrippr.com" style="color:#0369a1;">info@fixatrippr.com</a>
+              Email: <a href="mailto:info@energydepotpr.com" style="color:#d97706;">info@energydepotpr.com</a><br/>
+              Web: <a href="https://energydepotpr.com" style="color:#d97706;">energydepotpr.com</a>
             </p>
           </div>
-          <p style="font-size:15px;color:#555;">We look forward to making your trip unforgettable! 🌴</p>
-          <p style="font-size:15px;color:#333;"><strong>The Fix A Trip Team</strong></p>
+          <p style="font-size:15px;color:#555;">El futuro energético de Puerto Rico comienza aquí.</p>
+          <p style="font-size:15px;color:#333;"><strong>El equipo de Energy Depot PR</strong></p>
         </div>
         <div style="background:#f8fafc;padding:20px;text-align:center;font-size:12px;color:#999;">
-          Fix A Trip Puerto Rico · <a href="https://fixatrippr.com" style="color:#0369a1;">fixatrippr.com</a><br/>
+          Energy Depot PR · <a href="https://energydepotpr.com" style="color:#d97706;">energydepotpr.com</a><br/>
           Reply STOP to unsubscribe from emails.
         </div>
       </div>`;
 
     const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
-      host: process.env.MAIL_HOST || 'mail.fixatrippr.com',
+      host: process.env.MAIL_HOST || 'mail.energydepotpr.com',
       port: parseInt(process.env.MAIL_PORT || '587'),
       secure: false,
       tls: { rejectUnauthorized: false },
       auth: {
-        user: process.env.BOOKINGS_EMAIL || 'bookings@fixatrippr.com',
-        pass: process.env.BOOKINGS_PASS || '',
+        user: process.env.OPERATIONS_EMAIL || 'info@energydepotpr.com',
+        pass: process.env.OPERATIONS_PASS || '',
       },
     });
     await transporter.sendMail({
-      from: '"Fix A Trip Puerto Rico" <bookings@fixatrippr.com>',
+      from: '"Energy Depot PR" <info@energydepotpr.com>',
       to: contactEmail,
       subject,
       html: bodyHtml,
@@ -550,35 +550,30 @@ async function webformWebhook(req, res) {
     try {
       const nodemailer = require('nodemailer');
       const transporter = nodemailer.createTransport({
-        host: process.env.MAIL_HOST || 'mail.fixatrippr.com',
+        host: process.env.MAIL_HOST || 'mail.energydepotpr.com',
         port: parseInt(process.env.MAIL_PORT || '587'),
         secure: false,
         tls: { rejectUnauthorized: false },
         auth: {
-          user: process.env.OPERATIONS_EMAIL || 'operations@fixatrippr.com',
+          user: process.env.OPERATIONS_EMAIL || 'info@energydepotpr.com',
           pass: process.env.OPERATIONS_PASS || '',
         },
       });
       const detalles = req.body;
       const htmlBody = `
-        <h2 style="color:#1a73e8">Nueva Solicitud de Booking — Web</h2>
+        <h2 style="color:#d97706">Nuevo Lead — Formulario Web Energy Depot PR</h2>
         <table style="border-collapse:collapse;width:100%;font-family:sans-serif;font-size:14px">
           <tr><td style="padding:8px;color:#666;width:140px">Nombre</td><td style="padding:8px;font-weight:bold">${nameUsado}</td></tr>
           <tr style="background:#f5f5f5"><td style="padding:8px;color:#666">Email</td><td style="padding:8px">${emailLimpio || '—'}</td></tr>
           <tr><td style="padding:8px;color:#666">Teléfono</td><td style="padding:8px">${telefono || '—'}</td></tr>
-          <tr style="background:#f5f5f5"><td style="padding:8px;color:#666">Tour</td><td style="padding:8px;font-weight:bold">${detalles.tour_name || detalles.propiedad || '—'}</td></tr>
-          <tr><td style="padding:8px;color:#666">Fecha</td><td style="padding:8px">${detalles.date || '—'}</td></tr>
-          <tr style="background:#f5f5f5"><td style="padding:8px;color:#666">Adultos</td><td style="padding:8px">${detalles.adults ?? '—'}</td></tr>
-          <tr><td style="padding:8px;color:#666">Niños</td><td style="padding:8px">${detalles.children ?? '—'}</td></tr>
-          <tr style="background:#f5f5f5"><td style="padding:8px;color:#666">Total estimado</td><td style="padding:8px;font-weight:bold;color:#1a73e8">$${detalles.estimated_total ?? '—'}</td></tr>
-          <tr><td style="padding:8px;color:#666">Mensaje</td><td style="padding:8px">${mensaje || '—'}</td></tr>
+          <tr style="background:#f5f5f5"><td style="padding:8px;color:#666">Mensaje</td><td style="padding:8px">${mensaje || '—'}</td></tr>
         </table>
         <p style="margin-top:16px;font-size:13px;color:#999">Lead #${lead.id} creado en el CRM</p>
       `;
       await transporter.sendMail({
-        from: '"Fix A Trip Web" <operations@fixatrippr.com>',
-        to: process.env.WEBFORM_NOTIFY_EMAIL || 'operations@fixatrippr.com',
-        subject: `🏖️ Nueva solicitud de booking — ${detalles.tour_name || nameUsado}`,
+        from: '"Energy Depot PR" <info@energydepotpr.com>',
+        to: process.env.WEBFORM_NOTIFY_EMAIL || 'info@energydepotpr.com',
+        subject: `Nuevo lead solar — ${nameUsado}`,
         html: htmlBody,
       });
       console.log('[WEBFORM] Email de notificación enviado');
@@ -815,4 +810,236 @@ async function zapierFareharborWebhook(req, res) {
   }
 }
 
-module.exports = { twilioWebhook, webformWebhook, emailWebhook, sendWelcomeEmail, zapierFareharborWebhook };
+// ── Webhook LeadsGogo ────────────────────────────────────────────────────────
+// LeadsGogo envía un POST con datos del lead cuando hay uno nuevo.
+// Configurar en LeadsGogo: Integrations → Webhook → URL = /api/webhook/leadsgogo
+async function leadsgogoWebhook(req, res) {
+  res.json({ ok: true });
+
+  try {
+    const b = req.body || {};
+    console.log('[LEADSGOGO] Webhook recibido:', JSON.stringify(b).slice(0, 400));
+
+    // Extraer campos — LeadsGogo usa distintos nombres según la campaña
+    let nombre = b.full_name || b.name || b.nombre || '';
+    if (!nombre && (b.first_name || b.last_name)) {
+      nombre = `${b.first_name || ''} ${b.last_name || ''}`.trim();
+    }
+    nombre = nombre || 'LeadsGogo Lead';
+
+    const email  = (b.email || b.correo || '').toLowerCase().trim() || null;
+    const phone  = (b.phone || b.telefono || b.mobile || b.cel || '').replace(/\D/g, '');
+    const phoneF = phone ? (phone.startsWith('1') ? `+${phone}` : `+1${phone}`) : null;
+    const source = b.source || b.campaign || b.list_name || b.campaign_name || 'leadsgogo';
+    const mensaje = b.message || b.notes || b.comments || b.interest || null;
+    const leadId  = b.lead_id || b.id || null;
+
+    if (!nombre && !email && !phoneF) {
+      console.warn('[LEADSGOGO] Sin datos de contacto — ignorado');
+      return;
+    }
+
+    // Evitar duplicado por lead_id externo
+    if (leadId) {
+      const dup = await pool.query(
+        `SELECT id FROM leads WHERE source='leadsgogo' AND title LIKE $1 LIMIT 1`,
+        [`%LG-${leadId}%`]
+      );
+      if (dup.rows.length) {
+        console.log(`[LEADSGOGO] Lead LG-${leadId} ya existe — ignorado`);
+        return;
+      }
+    }
+
+    // Buscar o crear contacto
+    let contacto = null;
+    if (email) contacto = (await pool.query('SELECT * FROM contacts WHERE email=$1 LIMIT 1', [email])).rows[0];
+    if (!contacto && phoneF) contacto = (await pool.query('SELECT * FROM contacts WHERE phone=$1 LIMIT 1', [phoneF])).rows[0];
+    if (!contacto) {
+      contacto = (await pool.query(
+        `INSERT INTO contacts (name, phone, email, source) VALUES ($1,$2,$3,'leadsgogo') RETURNING *`,
+        [nombre, phoneF, email]
+      )).rows[0];
+    } else {
+      await pool.query(
+        `UPDATE contacts SET
+           name  = COALESCE(NULLIF($1,''), name),
+           phone = COALESCE(NULLIF($2,''), phone),
+           email = COALESCE(NULLIF($3,''), email),
+           updated_at = NOW()
+         WHERE id = $4`,
+        [nombre, phoneF, email, contacto.id]
+      );
+      contacto.phone = phoneF || contacto.phone;
+      contacto.email = email || contacto.email;
+    }
+
+    // Pipeline y etapa (primera = Lead)
+    const pip   = await pool.query('SELECT id FROM pipelines ORDER BY position LIMIT 1');
+    const pipId = pip.rows[0]?.id || null;
+    const stage = pipId
+      ? (await pool.query('SELECT id FROM pipeline_stages WHERE pipeline_id=$1 ORDER BY position LIMIT 1', [pipId])).rows[0]
+      : null;
+
+    const titulo = leadId ? `LG-${leadId} — ${nombre}` : `LeadsGogo — ${nombre}`;
+    const lead = (await pool.query(
+      `INSERT INTO leads (title, contact_id, pipeline_id, stage_id, source)
+       VALUES ($1,$2,$3,$4,'leadsgogo') RETURNING *`,
+      [titulo, contacto.id, pipId, stage?.id || null]
+    )).rows[0];
+
+    // Mensaje de contexto
+    const textoMsg = mensaje || `Lead de LeadsGogo — ${nombre}${email ? ' | ' + email : ''}${phoneF ? ' | ' + phoneF : ''}${source !== 'leadsgogo' ? ' | ' + source : ''}`;
+    await pool.query(
+      `INSERT INTO messages (lead_id, contact_id, direction, text, channel)
+       VALUES ($1,$2,'inbound',$3,'leadsgogo')`,
+      [lead.id, contacto.id, textoMsg]
+    );
+
+    // Tag LeadsGogo
+    await pool.query(
+      `INSERT INTO lead_tags (lead_id, tag, color) VALUES ($1,'LeadsGogo','#8b5cf6') ON CONFLICT (lead_id, tag) DO NOTHING`,
+      [lead.id]
+    ).catch(() => {});
+
+    // Alerta
+    await pool.query(
+      `INSERT INTO alerts (lead_id, type, message) VALUES ($1,'leadsgogo',$2)`,
+      [lead.id, `Nuevo lead LeadsGogo — ${nombre}${email ? ' | ' + email : ''}${phoneF ? ' | ' + phoneF : ''}`]
+    ).catch(() => {});
+
+    sse.broadcast('new_message', { lead_id: lead.id, direction: 'inbound' });
+
+    // SMS auto-respuesta si tiene teléfono y bot activo
+    if (phoneF) {
+      try {
+        const cfgs = await pool.query(`SELECT key, value FROM config WHERE key IN ('bot_activo','bot_leadsgogo_sms')`);
+        const cfg  = {};
+        cfgs.rows.forEach(r => { cfg[r.key] = r.value; });
+        if (cfg.bot_activo === 'true' && cfg.bot_leadsgogo_sms !== 'false') {
+          const { enviarSMS } = require('../services/twilioService');
+          const smsText = `Hola ${nombre.split(' ')[0]}, gracias por tu interés en Energy Depot PR. Somos especialistas en energía solar en Puerto Rico. Un asesor te contactará pronto. Reply STOP to unsubscribe. Msg&Data rates may apply.`;
+          await enviarSMS(phoneF, smsText);
+          await pool.query(
+            `INSERT INTO messages (lead_id, contact_id, direction, text, is_bot, channel)
+             VALUES ($1,$2,'outbound',$3,true,'sms')`,
+            [lead.id, contacto.id, smsText]
+          );
+        }
+      } catch (smsErr) {
+        console.warn('[LEADSGOGO] SMS auto-respuesta error (non-fatal):', smsErr.message);
+      }
+    }
+
+    console.log(`[LEADSGOGO] Lead #${lead.id} creado — ${nombre} | ${email} | ${phoneF}`);
+  } catch (err) {
+    console.error('[LEADSGOGO] Error:', err.message);
+  }
+}
+
+// ── Webhook Perfex CRM (crm-energydepotpr.com) ───────────────────────────────
+// Perfex llama aquí via Zapier/webhook cuando hay un lead nuevo.
+// También se puede usar con la API de Perfex para sincronizar periódicamente.
+async function perfexWebhook(req, res) {
+  res.json({ ok: true });
+
+  try {
+    const b = req.body || {};
+    console.log('[PERFEX] Webhook recibido:', JSON.stringify(b).slice(0, 400));
+
+    // Perfex CRM fields (pueden variar según la config de Zapier)
+    let nombre = b.name || b.fullname || b.client_name || b.lead_name || '';
+    if (!nombre && (b.firstname || b.lastname)) {
+      nombre = `${b.firstname || ''} ${b.lastname || ''}`.trim();
+    }
+    nombre = nombre || 'Perfex Lead';
+
+    const email   = (b.email || '').toLowerCase().trim() || null;
+    const phone   = (b.phone || b.phonenumber || b.telephone || '').trim() || null;
+    const source  = b.source || b.leadsource || b.lead_source || 'perfex';
+    const status  = b.status || b.lead_status || '';
+    const valor   = b.value || b.lead_value || b.amount || null;
+    const perfexId = b.id || b.lead_id || b.perfex_id || null;
+    const mensaje  = b.description || b.notes || b.message || null;
+
+    if (!nombre && !email && !phone) {
+      console.warn('[PERFEX] Sin datos de contacto — ignorado');
+      return;
+    }
+
+    // Evitar duplicado
+    if (perfexId) {
+      const dup = await pool.query(
+        `SELECT id FROM leads WHERE source='perfex' AND title LIKE $1 LIMIT 1`,
+        [`%PX-${perfexId}%`]
+      );
+      if (dup.rows.length) {
+        console.log(`[PERFEX] Lead PX-${perfexId} ya existe — ignorado`);
+        return;
+      }
+    }
+
+    // Buscar o crear contacto
+    let contacto = null;
+    if (email) contacto = (await pool.query('SELECT * FROM contacts WHERE email=$1 LIMIT 1', [email])).rows[0];
+    if (!contacto && phone) contacto = (await pool.query('SELECT * FROM contacts WHERE phone=$1 LIMIT 1', [phone])).rows[0];
+    if (!contacto) {
+      contacto = (await pool.query(
+        `INSERT INTO contacts (name, phone, email, source) VALUES ($1,$2,$3,'perfex') RETURNING *`,
+        [nombre, phone, email]
+      )).rows[0];
+    } else {
+      await pool.query(
+        `UPDATE contacts SET
+           name  = COALESCE(NULLIF($1,''), name),
+           phone = COALESCE(NULLIF($2,''), phone),
+           email = COALESCE(NULLIF($3,''), email),
+           updated_at = NOW()
+         WHERE id = $4`,
+        [nombre, phone, email, contacto.id]
+      );
+    }
+
+    // Pipeline y etapa
+    const pip   = await pool.query('SELECT id FROM pipelines ORDER BY position LIMIT 1');
+    const pipId = pip.rows[0]?.id || null;
+    const stage = pipId
+      ? (await pool.query('SELECT id FROM pipeline_stages WHERE pipeline_id=$1 ORDER BY position LIMIT 1', [pipId])).rows[0]
+      : null;
+
+    const titulo = perfexId ? `PX-${perfexId} — ${nombre}` : `Perfex — ${nombre}`;
+    const lead = (await pool.query(
+      `INSERT INTO leads (title, contact_id, pipeline_id, stage_id, source, value)
+       VALUES ($1,$2,$3,$4,'perfex',$5) RETURNING *`,
+      [titulo, contacto.id, pipId, stage?.id || null,
+       valor ? parseFloat(valor.toString().replace(/[^0-9.]/g, '')) : null]
+    )).rows[0];
+
+    // Mensaje de contexto
+    const textoMsg = mensaje || `Lead importado de Perfex CRM — ${nombre}${email ? ' | ' + email : ''}${phone ? ' | ' + phone : ''}${status ? ' | Estado: ' + status : ''}`;
+    await pool.query(
+      `INSERT INTO messages (lead_id, contact_id, direction, text, channel)
+       VALUES ($1,$2,'inbound',$3,'perfex')`,
+      [lead.id, contacto.id, textoMsg]
+    );
+
+    // Tag Perfex
+    await pool.query(
+      `INSERT INTO lead_tags (lead_id, tag, color) VALUES ($1,'Perfex CRM','#f97316') ON CONFLICT (lead_id, tag) DO NOTHING`,
+      [lead.id]
+    ).catch(() => {});
+
+    // Alerta
+    await pool.query(
+      `INSERT INTO alerts (lead_id, type, message) VALUES ($1,'perfex',$2)`,
+      [lead.id, `Lead desde Perfex CRM — ${nombre}${email ? ' | ' + email : ''}${phone ? ' | ' + phone : ''}`]
+    ).catch(() => {});
+
+    sse.broadcast('new_message', { lead_id: lead.id, direction: 'inbound' });
+    console.log(`[PERFEX] Lead #${lead.id} creado — ${nombre} | ${email} | ${phone}`);
+  } catch (err) {
+    console.error('[PERFEX] Error:', err.message);
+  }
+}
+
+module.exports = { twilioWebhook, webformWebhook, emailWebhook, sendWelcomeEmail, zapierFareharborWebhook, leadsgogoWebhook, perfexWebhook };

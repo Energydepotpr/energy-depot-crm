@@ -54,7 +54,7 @@ async function listarUsuarios(req, res) {
 
 async function actualizarUsuario(req, res) {
   const { id } = req.params;
-  const { name, role, active, password } = req.body;
+  const { name, email, role, active, password } = req.body;
 
   if (password) {
     const hash = await bcrypt.hash(password, 10);
@@ -63,14 +63,15 @@ async function actualizarUsuario(req, res) {
   if (role !== undefined && !VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: `Rol inválido. Debe ser uno de: ${VALID_ROLES.join(', ')}` });
   }
-  if (name || role !== undefined || active !== undefined) {
+  if (name || email || role !== undefined || active !== undefined) {
     await pool.query(
       `UPDATE users SET
         name = COALESCE($1, name),
-        role = COALESCE($2, role),
-        active = COALESCE($3, active)
-       WHERE id = $4`,
-      [name || null, role || null, active ?? null, id]
+        email = COALESCE($2, email),
+        role = COALESCE($3, role),
+        active = COALESCE($4, active)
+       WHERE id = $5`,
+      [name || null, email || null, role || null, active ?? null, id]
     );
   }
   res.json({ ok: true });
