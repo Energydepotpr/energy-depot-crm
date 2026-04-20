@@ -1,0 +1,9 @@
+{
+  "name": "energy-depot-crm",
+  "version": "1.0.0",
+  "scripts": {
+    "dev:backend": "cd backend && node server.js",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install"
+  }
+}
