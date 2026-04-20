@@ -50,6 +50,7 @@ const suppliers        = require('./controllers/suppliersController');
 // const googleCal     = require('./controllers/googleCalendarController'); // disponible si se necesita
 const sse              = require('./services/sse');
 const { syncTwilioMessages } = require('./services/twilioSync');
+const { syncLeadgogo } = require('./services/leadgogoSync');
 const { enrichAllMissingNames, enqueueEnrich } = require('./services/leadEnrich');
 const jwt           = require('jsonwebtoken');
 
@@ -151,6 +152,8 @@ app.post('/api/quickbooks/webhook', quickbooks.webhook);
 app.post('/api/webhook/twilio',     webhookLimiter, webhook.twilioWebhook);
 app.post('/api/webhook/webform',    webhookLimiter, webhook.webformWebhook);
 app.post('/api/webhook/email',      webhook.emailWebhook);
+app.post('/api/webhook/leadsgogo',  webhookLimiter, webhook.leadsgogoWebhook);
+app.post('/api/webhook/perfex',     webhookLimiter, webhook.perfexWebhook);
 app.get('/api/push/vapid-key',   push.getVapidKey);
 // Twilio Voice public webhooks
 app.post('/api/calls/twiml',     calls.twimlHandler);
@@ -630,6 +633,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 const PORT = process.env.PORT || 3001;
 
 // ── Background job: alert for inactive leads (runs every 6 hours) ─────────────
@@ -737,8 +742,12 @@ initDB()
     // Twilio message sync every 30s + AI enrichment on new messages
     setTimeout(syncTwilioMessages, 15000);
     setInterval(syncTwilioMessages, 30 * 1000);
-    // Enrich existing leads missing name/email (runs at startup + every 6 hours for new ones)
-    enrichAllMissingNames();
-    setInterval(enrichAllMissingNames, SIX_HOURS);
+    // Enrich existing leads missing name/email — disabled auto-run on startup
+    // Use POST /api/admin/enrich/all to trigger manually when needed
+    // enrichAllMissingNames();
+    // setInterval(enrichAllMissingNames, SIX_HOURS);
+    // Leadgogo sync every 1 minute
+    setTimeout(syncLeadgogo, 20000);
+    setInterval(syncLeadgogo, 60 * 1000);
   })
   .catch(err => { console.error('[SERVER] Error iniciando DB:', err); process.exit(1); });

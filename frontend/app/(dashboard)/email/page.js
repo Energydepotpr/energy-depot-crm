@@ -65,7 +65,7 @@ function ComposeModal({ onClose, onSent, defaultAccount = 'operations', lang }) 
             <select value={form.account} onChange={e => set('account', e.target.value)}
               style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', fontSize: 13, color: C.text, outline: 'none' }}>
               <option value="operations">operations@energydepotpr.com</option>
-              <option value="info">info@energydepotpr.com</option>
+              <option value="bookings">bookings@energydepotpr.com</option>
             </select>
           </div>
           {[[t('email.to', lang), 'to_email', 'email'], [t('email.subject', lang), 'subject', 'text']].map(([lbl, key, type]) => (

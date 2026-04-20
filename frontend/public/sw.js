@@ -1,4 +1,4 @@
-const CACHE = 'fatp-crm-v4';
+const CACHE = 'edpr-crm-v4';
 const PRECACHE = ['/dashboard', '/leads', '/inbox', '/contacts', '/logo.webp'];
 
 // ── Install: pre-cache shell ──────────────────────────────────────────────────

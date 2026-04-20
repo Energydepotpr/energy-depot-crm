@@ -36,23 +36,98 @@ function channelIcon(ch) {
   return { icon: '●', color: '#7880a0' };
 }
 
-function SidebarField({ label, type = 'text', value, onChange, placeholder }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <label style={{ fontSize: 10, color: MUTED, lineHeight: 1 }}>{label}</label>
-      <input
-        type={type}
-        value={value ?? ''}
-        placeholder={placeholder}
-        onChange={e => onChange?.(e.target.value)}
-        style={{ background: 'var(--bg)', border: `1px solid ${BRD}`, borderRadius: 5, padding: '4px 6px', fontSize: 12, color: TEXT, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
-      />
+
+// ── Lead Info floating panel (shared between desktop & mobile) ───────────────
+function LeadInfoPanel({ item, leadPopup, leadPopupLoading, onClose }) {
+  const InfoRow = ({ icon, label, value }) => value ? (
+    <div style={{ display: 'flex', gap: 6, fontSize: 12, alignItems: 'flex-start' }}>
+      <span style={{ flexShrink: 0 }}>{icon}</span>
+      <span style={{ color: MUTED, flexShrink: 0, minWidth: 70 }}>{label}:</span>
+      <span style={{ color: TEXT }}>{value}</span>
     </div>
+  ) : null;
+  const SectionHeader = ({ icon, label, color }) => (
+    <div style={{ fontSize: 9, fontWeight: 700, color: color || MUTED, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+      <span>{icon}</span>{label}
+    </div>
+  );
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
+      <div style={{
+        position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 50,
+        width: 300, background: SURF, border: `1px solid ${BRD}`,
+        borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
+        overflow: 'hidden',
+      }}>
+        <div style={{ padding: '10px 14px', borderBottom: `1px solid ${BRD}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(45,212,191,0.06)' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: TEXT }}>👤 Lead Info</span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {item.lead_id && (
+              <a href={`/leads?open=${item.lead_id}`} style={{ fontSize: 11, color: ACCENT, textDecoration: 'none', fontWeight: 600 }}>Abrir lead →</a>
+            )}
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
+          </div>
+        </div>
+        {leadPopupLoading ? (
+          <div style={{ padding: '20px 14px', display: 'flex', alignItems: 'center', gap: 8, color: MUTED, fontSize: 12 }}>
+            <span style={{ width: 14, height: 14, border: `2px solid ${ACCENT}`, borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />
+            Cargando...
+          </div>
+        ) : leadPopup ? (() => {
+          const s = leadPopup.solar || {};
+          return (
+            <div style={{ maxHeight: 500, overflowY: 'auto' }}>
+              <div style={{ padding: '10px 14px', borderBottom: `1px solid ${BRD}` }}>
+                <SectionHeader icon="👤" label="Contacto" />
+                <div style={{ fontSize: 13, fontWeight: 600, color: TEXT, marginBottom: 4 }}>{leadPopup.lead?.contact_name || '—'}</div>
+                {leadPopup.lead?.contact_phone && (
+                  <a href={`tel:${leadPopup.lead.contact_phone}`} style={{ fontSize: 12, color: ACCENT, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                    📞 {leadPopup.lead.contact_phone}
+                  </a>
+                )}
+                {leadPopup.lead?.contact_email && <div style={{ fontSize: 11, color: MUTED, marginBottom: 4 }}>✉️ {leadPopup.lead.contact_email}</div>}
+                {leadPopup.lead?.stage_name && (
+                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: `${leadPopup.lead.stage_color || ACCENT}22`, color: leadPopup.lead.stage_color || ACCENT, border: `1px solid ${leadPopup.lead.stage_color || ACCENT}44` }}>
+                    {leadPopup.lead.stage_name}
+                  </span>
+                )}
+              </div>
+              {(s.tipo_sistema || s.consumo_kwh || s.direccion || s.notas) && (
+                <div style={{ padding: '10px 14px', borderBottom: `1px solid ${BRD}` }}>
+                  <SectionHeader icon="☀️" label="Info Solar" />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <InfoRow icon="⚡" label="Sistema" value={s.tipo_sistema} />
+                    <InfoRow icon="📊" label="Consumo" value={s.consumo_kwh} />
+                    <InfoRow icon="📍" label="Dirección" value={s.direccion} />
+                    {s.notas && (
+                      <div style={{ marginTop: 2, fontSize: 11, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 6, padding: '5px 8px', color: '#d97706' }}>📌 {s.notas}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {leadPopup.tags?.length > 0 && (
+                <div style={{ padding: '10px 14px' }}>
+                  <SectionHeader icon="🏷️" label="Tags" />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {leadPopup.tags.map(tag => (
+                      <span key={tag.tag} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: `${tag.color || ACCENT}22`, color: tag.color || ACCENT, border: `1px solid ${tag.color || ACCENT}44` }}>
+                        {tag.tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })() : null}
+      </div>
+    </>
   );
 }
 
 // ── Panel de chat derecho (estilo Kommo) ─────────────────────────────────────
-function ChatRight({ item, onClose, showBack = false, onSent, onRead }) {
+function ChatRight({ item, onClose, showBack = false, onSent, onRead, isMobile = false }) {
   const { lang } = useLang();
   const [messages, setMessages] = useState(null);
   const [quickReplies, setQuickReplies] = useState([]);
@@ -67,19 +142,35 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead }) {
   const [resumen, setResumen] = useState(null);
   const [resumenLoading, setResumenLoading] = useState(false);
   const [showResumen, setShowResumen] = useState(false);
+  const [showLeadInfo, setShowLeadInfo] = useState(false);
+  const [leadPopup, setLeadPopup] = useState(null); // { lead, trip, tags }
+  const [leadPopupLoading, setLeadPopupLoading] = useState(false);
+  const leadInfoRef = useRef(null);
   const [showAsistente, setShowAsistente] = useState(false);
   const [asistenteMessages, setAsistenteMessages] = useState([]);
   const [asistenteInput, setAsistenteInput] = useState('');
   const [asistenteLoading, setAsistenteLoading] = useState(false);
   const asistenteBottomRef = useRef(null);
   const asistenteInputRef = useRef(null);
-  const [leadInfoOpen, setLeadInfoOpen] = useState(true);
-  const [leadData, setLeadData] = useState(null);
-  const [tripData, setTripData] = useState({});
-  const [tagsData, setTagsData] = useState([]);
-  const [notesData, setNotesData] = useState([]);
-  const [tripDirty, setTripDirty] = useState(false);
-  const tripSaveTimer = useRef(null);
+
+  const toggleLeadInfo = async () => {
+    if (showLeadInfo) { setShowLeadInfo(false); return; }
+    setShowLeadInfo(true);
+    if (leadPopup?.leadId === item.lead_id) return; // already loaded
+    setLeadPopupLoading(true);
+    try {
+      const [lead, trip, tags] = await Promise.all([
+        api.lead(item.lead_id),
+        api.tripInfo(item.lead_id),
+        api.tags(item.lead_id),
+      ]);
+      setLeadPopup({ leadId: item.lead_id, lead: lead?.data || lead, trip: trip || {}, tags: tags || [] });
+    } catch {}
+    finally { setLeadPopupLoading(false); }
+  };
+
+  // Close lead popup when conversation changes
+  useEffect(() => { setShowLeadInfo(false); setLeadPopup(null); }, [item.lead_id]);
 
   const generarResumen = async () => {
     if (resumenLoading) return;
@@ -152,29 +243,6 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead }) {
   }, [item.lead_id]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  // Load lead info when conversation changes
-  useEffect(() => {
-    if (!item.lead_id) return;
-    setLeadData(null);
-    setTripData({});
-    setTagsData([]);
-    setNotesData([]);
-    setTripDirty(false);
-    api.lead(item.lead_id).then(d => setLeadData(d?.data || d)).catch(() => {});
-    api.tripInfo(item.lead_id).then(d => { setTripData(d || {}); setTripDirty(false); }).catch(() => {});
-    api.tags(item.lead_id).then(d => setTagsData(d || [])).catch(() => {});
-    api.notes(item.lead_id).then(d => setNotesData(d || [])).catch(() => {});
-  }, [item.lead_id]);
-
-  // Auto-save trip info with 1.5s debounce
-  useEffect(() => {
-    if (!tripDirty || !item.lead_id) return;
-    clearTimeout(tripSaveTimer.current);
-    tripSaveTimer.current = setTimeout(async () => {
-      try { await api.saveTripInfo(item.lead_id, tripData); setTripDirty(false); } catch {}
-    }, 1500);
-    return () => clearTimeout(tripSaveTimer.current);
-  }, [tripData, tripDirty, item.lead_id]);
 
   const enviar = async () => {
     if (!text.trim() || sending) return;
@@ -221,167 +289,140 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead }) {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'row', background: BG, minWidth: 0, overflow: 'hidden' }}>
 
-      {/* ── LEFT: Lead Info Panel ─────────────────────────────────────────────── */}
-      <div style={{ width: leadInfoOpen ? 280 : 0, overflowY: leadInfoOpen ? 'auto' : 'hidden', overflowX: 'hidden', flexShrink: 0, background: SURF, borderRight: leadInfoOpen ? `1px solid ${BRD}` : 'none', transition: 'width 0.2s ease' }}>
-        <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-          {/* Panel header */}
-          <div style={{ padding: '0 14px', height: 56, borderBottom: `1px solid ${BRD}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, boxSizing: 'border-box' }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: TEXT }}>Lead Info</span>
-            {item.lead_id && (
-              <a href={`/leads?open=${item.lead_id}`} style={{ fontSize: 10, color: ACCENT, textDecoration: 'none' }}>
-                Full lead →
-              </a>
-            )}
-          </div>
-
-          {!leadData ? (
-            <div style={{ padding: 16, color: MUTED, fontSize: 12 }}>Loading...</div>
-          ) : (
-            <>
-              {/* Contact */}
-              <div style={{ padding: '10px 14px', borderBottom: `1px solid ${BRD}` }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Contact</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <div style={{ fontSize: 13, color: TEXT, fontWeight: 600 }}>{leadData.contact_name || '—'}</div>
-                  {leadData.contact_phone && (
-                    <a href={`tel:${leadData.contact_phone}`} style={{ fontSize: 12, color: ACCENT, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      📞 {leadData.contact_phone}
-                    </a>
-                  )}
-                  {leadData.contact_email && (
-                    <div style={{ fontSize: 11, color: MUTED, wordBreak: 'break-all' }}>{leadData.contact_email}</div>
-                  )}
-                  {leadData.value > 0 && (
-                    <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>${Number(leadData.value).toLocaleString()}</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Trip Info */}
-              <div style={{ padding: '10px 14px', borderBottom: `1px solid ${BRD}` }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>Trip Info</span>
-                  {tripDirty && <span style={{ fontSize: 9, color: MUTED, fontWeight: 400 }}>● saving...</span>}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <SidebarField label="Hotel / Airbnb" value={tripData.hotel} onChange={v => { setTripData(p => ({...p, hotel: v})); setTripDirty(true); }} />
-                  <SidebarField label="Host" value={tripData.host} onChange={v => { setTripData(p => ({...p, host: v})); setTripDirty(true); }} />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    <SidebarField label="Check-in" type="date" value={tripData.check_in} onChange={v => { setTripData(p => ({...p, check_in: v})); setTripDirty(true); }} />
-                    <SidebarField label="Check-out" type="date" value={tripData.check_out} onChange={v => { setTripData(p => ({...p, check_out: v})); setTripDirty(true); }} />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    <SidebarField label="People" type="number" value={tripData.people} onChange={v => { setTripData(p => ({...p, people: v})); setTripDirty(true); }} />
-                    <SidebarField label="Adults" type="number" value={tripData.adults} onChange={v => { setTripData(p => ({...p, adults: v})); setTripDirty(true); }} />
-                  </div>
-                  <SidebarField label="Kids" type="number" value={tripData.kids} onChange={v => { setTripData(p => ({...p, kids: v})); setTripDirty(true); }} />
-                  <SidebarField label="Interests" value={tripData.interests} onChange={v => { setTripData(p => ({...p, interests: v})); setTripDirty(true); }} />
-                  <SidebarField label="Special Notes" value={tripData.special_notes} onChange={v => { setTripData(p => ({...p, special_notes: v})); setTripDirty(true); }} />
-                </div>
-              </div>
-
-              {/* Tags */}
-              {tagsData.length > 0 && (
-                <div style={{ padding: '10px 14px' }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Tags</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {tagsData.map(tag => (
-                      <span key={tag.tag} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: tag.color ? `${tag.color}22` : 'rgba(27,154,245,0.15)', color: tag.color || ACCENT, border: `1px solid ${tag.color ? tag.color + '44' : 'rgba(27,154,245,0.3)'}` }}>
-                        {tag.tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Toggle button */}
-      <button
-        onClick={() => setLeadInfoOpen(o => !o)}
-        title={leadInfoOpen ? 'Collapse info' : 'Expand info'}
-        style={{ flexShrink: 0, width: 14, border: 'none', background: SURF, borderRight: `1px solid ${BRD}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, padding: 0 }}
-        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-        onMouseLeave={e => e.currentTarget.style.background = SURF}
-      >
-        <svg width="8" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 8 12">
-          {leadInfoOpen ? <path d="M6 2L2 6L6 10"/> : <path d="M2 2L6 6L2 10"/>}
-        </svg>
-      </button>
-
       {/* ── RIGHT: Chat ───────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
       {/* Chat header */}
-      <div style={{ padding: '0 20px', height: 56, borderBottom: `1px solid ${BRD}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: SURF }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {showBack && (
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, padding: '4px 8px 4px 0', display: 'flex', alignItems: 'center' }}>
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-            </button>
+      <div style={{ borderBottom: `1px solid ${BRD}`, flexShrink: 0, background: SURF }}>
+
+        {/* Fila 1: back + avatar + nombre + botones (desktop inline, mobile ← avatar nombre ⋯) */}
+        <div style={{ padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+            {showBack && (
+              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, padding: '4px 8px 4px 0', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+            )}
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#2a3a6e', color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+              {initials(item.contact_name)}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: TEXT, fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.contact_name || 'Sin nombre'}</div>
+              <div style={{ color: MUTED, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.lead_title || `Conversación Nº ${item.lead_id}`}</div>
+            </div>
+          </div>
+
+          {/* Desktop: botones de acción inline */}
+          {!isMobile && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative', flexShrink: 0 }} ref={leadInfoRef}>
+              {item.lead_id && (
+                <button onClick={toggleLeadInfo} style={{
+                  fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
+                  border: `1px solid ${showLeadInfo ? ACCENT : BRD}`,
+                  background: showLeadInfo ? `rgba(45,212,191,0.12)` : 'transparent',
+                  color: showLeadInfo ? ACCENT : MUTED,
+                  display: 'flex', alignItems: 'center', gap: 4, fontWeight: showLeadInfo ? 600 : 400,
+                }}>👤 Lead</button>
+              )}
+
+              {/* Floating Lead Info panel — Desktop */}
+              {showLeadInfo && <LeadInfoPanel item={item} leadPopup={leadPopup} leadPopupLoading={leadPopupLoading} onClose={() => setShowLeadInfo(false)} />}
+
+              {item.lead_id && (
+                <button onClick={() => onRead?.(item.lead_id)} style={{
+                  fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
+                  border: `1px solid rgba(16,185,129,0.35)`,
+                  background: 'rgba(16,185,129,0.08)',
+                  color: '#10b981', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600,
+                }}>✓ Mark as read</button>
+              )}
+              <button onClick={generarResumen} style={{
+                fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
+                border: `1px solid ${showResumen ? '#8b5cf6' : BRD}`,
+                background: showResumen ? 'rgba(139,92,246,0.15)' : 'transparent',
+                color: showResumen ? '#8b5cf6' : MUTED,
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}>
+                {resumenLoading ? <span style={{ width: 10, height: 10, border: `1.5px solid #8b5cf6`, borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} /> : '✦'}
+                Resumen IA
+              </button>
+              <button onClick={() => { setShowAsistente(p => !p); setShowResumen(false); }} style={{
+                fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
+                border: `1px solid ${showAsistente ? '#1b9af5' : BRD}`,
+                background: showAsistente ? 'rgba(59,130,246,0.15)' : 'transparent',
+                color: showAsistente ? '#1b9af5' : MUTED,
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}>✦ Asistente</button>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[{ k: 'auto', l: 'Auto' }, { k: 'sms', l: 'SMS' }, { k: 'whatsapp', l: 'WA' }].map(c => (
+                  <button key={c.k} onClick={() => setChannel(c.k)} style={{
+                    fontSize: 11, padding: '3px 8px', borderRadius: 4, border: `1px solid ${channel === c.k ? ACCENT : BRD}`,
+                    background: channel === c.k ? `rgba(59,130,246,0.15)` : 'transparent',
+                    color: channel === c.k ? ACCENT : MUTED, cursor: 'pointer',
+                  }}>{c.l}</button>
+                ))}
+              </div>
+              {!showBack && <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: 20, lineHeight: 1 }}>✕</button>}
+            </div>
           )}
-          <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#2a3a6e', color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>
-            {initials(item.contact_name)}
-          </div>
-          <div>
-            <div style={{ color: TEXT, fontWeight: 600, fontSize: 14 }}>{item.contact_name || 'Sin nombre'}</div>
-            <div style={{ color: MUTED, fontSize: 11 }}>{item.lead_title || `Conversación Nº ${item.lead_id}`}</div>
-          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Toggle lead info panel */}
-          {item.lead_id && (
-            <button onClick={() => setLeadInfoOpen(o => !o)} style={{
-              fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
-              border: `1px solid ${leadInfoOpen ? 'rgba(0,201,167,0.6)' : 'rgba(0,201,167,0.3)'}`,
-              background: leadInfoOpen ? 'rgba(0,201,167,0.18)' : 'rgba(0,201,167,0.07)',
-              color: '#00c9a7', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600,
-            }}>👤 {leadInfoOpen ? 'Hide Info' : 'Lead Info'}</button>
-          )}
-          {/* Mark as read */}
-          {item.lead_id && (
-            <button onClick={() => onRead?.(item.lead_id)} style={{
-              fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
-              border: `1px solid rgba(16,185,129,0.35)`,
-              background: 'rgba(16,185,129,0.08)',
-              color: '#10b981', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600,
-            }}>✓ Mark as read</button>
-          )}
-          {/* Resumen IA */}
-          <button onClick={generarResumen} style={{
-            fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
-            border: `1px solid ${showResumen ? '#8b5cf6' : BRD}`,
-            background: showResumen ? 'rgba(139,92,246,0.15)' : 'transparent',
-            color: showResumen ? '#8b5cf6' : MUTED,
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}>
-            {resumenLoading
-              ? <span style={{ width: 10, height: 10, border: `1.5px solid #8b5cf6`, borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />
-              : '✦'
-            }
-            Resumen IA
-          </button>
-          {/* Asistente IA */}
-          <button onClick={() => { setShowAsistente(p => !p); setShowResumen(false); }} style={{
-            fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
-            border: `1px solid ${showAsistente ? '#1b9af5' : BRD}`,
-            background: showAsistente ? 'rgba(59,130,246,0.15)' : 'transparent',
-            color: showAsistente ? '#1b9af5' : MUTED,
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}>✦ Asistente</button>
-          {/* Canal selector */}
-          <div style={{ display: 'flex', gap: 4 }}>
-            {[{ k: 'auto', l: 'Auto' }, { k: 'sms', l: 'SMS' }, { k: 'whatsapp', l: 'WA' }].map(c => (
-              <button key={c.k} onClick={() => setChannel(c.k)} style={{
-                fontSize: 11, padding: '3px 8px', borderRadius: 4, border: `1px solid ${channel === c.k ? ACCENT : BRD}`,
-                background: channel === c.k ? `rgba(59,130,246,0.15)` : 'transparent',
+
+        {/* Fila 2 (solo móvil): chips de acción horizontales scrollables */}
+        {isMobile && (
+          <div style={{ overflowX: 'auto', whiteSpace: 'nowrap', padding: '6px 12px 8px', display: 'flex', gap: 8, position: 'relative' }} ref={leadInfoRef}>
+            {item.lead_id && (
+              <button onClick={toggleLeadInfo} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 12, padding: '5px 12px', borderRadius: 16, cursor: 'pointer',
+                border: `1px solid ${showLeadInfo ? ACCENT : BRD}`,
+                background: showLeadInfo ? `rgba(45,212,191,0.12)` : SURF2,
+                color: showLeadInfo ? ACCENT : TEXT, fontWeight: showLeadInfo ? 600 : 400,
+                flexShrink: 0, whiteSpace: 'nowrap',
+              }}>👤 Lead</button>
+            )}
+            {item.lead_id && (
+              <button onClick={() => onRead?.(item.lead_id)} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 12, padding: '5px 12px', borderRadius: 16, cursor: 'pointer',
+                border: `1px solid rgba(16,185,129,0.35)`,
+                background: 'rgba(16,185,129,0.08)', color: '#10b981', fontWeight: 600,
+                flexShrink: 0, whiteSpace: 'nowrap',
+              }}>✓ Leído</button>
+            )}
+            <button onClick={generarResumen} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 12, padding: '5px 12px', borderRadius: 16, cursor: 'pointer',
+              border: `1px solid ${showResumen ? '#8b5cf6' : BRD}`,
+              background: showResumen ? 'rgba(139,92,246,0.15)' : SURF2,
+              color: showResumen ? '#8b5cf6' : TEXT,
+              flexShrink: 0, whiteSpace: 'nowrap',
+            }}>
+              {resumenLoading ? <span style={{ width: 10, height: 10, border: `1.5px solid #8b5cf6`, borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} /> : '✦'}
+              Resumen
+            </button>
+            <button onClick={() => { setShowAsistente(p => !p); setShowResumen(false); }} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 12, padding: '5px 12px', borderRadius: 16, cursor: 'pointer',
+              border: `1px solid ${showAsistente ? '#1b9af5' : BRD}`,
+              background: showAsistente ? 'rgba(59,130,246,0.15)' : SURF2,
+              color: showAsistente ? '#1b9af5' : TEXT,
+              flexShrink: 0, whiteSpace: 'nowrap',
+            }}>🤖 Asistente</button>
+            {/* Canal selector inline en chips */}
+            {[{ k: 'sms', l: 'SMS' }, { k: 'whatsapp', l: 'WA' }].map(c => (
+              <button key={c.k} onClick={() => setChannel(c.k === channel ? 'auto' : c.k)} style={{
+                display: 'inline-flex', alignItems: 'center',
+                fontSize: 12, padding: '5px 12px', borderRadius: 16,
+                border: `1px solid ${channel === c.k ? ACCENT : BRD}`,
+                background: channel === c.k ? `rgba(59,130,246,0.15)` : SURF2,
                 color: channel === c.k ? ACCENT : MUTED, cursor: 'pointer',
+                flexShrink: 0, whiteSpace: 'nowrap',
               }}>{c.l}</button>
             ))}
+
+            {/* Lead Info floating panel — móvil, anchored to chips row */}
+            {showLeadInfo && <LeadInfoPanel item={item} leadPopup={leadPopup} leadPopupLoading={leadPopupLoading} onClose={() => setShowLeadInfo(false)} />}
           </div>
-          {!showBack && <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: 20, lineHeight: 1 }}>✕</button>}
-        </div>
+        )}
       </div>
 
       {/* Panel resumen IA */}
@@ -468,11 +509,10 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead }) {
             Cargando...
           </div>
         )}
-        {messages?.length === 0 && notesData.length === 0 && <div style={{ color: MUTED, textAlign: 'center', marginTop: 40, fontSize: 13 }}>Sin mensajes</div>}
+        {messages?.length === 0 && <div style={{ color: MUTED, textAlign: 'center', marginTop: 40, fontSize: 13 }}>Sin mensajes</div>}
         {messages && (() => {
           const timeline = [
             ...messages.map(m => ({ ...m, _type: 'msg' })),
-            ...notesData.map(n => ({ ...n, _type: 'note' })),
           ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
           return timeline.map((entry) => {
             if (entry._type === 'note') {
@@ -504,13 +544,13 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead }) {
             return (
             <div key={`msg-${msgKey}`} style={{ display: 'flex', justifyContent: entrante ? 'flex-start' : 'flex-end' }}>
               <div style={{
-                maxWidth: '72%',
+                maxWidth: isMobile ? '85%' : '72%',
                 background: entrante ? SURF2 : m.is_bot ? 'rgba(139,92,246,0.2)' : 'rgba(59,130,246,0.25)',
                 border: entrante ? `1px solid ${BRD}` : m.is_bot ? '1px solid rgba(139,92,246,0.4)' : `1px solid rgba(59,130,246,0.4)`,
                 borderRadius: entrante ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
-                padding: '10px 14px',
+                padding: isMobile ? '8px 12px' : '10px 14px',
               }}>
-                <div style={{ color: TEXT, fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{m.text}</div>
+                <div style={{ color: TEXT, fontSize: isMobile ? 14 : 13, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{m.text}</div>
                 {/* Media thumbnails */}
                 {Array.isArray(m.media_urls) && m.media_urls.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
@@ -556,19 +596,19 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead }) {
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: entrante ? 'flex-start' : 'flex-end', gap: 6, marginTop: 4 }}>
                   {!entrante && (
-                    <span style={{ fontSize: 10, color: m.is_bot ? 'rgba(139,92,246,0.7)' : 'rgba(59,130,246,0.7)' }}>
-                      {m.is_bot ? 'Bot IA' : (m.sent_by_name || 'Agente')} ✓ Entregado
+                    <span style={{ fontSize: isMobile ? 10 : 10, color: m.is_bot ? 'rgba(139,92,246,0.7)' : 'rgba(59,130,246,0.7)', opacity: isMobile ? 0.7 : 1 }}>
+                      {m.is_bot ? 'Bot IA' : (m.sent_by_name || 'Agente')} ✓
                     </span>
                   )}
                   {entrante && m.channel && (
-                    <span style={{ fontSize: 10, color: channelIcon(m.channel).color }}>{m.channel}</span>
+                    <span style={{ fontSize: isMobile ? 10 : 10, color: channelIcon(m.channel).color, opacity: isMobile ? 0.7 : 1 }}>{m.channel}</span>
                   )}
                   {entrante && (
-                    <button onClick={toggleTranslate} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: tr?.text ? ACCENT : MUTED, padding: '0 2px' }}>
-                      🌐 {tr?.text ? 'Ocultar' : 'Traducir'}
+                    <button onClick={toggleTranslate} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: isMobile ? 10 : 10, color: tr?.text ? ACCENT : MUTED, padding: '0 2px', opacity: isMobile ? 0.7 : 1 }}>
+                      {tr?.text ? 'Ocultar' : 'Traducir'}
                     </button>
                   )}
-                  <span style={{ fontSize: 10, color: MUTED }}>{tiempoRelativo(m.created_at, lang)}</span>
+                  <span style={{ fontSize: isMobile ? 10 : 10, color: MUTED, opacity: isMobile ? 0.6 : 1 }}>{tiempoRelativo(m.created_at, lang)}</span>
                 </div>
               </div>
             </div>
@@ -612,50 +652,75 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead }) {
 
       {/* Input — estilo Kommo */}
       <div style={{ flexShrink: 0, borderTop: `1px solid ${BRD}`, background: SURF }}>
-        <div style={{ padding: '12px 16px 8px', borderBottom: `1px solid ${BRD}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: ACCENT, fontSize: 12, fontWeight: 500 }}>Chat</span>
-          <span style={{ color: MUTED, fontSize: 12 }}>para</span>
-          <span style={{ color: ACCENT, fontSize: 12, fontWeight: 500 }}>{item.contact_name} ({item.lead_id})</span>
-          {quickReplies.length > 0 && (
-            <button onClick={() => setShowQR(p => !p)} style={{ marginLeft: 4, background: showQR ? `rgba(59,130,246,0.15)` : 'none', border: `1px solid ${showQR ? ACCENT : BRD}`, borderRadius: 4, padding: '2px 6px', color: showQR ? ACCENT : MUTED, fontSize: 11, cursor: 'pointer' }}>
-              ⚡ Plantillas
+        {/* Barra superior del composer (oculta en móvil para ahorrar espacio) */}
+        {!isMobile && (
+          <div style={{ padding: '12px 16px 8px', borderBottom: `1px solid ${BRD}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: ACCENT, fontSize: 12, fontWeight: 500 }}>Chat</span>
+            <span style={{ color: MUTED, fontSize: 12 }}>para</span>
+            <span style={{ color: ACCENT, fontSize: 12, fontWeight: 500 }}>{item.contact_name} ({item.lead_id})</span>
+            {quickReplies.length > 0 && (
+              <button onClick={() => setShowQR(p => !p)} style={{ marginLeft: 4, background: showQR ? `rgba(59,130,246,0.15)` : 'none', border: `1px solid ${showQR ? ACCENT : BRD}`, borderRadius: 4, padding: '2px 6px', color: showQR ? ACCENT : MUTED, fontSize: 11, cursor: 'pointer' }}>
+                ⚡ Plantillas
+              </button>
+            )}
+            <button
+              onClick={traducir}
+              disabled={translating || !text.trim()}
+              title="Traducir al inglés (ES → EN)"
+              style={{ marginLeft: 4, background: wasTranslated ? 'rgba(16,185,129,0.15)' : 'none', border: `1px solid ${wasTranslated ? '#10b981' : BRD}`, borderRadius: 4, padding: '2px 8px', color: wasTranslated ? '#10b981' : MUTED, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: (!text.trim() || translating) ? 0.5 : 1 }}
+            >
+              {translating
+                ? <span style={{ width: 10, height: 10, border: `1.5px solid ${MUTED}`, borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />
+                : '🌐'
+              }
+              {wasTranslated ? 'Traducido ✓' : 'ES → EN'}
             </button>
+            <span style={{ marginLeft: 'auto', color: MUTED, fontSize: 11 }}>Conversación Nº {item.lead_id}</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'flex-end', padding: isMobile ? '8px 10px 10px' : '8px 12px 12px', gap: 8 }}>
+          {/* Botón de templates en móvil — al lado del textarea */}
+          {isMobile && quickReplies.length > 0 && (
+            <button onClick={() => setShowQR(p => !p)} style={{
+              background: showQR ? `rgba(59,130,246,0.15)` : SURF2,
+              border: `1px solid ${showQR ? ACCENT : BRD}`, borderRadius: 8,
+              minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: showQR ? ACCENT : MUTED, fontSize: 18, cursor: 'pointer', flexShrink: 0,
+            }}>⚡</button>
           )}
-          <button
-            onClick={traducir}
-            disabled={translating || !text.trim()}
-            title="Traducir al inglés (ES → EN)"
-            style={{ marginLeft: 4, background: wasTranslated ? 'rgba(16,185,129,0.15)' : 'none', border: `1px solid ${wasTranslated ? '#10b981' : BRD}`, borderRadius: 4, padding: '2px 8px', color: wasTranslated ? '#10b981' : MUTED, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: (!text.trim() || translating) ? 0.5 : 1 }}
-          >
-            {translating
-              ? <span style={{ width: 10, height: 10, border: `1.5px solid ${MUTED}`, borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />
-              : '🌐'
-            }
-            {wasTranslated ? 'Traducido ✓' : 'ES → EN'}
-          </button>
-          <span style={{ marginLeft: 'auto', color: MUTED, fontSize: 11 }}>Conversación Nº {item.lead_id}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', padding: '8px 12px 12px', gap: 8 }}>
           <textarea
             ref={inputRef}
-            rows={2}
+            rows={isMobile ? 1 : 2}
             value={text}
             onChange={e => { setText(e.target.value); setWasTranslated(false); }}
             onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) enviar(); }}
-            placeholder="Escribe en español y usa 🌐 ES→EN para traducir..."
+            placeholder={isMobile ? 'Escribe un mensaje...' : 'Escribe en español y usa 🌐 ES→EN para traducir...'}
             style={{
-              flex: 1, background: 'transparent', border: 'none', outline: 'none',
+              flex: 1, background: isMobile ? SURF2 : 'transparent',
+              border: isMobile ? `1px solid ${BRD}` : 'none',
+              borderRadius: isMobile ? 10 : 0,
+              padding: isMobile ? '10px 12px' : 0,
+              outline: 'none',
               color: TEXT, fontSize: 13, resize: 'none', fontFamily: 'inherit', lineHeight: 1.5,
-              placeholder: MUTED,
             }}
           />
           <button onClick={enviar} disabled={sending || !text.trim()} style={{
             background: text.trim() && !sending ? ACCENT : BRD,
-            border: 'none', borderRadius: 8, padding: '8px 18px', color: '#fff',
-            fontSize: 13, fontWeight: 600, cursor: text.trim() && !sending ? 'pointer' : 'not-allowed',
-            flexShrink: 0,
+            border: 'none', borderRadius: 8,
+            padding: isMobile ? '0' : '8px 18px',
+            minWidth: isMobile ? 44 : 'auto',
+            minHeight: isMobile ? 44 : 'auto',
+            width: isMobile ? 44 : 'auto',
+            height: isMobile ? 44 : 'auto',
+            color: '#fff',
+            fontSize: isMobile ? 18 : 13, fontWeight: 600,
+            cursor: text.trim() && !sending ? 'pointer' : 'not-allowed',
+            flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {sending ? '...' : 'Enviar'}
+            {sending
+              ? (isMobile ? <span style={{ width: 16, height: 16, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} /> : '...')
+              : (isMobile ? '↑' : 'Enviar')
+            }
           </button>
         </div>
       </div>
@@ -805,33 +870,46 @@ function ConvItem({ item, active, onClick, isUnread, lang = 'es' }) {
     >
       {/* Avatar con canal badge */}
       <div style={{ position: 'relative', flexShrink: 0 }}>
-        <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#2a3a6e', color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16 }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #1e3a5f 0%, #2a4a80 100%)', color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, boxShadow: '0 2px 6px rgba(0,0,0,0.35)', border: '1px solid rgba(45,212,191,0.18)' }}>
           {initial}
         </div>
         {item.channel && (
-          <div style={{ position: 'absolute', bottom: -1, right: -1, width: 14, height: 14, borderRadius: '50%', background: SURF, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: ch.color, border: `1px solid ${BRD}` }}>
-            {item.channel === 'whatsapp' ? '●' : item.channel === 'web' ? '●' : '●'}
+          <div style={{ position: 'absolute', bottom: -1, right: -1, width: 13, height: 13, borderRadius: '50%', background: SURF, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 7, color: ch.color, border: `1px solid ${BRD}` }}>
+            ●
           </div>
         )}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Name + badge + time */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        {/* Name + time row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
           <span style={{ color: TEXT, fontWeight: 600, fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {item.contact_name || 'Sin nombre'}
           </span>
           {/* Unread indicator */}
           {isUnread && (
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00c9a7', flexShrink: 0, display: 'inline-block' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#00c9a7', flexShrink: 0, display: 'inline-block' }} />
           )}
-          {/* Lead badge estilo Kommo */}
+          <span style={{ color: MUTED, fontSize: 10, flexShrink: 0 }}>{tiempoRelativo(item.created_at, lang)}</span>
+        </div>
+        {/* Stage badge + lead ID badge row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3, flexWrap: 'wrap' }}>
+          {/* Stage badge estilo Kommo — verde con nombre truncado */}
+          {item.stage_name && (
+            <span style={{
+              background: '#22c55e', color: '#fff', fontSize: 10, padding: '1px 6px',
+              borderRadius: 3, fontWeight: 600, flexShrink: 0, maxWidth: 120,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {item.stage_name.length > 14 ? item.stage_name.slice(0, 12).toUpperCase() + '…' : item.stage_name.toUpperCase()}
+            </span>
+          )}
+          {/* Lead ID badge */}
           <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(0,201,167,0.15)', color: '#00c9a7', flexShrink: 0, letterSpacing: 0.5 }}>
             A{String(item.lead_id).padStart(4, '0')}
           </span>
-          <span style={{ color: MUTED, fontSize: 10, flexShrink: 0 }}>{tiempoRelativo(item.created_at, lang)}</span>
         </div>
-        {/* Preview */}
+        {/* Preview — 2 líneas */}
         <div style={{ color: MUTED, fontSize: 12, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4 }}>
           {item.direction === 'outbound' && <span style={{ color: item.is_bot ? 'rgba(139,92,246,0.8)' : 'rgba(59,130,246,0.8)', marginRight: 4, fontSize: 11 }}>{item.is_bot ? 'Bot IA' : 'Tú'}:</span>}
           {item.text || 'Sin mensajes'}
@@ -919,7 +997,7 @@ export default function InboxPage() {
   const showChat = !isMobile || !!selectedItem;
 
   return (
-    <div style={{ display: 'flex', height: isMobile ? 'calc(100vh - 52px)' : '100vh', background: BG, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: isMobile ? 'calc(100dvh - 56px - 60px)' : '100vh', background: BG, overflow: 'hidden' }}>
 
       {/* ── Panel izquierdo — lista de conversaciones ── */}
       <div style={{
@@ -1006,24 +1084,38 @@ export default function InboxPage() {
           ))}
         </div>
 
-        {/* Menciones & Chats de Equipo — botón funcional */}
-        <button
-          onClick={() => { setTeamChatOpen(v => !v); setSelected(null); }}
-          style={{
-            padding: '11px 16px', borderTop: `1px solid ${BRD}`,
-            color: teamChatOpen ? ACCENT : MUTED,
-            fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: teamChatOpen ? 'rgba(27,154,245,0.08)' : 'transparent',
-            border: 'none', borderTop: `1px solid ${BRD}`, width: '100%', textAlign: 'left',
-            transition: 'background 0.15s, color 0.15s',
-          }}
-        >
-          <span>MENCIONES &amp; CHATS DE EQUIPO</span>
-          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d={teamChatOpen ? 'M19 9l-7 7-7-7' : 'M9 5l7 7-7 7'} />
-          </svg>
-        </button>
+        {/* ── Separador Menciones & Chats de equipo — estilo Kommo ── */}
+        <div style={{ borderTop: `1px solid ${BRD}`, flexShrink: 0 }}>
+          <button
+            onClick={() => { setTeamChatOpen(v => !v); setSelected(null); }}
+            style={{
+              width: '100%', padding: '9px 16px',
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: teamChatOpen ? 'rgba(27,154,245,0.08)' : 'transparent',
+              border: 'none', cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => { if (!teamChatOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+            onMouseLeave={e => { if (!teamChatOpen) e.currentTarget.style.background = 'transparent'; }}
+          >
+            {/* Icono equipo */}
+            <div style={{ width: 22, height: 22, borderRadius: '50%', background: teamChatOpen ? 'rgba(27,154,245,0.2)' : 'rgba(100,116,139,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="11" height="11" fill="none" stroke={teamChatOpen ? '#1b9af5' : MUTED} strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+            </div>
+            <span style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+              color: teamChatOpen ? '#1b9af5' : MUTED,
+              flex: 1, textAlign: 'left',
+            }}>
+              Menciones &amp; Chats de equipo
+            </span>
+            <svg width="11" height="11" fill="none" stroke={teamChatOpen ? '#1b9af5' : MUTED} strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d={teamChatOpen ? 'M19 9l-7 7-7-7' : 'M9 5l7 7-7 7'} />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* ── Botón colapsar/expandir lista (solo desktop) ── */}
@@ -1053,6 +1145,7 @@ export default function InboxPage() {
           item={selectedItem}
           onClose={() => setSelected(null)}
           showBack={isMobile}
+          isMobile={isMobile}
           onSent={(leadId) => {
             markRead(leadId);
             api.inbox().then(setInbox).catch(() => {});

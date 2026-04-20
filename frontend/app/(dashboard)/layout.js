@@ -33,13 +33,12 @@ function useTheme() {
   return { theme, toggle };
 }
 
-const NAV_MAIN = [
-  { href: '/dashboard', label: 'Inicio',    tKey: 'nav.home',    icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { href: '/leads',     label: 'Leads',     tKey: 'nav.leads',   icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-  { href: '/inbox',    label: 'Chats',      tKey: 'nav.chats',    icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', badge: true },
-  { href: '/calendar', label: 'Calendario', tKey: 'nav.calendar', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', taskBadge: true },
-  { href: '/llamadas', label: 'Llamadas',   tKey: 'nav.calls',    icon: 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z' },
-  { href: '/alerts',   label: 'Alertas',    tKey: 'nav.alerts',   icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', alertBadge: true },
+// Kommo-style mobile bottom nav: 4 tabs + center + button
+const NAV_MOBILE = [
+  { href: '/inbox',     label: 'Chats',  tKey: 'nav.chats',  icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', badge: true },
+  { href: '/dashboard', label: 'Inicio', tKey: 'nav.home',   icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  // center + button (special, rendered inline)
+  { href: '/leads',     label: 'Leads',  tKey: 'nav.leads',  icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
 ];
 
 // Kommo-style main sidebar items (like real Kommo)
@@ -282,6 +281,7 @@ export default function DashboardLayout({ children }) {
   const [taskCount, setTaskCount] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
   const [masOpen, setMasOpen] = useState(false);
+  const [plusOpen, setPlusOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [iosBanner, setIosBanner] = useState(false);
   const [toasts, setToasts] = useState([]);
@@ -489,47 +489,6 @@ export default function DashboardLayout({ children }) {
         </nav>
 
         {/* Flyout panel "Más" — aparece a la derecha del sidebar */}
-        {masOpen && (
-          <>
-            {/* backdrop invisible para cerrar */}
-            <div onClick={() => setMasOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
-            <div style={{
-              position: 'fixed', left: 68, top: 0, bottom: 0, width: 210, zIndex: 50,
-              background: 'var(--surface)', borderRight: '1px solid var(--border)',
-              display: 'flex', flexDirection: 'column', paddingTop: 8, paddingBottom: 16,
-              boxShadow: '4px 0 16px rgba(0,0,0,0.15)', overflowY: 'auto',
-            }}>
-              {(() => {
-                let lastSection = null;
-                return NAV_SIDEBAR_EXTRA.map(item => {
-                  const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-                  const showHeader = item.section !== lastSection;
-                  lastSection = item.section;
-                  return (
-                    <div key={item.href}>
-                      {showHeader && (
-                        <div style={{ padding: '10px 16px 4px', color: 'var(--muted)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                          {t(item.sKey, lang) || item.section}
-                        </div>
-                      )}
-                      <Link href={item.href} onClick={() => setMasOpen(false)} style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '9px 16px',
-                        color: active ? 'var(--accent)' : 'var(--text)',
-                        background: active ? 'rgba(59,130,246,0.08)' : 'transparent',
-                        textDecoration: 'none', fontSize: 13, fontWeight: active ? 600 : 400,
-                        transition: 'background 0.1s',
-                      }}>
-                        <Icono path={item.icon} size={16} filled={active} />
-                        <span>{t(item.tKey, lang)}</span>
-                      </Link>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          </>
-        )}
 
         {/* Bottom */}
         <div style={{ width: '100%', paddingBottom: 8, flexShrink: 0 }}>
@@ -583,6 +542,48 @@ export default function DashboardLayout({ children }) {
           </div>
         </div>
       </aside>
+
+      {/* ── Flyout "Más" — outside aside so overflow:hidden doesn't clip it ── */}
+      {masOpen && (
+        <>
+          <div onClick={() => setMasOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
+          <div style={{
+            position: 'fixed', left: 68, top: 0, bottom: 0, width: 210, zIndex: 50,
+            background: 'var(--surface)', borderRight: '1px solid var(--border)',
+            display: 'flex', flexDirection: 'column', paddingTop: 8, paddingBottom: 16,
+            boxShadow: '4px 0 16px rgba(0,0,0,0.15)', overflowY: 'auto',
+          }}>
+            {(() => {
+              let lastSection = null;
+              return NAV_SIDEBAR_EXTRA.map(item => {
+                const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                const showHeader = item.section !== lastSection;
+                lastSection = item.section;
+                return (
+                  <div key={item.href}>
+                    {showHeader && (
+                      <div style={{ padding: '10px 16px 4px', color: 'var(--muted)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                        {t(item.sKey, lang) || item.section}
+                      </div>
+                    )}
+                    <Link href={item.href} onClick={() => setMasOpen(false)} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '9px 16px',
+                      color: active ? 'var(--accent)' : 'var(--text)',
+                      background: active ? 'rgba(59,130,246,0.08)' : 'transparent',
+                      textDecoration: 'none', fontSize: 13, fontWeight: active ? 600 : 400,
+                      transition: 'background 0.1s',
+                    }}>
+                      <Icono path={item.icon} size={16} filled={active} />
+                      <span>{t(item.tKey, lang)}</span>
+                    </Link>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </>
+      )}
 
       {/* ── Área principal ────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', minWidth: 0 }}>
@@ -666,47 +667,117 @@ export default function DashboardLayout({ children }) {
         </main>
       </div>
 
-      {/* ── Bottom Nav MÓVIL (Instagram style) ────────────────────────────── */}
+      {/* ── Bottom Nav MÓVIL (Kommo style: 4 tabs + center button) ────────── */}
       <nav className="mobile-bottom-nav" style={{
         display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
         background: 'var(--mobile-nav-bg)', borderTop: '1px solid var(--mobile-nav-border)',
         paddingBottom: 'env(safe-area-inset-bottom, 8px)',
-        alignItems: 'stretch',
+        alignItems: 'stretch', height: 60,
       }}>
-        {NAV_MAIN.map(item => {
+        {/* Chats & Inicio (left 2) */}
+        {NAV_MOBILE.slice(0, 2).map(item => {
           const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+          const count = item.badge ? chatCount : 0;
           return (
             <Link key={item.href} href={item.href} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              padding: '10px 4px 8px', textDecoration: 'none', color: active ? 'var(--mobile-nav-active)' : 'var(--mobile-nav-icon)',
-              position: 'relative', gap: 3,
+              padding: '8px 4px 6px', textDecoration: 'none',
+              color: active ? 'var(--mobile-nav-active)' : 'var(--mobile-nav-icon)',
+              position: 'relative', gap: 2,
             }}>
               <Icono path={item.icon} size={24} filled={active} />
               <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, lineHeight: 1 }}>{t(item.tKey, lang)}</span>
-              {(item.badge || item.alertBadge) && alertCount > 0 && (
+              {item.badge && count > 0 && (
                 <span style={{
                   position: 'absolute', top: 6, right: '50%', marginRight: -18,
-                  width: 16, height: 16, background: '#f59e0b', color: '#fff',
-                  fontSize: 9, fontWeight: 700, borderRadius: '50%',
+                  minWidth: 16, height: 16, background: '#ff5b5b', color: '#fff',
+                  fontSize: 9, fontWeight: 700, borderRadius: 8, padding: '0 3px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  {alertCount > 9 ? '9+' : alertCount}
+                  {count > 9 ? '9+' : count}
                 </span>
               )}
             </Link>
           );
         })}
 
-        {/* Botón Más */}
+        {/* Centro: botón + amarillo Kommo */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => setPlusOpen(v => !v)} style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: plusOpen ? '#e6a800' : '#ffbc00',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 10px rgba(255,188,0,0.35)',
+            transition: 'background 0.15s, transform 0.15s',
+            transform: plusOpen ? 'rotate(45deg)' : 'none',
+            flexShrink: 0,
+          }}>
+            <svg width="22" height="22" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Leads (right 1) */}
+        {NAV_MOBILE.slice(2).map(item => {
+          const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+          return (
+            <Link key={item.href} href={item.href} style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              padding: '8px 4px 6px', textDecoration: 'none',
+              color: active ? 'var(--mobile-nav-active)' : 'var(--mobile-nav-icon)',
+              position: 'relative', gap: 2,
+            }}>
+              <Icono path={item.icon} size={24} filled={active} />
+              <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, lineHeight: 1 }}>{t(item.tKey, lang)}</span>
+            </Link>
+          );
+        })}
+
+        {/* Más */}
         <button onClick={() => setMoreOpen(true)} style={{
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: '10px 4px 8px', background: 'none', border: 'none', cursor: 'pointer',
-          color: moreOpen ? 'var(--mobile-nav-active)' : 'var(--mobile-nav-icon)', gap: 3,
+          padding: '8px 4px 6px', background: 'none', border: 'none', cursor: 'pointer',
+          color: moreOpen ? 'var(--mobile-nav-active)' : 'var(--mobile-nav-icon)', gap: 2,
         }}>
-          <Icono path="M4 6h16M4 12h16M4 18h16" size={24} />
+          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+            <circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+          </svg>
           <span style={{ fontSize: 10, fontWeight: 400, lineHeight: 1 }}>{t('nav.more', lang)}</span>
         </button>
       </nav>
+
+      {/* Action sheet del botón + */}
+      {plusOpen && (
+        <>
+          <div onClick={() => setPlusOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 98, background: 'rgba(0,0,0,0.5)' }} />
+          <div style={{
+            position: 'fixed', bottom: 68, left: 0, right: 0, zIndex: 99,
+            background: 'var(--surface)', borderRadius: '20px 20px 0 0',
+            borderTop: '1px solid var(--border)', padding: '16px 0 8px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
+            </div>
+            {[
+              { icon: '👤', label: 'Agregar contacto', href: '/contacts' },
+              { icon: '⚡', label: 'Agregar lead solar', href: '/leads' },
+              { icon: '✅', label: 'Agregar tarea', href: '/tasks' },
+            ].map(a => (
+              <Link key={a.href} href={a.href} onClick={() => setPlusOpen(false)} style={{
+                display: 'flex', alignItems: 'center', gap: 16,
+                padding: '14px 24px', textDecoration: 'none',
+                color: 'var(--text)',
+              }}>
+                <span style={{ fontSize: 22, width: 36, textAlign: 'center' }}>{a.icon}</span>
+                <span style={{ fontSize: 15, fontWeight: 500 }}>{a.label}</span>
+              </Link>
+            ))}
+            <div style={{ height: 'env(safe-area-inset-bottom, 8px)' }} />
+          </div>
+        </>
+      )}
 
       <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} user={user} logout={logout} alertCount={alertCount} lang={lang} />
 

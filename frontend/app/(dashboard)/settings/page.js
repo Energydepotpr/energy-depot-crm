@@ -343,13 +343,13 @@ document.addEventListener('submit', async function(e) {
       icon: '📧',
       title: 'Email',
       color: 'text-orange-400',
-      desc: 'Captura leads cuando clientes escriben a info@energydepotpr.com',
+      desc: 'Captura leads cuando clientes escriben a info@fixatrippuertorico.com',
       pasos: [
         'Crea una cuenta gratis en sendgrid.com',
         'Ve a Settings → Inbound Parse → Add Host & URL',
-        'Hostname: inbound.energydepotpr.com | URL: pega el endpoint de abajo',
+        'Hostname: inbound.fixatrippuertorico.com | URL: pega el endpoint de abajo',
         'En el DNS de tu dominio (GoDaddy, Namecheap, etc.), agrega: Tipo MX | Host: inbound | Valor: mx.sendgrid.net | Prioridad: 10',
-        'En tu proveedor de email (G Suite, GoDaddy Email), crea un reenvío: info@energydepotpr.com → info@inbound.energydepotpr.com',
+        'En tu proveedor de email (G Suite, GoDaddy Email), crea un reenvío: info@fixatrippuertorico.com → info@inbound.fixatrippuertorico.com',
         'Los emails llegan al Inbox con ícono 📧 y generan alerta para respuesta manual',
       ],
       url: { label: 'Endpoint SendGrid Inbound Parse', value: `${RAILWAY_URL}/api/webhook/email` },
@@ -796,7 +796,7 @@ export default function SettingsPage() {
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           className="input resize-none font-mono text-xs"
-          placeholder="Eres un asistente de ventas de Energy Depot PR. Responde siempre en español..."
+          placeholder="Eres un asistente de ventas de Energy Depot PR Puerto Rico. Responde siempre en español..."
         />
         <div className="flex justify-between items-center text-[10px] text-muted mt-1 mb-2">
           <span>{prompt.length} caracteres {prompt.length > 800 ? <span className="text-yellow-400">(muy largo, puede aumentar costos)</span> : prompt.length < 50 && prompt.length > 0 ? <span className="text-yellow-400">(muy corto)</span> : prompt.length > 0 ? <span className="text-green-400">✓ buena longitud</span> : ''}</span>

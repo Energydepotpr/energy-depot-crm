@@ -323,17 +323,16 @@ function GoogleMeet() {
   );
 }
 
-// ── FareHarbor ────────────────────────────────────────────────────────────────
-function FareHarbor() {
+// ── Sistema de Reservas ────────────────────────────────────────────────────────────────
+function Sistema de Reservas() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ padding: 20, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
-          {/* FareHarbor — Reservas Fix A Trip (desactivado para Energy Depot PR) */}
-          {/* FareHarbor no aplica a solar */}
+          Sistema de Reservas — Reservas Energy Depot PR
         </div>
         <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.5 }}>
-          Accede al portal de reservas de FareHarbor para gestionar disponibilidad, paquetes y bookings de clientes.
+          Accede al portal de reservas de Sistema de Reservas para gestionar disponibilidad, paquetes y bookings de clientes.
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <a
@@ -350,14 +349,14 @@ function FareHarbor() {
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            Abrir FareHarbor Bookings
+            Abrir Sistema de Reservas Bookings
           </a>
         </div>
       </div>
 
       <div style={{ padding: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
         <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-          <strong style={{ color: 'var(--text)' }}>Tip:</strong> Usa FareHarbor para confirmar disponibilidad de tours antes de cerrar una venta con un cliente.
+          <strong style={{ color: 'var(--text)' }}>Tip:</strong> Usa Sistema de Reservas para confirmar disponibilidad de tours antes de cerrar una venta con un cliente.
           Los leads con check-in próximo aparecen marcados en la página de Leads.
         </div>
       </div>
@@ -524,7 +523,7 @@ const TABS = [
     icon: 'M15 10l4.553-2.069A1 1 0 0121 8.882v6.236a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z',
   },
   {
-    id: 'fareharbor', label: 'FareHarbor',
+    id: 'fareharbor', label: 'Sistema de Reservas',
     icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
   },
   {
@@ -590,7 +589,7 @@ export default function HerramientasPage() {
         {activeTab === 'notas'        && <NotasRapidas />}
         {activeTab === 'maps'         && <GoogleMaps />}
         {activeTab === 'meet'         && <GoogleMeet />}
-        {activeTab === 'fareharbor'   && <FareHarbor />}
+        {activeTab === 'fareharbor'   && <Sistema de Reservas />}
         {activeTab === 'importar'     && <ImportarExcel />}
       </div>
     </div>
