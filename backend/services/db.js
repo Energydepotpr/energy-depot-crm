@@ -63,6 +63,7 @@ async function initDB() {
         stage_id INTEGER REFERENCES pipeline_stages(id) ON DELETE SET NULL,
         value DECIMAL(12,2) DEFAULT 0,
         assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        solar_data JSONB,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )
@@ -354,61 +355,47 @@ INFORMACIÓN A RECOPILAR: nombre, teléfono/email, número de personas, fecha de
       [GIGI_PROMPT]
     );
 
-    // Default pipeline with Kommo stages
+    // Default pipeline — Energy Depot PR solar stages
+    const SOLAR_STAGES = [
+      { name: 'Lead',              color: '#8b5cf6', pos: 0 },
+      { name: 'Contactado',        color: '#3b82f6', pos: 1 },
+      { name: 'Cotización',        color: '#06b6d4', pos: 2 },
+      { name: 'Financiamiento',    color: '#f59e0b', pos: 3 },
+      { name: 'Permisos LUMA',     color: '#f97316', pos: 4 },
+      { name: 'Instalación',       color: '#10b981', pos: 5 },
+      { name: 'Completado',        color: '#00c9a7', pos: 6 },
+    ];
+
     const existePipeline = await client.query('SELECT id FROM pipelines LIMIT 1');
     if (existePipeline.rows.length === 0) {
       const pip = await client.query(
-        `INSERT INTO pipelines (name, position) VALUES ('Ventas', 0) RETURNING id`
+        `INSERT INTO pipelines (name, position) VALUES ('Ventas Solar', 0) RETURNING id`
       );
       const pipId = pip.rows[0].id;
-      const etapas = [
-        { name: 'Quick Add',                      color: '#6366f1', pos: 0 },
-        { name: 'Airbnb Welcome Email',            color: '#8b5cf6', pos: 1 },
-        { name: 'Awaiting Response',               color: '#f59e0b', pos: 2 },
-        { name: 'Forms',                           color: '#3b82f6', pos: 3 },
-        { name: 'Pending Call',                    color: '#06b6d4', pos: 4 },
-        { name: 'Urgent Arrival (<30 days)',       color: '#ef4444', pos: 5 },
-        { name: 'Post Call - Follow Up',           color: '#f97316', pos: 6 },
-        { name: 'In Progress (Awaiting Payment)',  color: '#a855f7', pos: 7 },
-        { name: 'Paid - Ready for Operations',     color: '#10b981', pos: 8 },
-        { name: 'Operations',                      color: '#00c9a7', pos: 9 },
-      ];
-      for (const e of etapas) {
+      for (const e of SOLAR_STAGES) {
         await client.query(
           `INSERT INTO pipeline_stages (pipeline_id, name, color, position) VALUES ($1, $2, $3, $4)`,
           [pipId, e.name, e.color, e.pos]
         );
       }
-      console.log('[DB] Pipeline Kommo creado con 10 etapas');
+      console.log('[DB] Pipeline solar Energy Depot creado con 7 etapas');
     } else {
-      // Migration: update old default stages to Kommo stages if they still exist
+      // Migration: replace Fix A Trip / Kommo stages with solar stages
       const pipId = existePipeline.rows[0].id;
-      const tieneViejo = await client.query(
-        `SELECT id FROM pipeline_stages WHERE pipeline_id = $1 AND name = 'Nuevo' LIMIT 1`,
+      const tieneFixATrip = await client.query(
+        `SELECT id FROM pipeline_stages WHERE pipeline_id = $1 AND name IN ('Quick Add','Airbnb Welcome Email','Awaiting Response') LIMIT 1`,
         [pipId]
       );
-      if (tieneViejo.rows.length > 0) {
-        // Delete old default stages and insert Kommo stages
+      if (tieneFixATrip.rows.length > 0) {
         await client.query(`DELETE FROM pipeline_stages WHERE pipeline_id = $1`, [pipId]);
-        const etapas = [
-          { name: 'Quick Add',                      color: '#6366f1', pos: 0 },
-          { name: 'Airbnb Welcome Email',            color: '#8b5cf6', pos: 1 },
-          { name: 'Awaiting Response',               color: '#f59e0b', pos: 2 },
-          { name: 'Forms',                           color: '#3b82f6', pos: 3 },
-          { name: 'Pending Call',                    color: '#06b6d4', pos: 4 },
-          { name: 'Urgent Arrival (<30 days)',       color: '#ef4444', pos: 5 },
-          { name: 'Post Call - Follow Up',           color: '#f97316', pos: 6 },
-          { name: 'In Progress (Awaiting Payment)',  color: '#a855f7', pos: 7 },
-          { name: 'Paid - Ready for Operations',     color: '#10b981', pos: 8 },
-          { name: 'Operations',                      color: '#00c9a7', pos: 9 },
-        ];
-        for (const e of etapas) {
+        await client.query(`UPDATE pipelines SET name = 'Ventas Solar' WHERE id = $1`, [pipId]);
+        for (const e of SOLAR_STAGES) {
           await client.query(
             `INSERT INTO pipeline_stages (pipeline_id, name, color, position) VALUES ($1, $2, $3, $4)`,
             [pipId, e.name, e.color, e.pos]
           );
         }
-        console.log('[DB] Pipeline migrado a etapas Kommo');
+        console.log('[DB] Pipeline migrado a etapas Energy Depot solar');
       }
     }
 
@@ -525,6 +512,9 @@ INFORMACIÓN A RECOPILAR: nombre, teléfono/email, número de personas, fecha de
     await client.query(`CREATE INDEX IF NOT EXISTS idx_invoices_contact_id ON invoices(contact_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_call_logs_lead_id  ON call_logs(lead_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_cfv_entity_id      ON custom_field_values(entity_id)`);
+
+    // Migrations for existing DBs
+    await client.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS solar_data JSONB`);
 
     console.log('[DB] Base de datos inicializada');
   } finally {

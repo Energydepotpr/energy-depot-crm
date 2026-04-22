@@ -1,0 +1,231 @@
+@import url('https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ══════════════════════════════════════════════════════
+   DESIGN SYSTEM — Kommo-style (dark teal-navy)
+   ══════════════════════════════════════════════════════ */
+
+:root {
+  /* Paleta Kommo — teal-navy oscuro */
+  --bg:             #16202c;
+  --surface:        #1c2d3e;
+  --surface2:       #1f3347;
+  --border:         #253b4f;
+  --text:           #e0eaf5;
+  --text-dim:       #8fb0c8;
+  --muted:          #6a8fa8;
+  --accent:         #1b9af5;
+  --accent-hover:   #0d85e8;
+  --success:        #00c9a7;
+  --danger:         #ff5b5b;
+  --warning:        #ffbc00;
+  /* Sidebar — color exacto de Kommo (rgb 21,48,67) */
+  --sidebar-bg:        #153043;
+  --sidebar-border:    #1a3a52;
+  --sidebar-icon:      #6a8fa8;
+  --sidebar-text:      #f2f2f2;
+  --sidebar-active-bg: #1c3d55;
+  --sidebar-active:    #1b9af5;
+  /* Mobile nav */
+  --mobile-header-bg:     #153043;
+  --mobile-header-border: #1a3a52;
+  --mobile-nav-bg:        #153043;
+  --mobile-nav-border:    #1a3a52;
+  --mobile-nav-icon:      #6a8fa8;
+  --mobile-nav-active:    #1b9af5;
+}
+
+[data-theme="light"] {
+  --bg:             #eef1f6;
+  --surface:        #ffffff;
+  --surface2:       #e5eaf1;
+  --border:         #c6d0dc;
+  --text:           #18253a;
+  --text-dim:       #2e4560;
+  --muted:          #4e6a82;   /* más oscuro que dark mode para legibilidad en blanco */
+  --accent:         #1b9af5;
+  --accent-hover:   #0d85e8;
+  --success:        #00c9a7;
+  --danger:         #e03f3f;
+  --warning:        #d97706;
+  /* Sidebar stays Kommo-dark in light mode */
+  --sidebar-bg:        #153043;
+  --sidebar-border:    #1a3a52;
+  --sidebar-icon:      #6a8fa8;
+  --sidebar-text:      #f2f2f2;
+  --sidebar-active-bg: #1c3d55;
+  --sidebar-active:    #1b9af5;
+  /* Mobile nav */
+  --mobile-header-bg:     #ffffff;
+  --mobile-header-border: #c6d0dc;
+  --mobile-nav-bg:        #ffffff;
+  --mobile-nav-border:    #c6d0dc;
+  --mobile-nav-icon:      #4e6a82;
+  --mobile-nav-active:    #1b9af5;
+}
+
+html, body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'PT Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .input {
+    @apply rounded-lg px-3 py-2 text-sm outline-none w-full;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    transition: border-color 0.15s;
+  }
+  .input::placeholder { color: var(--muted); }
+  .input:focus { border-color: var(--accent); }
+  .btn-primary {
+    @apply rounded-lg font-medium cursor-pointer text-white;
+    background: var(--accent);
+    transition: background 0.15s;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost {
+    @apply rounded-lg cursor-pointer;
+    color: var(--muted);
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-ghost:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+  .badge { @apply text-xs px-2 py-0.5 rounded-full font-medium; }
+}
+
+/* ── Light mode: fix Tailwind hardcoded dark bg/border classes ── */
+[data-theme="light"] .bg-surface  { background: var(--surface)  !important; }
+[data-theme="light"] .bg-surface2 { background: var(--surface2) !important; }
+[data-theme="light"] .bg-bg       { background: var(--bg)       !important; }
+[data-theme="light"] .border-border { border-color: var(--border) !important; }
+[data-theme="light"] .bg-accent   { background: var(--accent)   !important; }
+
+/* hover:text-white → text color in light mode (white on white = invisible) */
+[data-theme="light"] .hover\:text-white:hover { color: var(--text) !important; }
+
+/* btn-ghost hover: white overlay invisible on white bg → use subtle dark */
+[data-theme="light"] .btn-ghost:hover { background: rgba(0,0,0,0.05) !important; color: var(--text) !important; }
+
+/* ── Light mode: replace dark-mode text colors with readable navy ── */
+
+/* Tailwind gray/white classes → dark navy */
+[data-theme="light"] .text-white,
+[data-theme="light"] .text-slate-100,
+[data-theme="light"] .text-slate-200,
+[data-theme="light"] .text-slate-300,
+[data-theme="light"] .text-slate-400,
+[data-theme="light"] .text-slate-500,
+[data-theme="light"] .text-gray-100,
+[data-theme="light"] .text-gray-200,
+[data-theme="light"] .text-gray-300,
+[data-theme="light"] .text-gray-400,
+[data-theme="light"] .text-gray-500,
+[data-theme="light"] .text-muted {
+  color: #2e4560 !important;
+}
+
+/* Inline style hardcoded dark-mode grays → readable navy */
+[data-theme="light"] [style*="color: #7880a0"],
+[data-theme="light"] [style*="color: #a0aec0"],
+[data-theme="light"] [style*="color: #94a3b8"],
+[data-theme="light"] [style*="color: #9ca3af"],
+[data-theme="light"] [style*="color: #6b7280"],
+[data-theme="light"] [style*="color: #e0e4f0"],
+[data-theme="light"] [style*="color: #e0eaf5"],
+[data-theme="light"] [style*="color: #c4c9d9"],
+[data-theme="light"] [style*="color: #8890aa"],
+[data-theme="light"] [style*="color: #e4e9f8"],
+[data-theme="light"] [style*="color: #b0bcd8"],
+[data-theme="light"] [style*="color: #8e99be"],
+[data-theme="light"] [style*="color: #f2f2f2"],
+[data-theme="light"] [style*="color: rgb(160"],
+[data-theme="light"] [style*="color: rgb(148"],
+[data-theme="light"] [style*="color: rgb(107"] {
+  color: #2e4560 !important;
+}
+
+/* Hardcoded dark backgrounds → light equivalents */
+[data-theme="light"] [style*="background: #16202c"],
+[data-theme="light"] [style*="background: #1c2d3e"],
+[data-theme="light"] [style*="background: #1f3347"],
+[data-theme="light"] [style*="background: #1a1f38"],
+[data-theme="light"] [style*="background: #151929"],
+[data-theme="light"] [style*="background: #0f1824"] {
+  background: var(--surface) !important;
+}
+
+/* Dark card/panel inline bg overrides → light surface */
+[data-theme="light"] [style*="background-color: #16202c"],
+[data-theme="light"] [style*="background-color: #1c2d3e"],
+[data-theme="light"] [style*="background-color: #1f3347"] {
+  background-color: var(--surface) !important;
+}
+
+[data-theme="light"] .bg-white\/10 {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Input/textarea placeholder in light mode */
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #7a95aa !important;
+}
+
+/* Kanban column header dark bg in light mode */
+[data-theme="light"] [style*="background: rgba(0,0,0,0.2)"],
+[data-theme="light"] [style*="background: rgba(0,0,0,0.15)"],
+[data-theme="light"] [style*="background: rgba(0,0,0,0.1)"] {
+  background: rgba(0,0,0,0.04) !important;
+}
+
+/* Exceptions: keep white text on colored buttons/badges */
+[data-theme="light"] .btn-primary,
+[data-theme="light"] button.btn-primary,
+[data-theme="light"] [style*="color: #fff"],
+[data-theme="light"] [style*="color:#fff"],
+[data-theme="light"] [style*="background: #1b9af5"] { color: #ffffff !important; }
+[data-theme="light"] [style*="background: #3b82f6"] { color: #ffffff !important; }
+[data-theme="light"] [style*="background: #10b981"] { color: #ffffff !important; }
+[data-theme="light"] [style*="background: #ef4444"] { color: #ffffff !important; }
+[data-theme="light"] [style*="background: #f59e0b"] { color: #ffffff !important; }
+[data-theme="light"] [style*="background: #00c9a7"] { color: #ffffff !important; }
+[data-theme="light"] [style*="background: #8b5cf6"] { color: #ffffff !important; }
+
+/* ── Scrollbar ── */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── Mobile layout ── */
+@media (max-width: 767px) {
+  .desktop-sidebar   { display: none !important; }
+  .mobile-header     { display: flex !important; }
+  .mobile-bottom-nav { display: flex !important; }
+  .main-content      { padding-bottom: 80px; }
+  .desktop-only      { display: none !important; }
+  .mobile-only       { display: block !important; }
+  .mobile-only-flex  { display: flex !important; }
+  .lead-panel-overlay { bottom: calc(65px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+@media (min-width: 768px) {
+  .desktop-sidebar   { display: flex !important; }
+  .mobile-header     { display: none !important; }
+  .mobile-bottom-nav { display: none !important; }
+  .mobile-only       { display: none !important; }
+  .mobile-only-flex  { display: none !important; }
+}

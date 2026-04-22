@@ -72,12 +72,10 @@ function SidebarField({ label, type = 'text', value, onChange, onBlur, placehold
 
 // ─── Lead Detail Panel ────────────────────────────────────────────────────────
 
-function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], onNavigate, lang = 'es', isMobile = false }) {
+function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], onNavigate, lang = 'es' }) {
   const { user: currentUser } = useAuth();
   const [lead, setLead] = useState(null);
   const [tab, setTab] = useState('chat');
-  const [mobileTab, setMobileTab] = useState('chat'); // 'chat' | 'info'
-  const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [notes, setNotes] = useState([]);
   const [internalNotes, setInternalNotes] = useState([]);
   const [newInternalNote, setNewInternalNote] = useState('');
@@ -98,12 +96,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   const [savingFollowUp, setSavingFollowUp] = useState(false);
   const [sending, setSending] = useState(false);
   const [chatChannel, setChatChannel] = useState('auto'); // auto | sms | whatsapp
-  const [inputMode, setInputMode] = useState('chat'); // chat | nota | tarea | email
-  const [leadEmails, setLeadEmails] = useState([]);
-  const [emailDraft, setEmailDraft] = useState({ to_email: '', subject: '', body: '', account: 'operations' });
-  const [sendingEmail, setSendingEmail] = useState(false);
-  const [showEmailReplies, setShowEmailReplies] = useState(false);
-  const [emailRepliesFilter, setEmailRepliesFilter] = useState('');
+  const [inputMode, setInputMode] = useState('chat'); // chat | nota | tarea
   const [infoOpen, setInfoOpen] = useState(true);
   const [infoTab, setInfoTab] = useState('principal');
   const [quickTask, setQuickTask] = useState({ title: '', due_date: '', full_day: false, assigned_to: '' });
@@ -141,8 +134,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   const [mergeQuery, setMergeQuery] = useState('');
   const [mergeResults, setMergeResults] = useState([]);
   const [merging, setMerging] = useState(false);
-  // Stage chip dropdown
-  const [showStageDropdown, setShowStageDropdown] = useState(false);
   // AI Assistant state
   const [aiMessages, setAiMessages] = useState([]);
   const [aiInput, setAiInput] = useState('');
@@ -173,7 +164,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
     ]).then(([l, n, tg, act, tk, msg, qr]) => {
       setLead(l); setNotes(n); setTags(tg); setActivity(act);
       setTasks(tk); setMessages(msg); setQuickReplies(qr);
-      if (l?.contact_email) setEmailDraft(p => ({ ...p, to_email: l.contact_email }));
     }).catch(() => {});
     // Load custom fields + values
     Promise.all([
@@ -192,8 +182,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
     api.leadContacts(leadId).then(setLeadContacts).catch(() => {});
     // Load internal notes
     api.leadInternalNotes(leadId).then(n => setInternalNotes(Array.isArray(n) ? n : [])).catch(() => {});
-    // Load emails for this lead
-    api.emails(`?lead_id=${leadId}&page=1`).then(d => setLeadEmails(Array.isArray(d?.emails) ? d.emails : [])).catch(() => {});
     // Load linked invoice
     setInvoiceLoading(true);
     api.invoices(`?lead_id=${leadId}`).then(d => {
@@ -381,9 +369,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   };
 
   if (!lead) return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: isMobile ? 200 : 50, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end', background: isMobile ? 'var(--bg)' : undefined }}>
-      {!isMobile && <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)' }} />}
-      <div className="relative w-full max-w-xl bg-surface border-l border-border flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-stretch justify-end" onClick={onClose}>
+      <div className="w-full max-w-xl bg-surface border-l border-border flex items-center justify-center" onClick={e => e.stopPropagation()}>
         <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     </div>
@@ -392,21 +379,9 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   const allStages = pipelines.flatMap(p => p.stages);
 
   return (
-    <div
-      className="lead-panel-overlay"
-      style={{
-        position: 'fixed',
-        top: 0, left: 0, right: 0,
-        bottom: isMobile ? 60 : 0,
-        zIndex: isMobile ? 200 : 50,
-        display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end',
-      }}
-    >
-      {!isMobile && <div className="absolute inset-0 bg-black/20" onClick={onClose} />}
-      <div
-        className="relative bg-surface border-l border-border flex flex-col shadow-2xl"
-        style={{ width: isMobile ? '100%' : 'min(calc(100vw - 60px), 1100px)' }}
-      >
+    <div className="fixed inset-0 z-50 flex items-stretch justify-end lead-panel-overlay">
+      <div className="absolute inset-0 bg-black/20" onClick={onClose} />
+      <div className="relative bg-surface border-l border-border flex flex-col shadow-2xl" style={{ width: 'min(calc(100vw - 60px), 1100px)' }}>
 
         {/* Header — always dark navy (Kommo style) */}
         <div className="px-4 py-3 flex-shrink-0" style={{ background: '#1c2d3e', borderBottom: '1px solid #253b4f' }}>
@@ -424,18 +399,11 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     style={{ background: 'none', border: 'none', cursor: idx < leads.length - 1 ? 'pointer' : 'default', color: idx < leads.length - 1 ? 'var(--text)' : 'var(--muted)', padding: '4px 6px', borderRadius: 6, fontSize: 16, lineHeight: 1 }}>›</button>
                 </>);
               })()}
-              {isMobile ? (
-                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7a9ab8', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
-                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                  Atrás
-                </button>
-              ) : (
-                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7a9ab8', padding: 4 }}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7a9ab8', padding: 4 }}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           </div>
           {/* Fila 2: contacto + teléfono */}
@@ -474,16 +442,14 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   {callStatus === 'active' ? `${Math.floor(callTimer/60).toString().padStart(2,'0')}:${(callTimer%60).toString().padStart(2,'0')}` : 'Llamar'}
                 </button>
               )}
-              {!isMobile && (
-                <select
-                  value={lead.stage_id || ''}
-                  onChange={e => moverEtapa(e.target.value)}
-                  style={{ maxWidth: 110, fontSize: 11, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 7, padding: '4px 6px', color: '#b0c8e0', outline: 'none' }}
-                >
-                  <option value="">Etapa...</option>
-                  {allStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              )}
+              <select
+                value={lead.stage_id || ''}
+                onChange={e => moverEtapa(e.target.value)}
+                style={{ maxWidth: 110, fontSize: 11, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 7, padding: '4px 6px', color: '#b0c8e0', outline: 'none' }}
+              >
+                <option value="">Etapa...</option>
+                {allStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
               <button
                 onClick={() => setShowMerge(true)}
                 title="Unir leads"
@@ -495,74 +461,12 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           </div>
         </div>
 
-        {/* Mobile tabs — Chat | Info | ⚡ */}
-        {isMobile && (
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
-            {[['chat', '💬 Chat'], ['info', '📋 Info']].map(([k, l]) => (
-              <button key={k} onClick={() => { setMobileTab(k); setShowMoreSheet(false); }} style={{
-                flex: 1, padding: '11px 0', border: 'none', cursor: 'pointer',
-                background: 'none', fontSize: 13, fontWeight: mobileTab === k && !showMoreSheet ? 700 : 400,
-                color: mobileTab === k && !showMoreSheet ? 'var(--accent)' : 'var(--muted)',
-                borderBottom: mobileTab === k && !showMoreSheet ? '2px solid var(--accent)' : '2px solid transparent',
-              }}>{l}</button>
-            ))}
-            <button onClick={() => setShowMoreSheet(v => !v)} style={{
-              width: 52, padding: '11px 0', border: 'none', cursor: 'pointer',
-              background: 'none', fontSize: 13, fontWeight: showMoreSheet ? 700 : 400,
-              color: showMoreSheet ? 'var(--accent)' : 'var(--muted)',
-              borderBottom: showMoreSheet ? '2px solid var(--accent)' : '2px solid transparent',
-              flexShrink: 0,
-            }}>⚡</button>
-          </div>
-        )}
-        {/* More sheet — small floating panel from bottom inside the lead panel */}
-        {isMobile && showMoreSheet && (
-          <>
-            <div onClick={() => setShowMoreSheet(false)} style={{ position: 'absolute', inset: 0, zIndex: 60 }} />
-            <div style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 61,
-              background: 'var(--surface)', borderTop: '1px solid var(--border)',
-              borderRadius: '16px 16px 0 0',
-              boxShadow: '0 -8px 32px rgba(0,0,0,0.3)',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-                <div style={{ width: 32, height: 4, borderRadius: 2, background: 'var(--border)' }} />
-              </div>
-              {[
-                { key: 'notas',     icon: '📝', label: 'Notas',          count: notes.length },
-                { key: 'tareas',    icon: '✅', label: 'Tareas',         count: tasks.filter(tk => !tk.completed).length },
-                { key: 'llamadas',  icon: '📞', label: 'Llamadas',       count: callLogs.length },
-                { key: 'actividad', icon: '📋', label: 'Actividad',      count: 0 },
-                { key: 'factura',   icon: '🧾', label: 'Factura',        count: leadInvoice ? 1 : 0 },
-                { key: 'viaje',     icon: '🌴', label: 'Viaje',          count: 0 },
-                { key: 'contactos', icon: '👥', label: 'Contactos',      count: leadContacts.length },
-                { key: 'notas-int', icon: '🔒', label: 'Notas internas', count: internalNotes.length },
-                { key: 'ai',        icon: '🤖', label: 'Bot IA',         count: 0 },
-                { key: 'extra',     icon: '＋', label: 'Extras',         count: customFields.length },
-              ].map(item => (
-                <button key={item.key} onClick={() => { setTab(item.key); setMobileTab('chat'); setShowMoreSheet(false); }}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 20px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 18, width: 24, textAlign: 'center' }}>{item.icon}</span>
-                    <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--text)' }}>{item.label}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {item.count > 0 && <span style={{ fontSize: 11, background: 'var(--accent)', color: '#fff', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>{item.count}</span>}
-                    <span style={{ color: 'var(--muted)', fontSize: 16 }}>›</span>
-                  </div>
-                </button>
-              ))}
-              <div style={{ height: 12 }} />
-            </div>
-          </>
-        )}
-
         {/* Body: two-column Kommo layout */}
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0, position: 'relative' }}>
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
 
         {/* LEFT: Info sidebar — Kommo style */}
-        <div style={{ width: isMobile ? (mobileTab === 'info' ? '100%' : '0') : (infoOpen ? 300 : 0), overflowY: (isMobile ? mobileTab === 'info' : infoOpen) ? 'auto' : 'hidden', overflowX: 'hidden', flexShrink: 0, background: 'var(--bg)', display: 'flex', flexDirection: 'column', borderRight: (!isMobile && infoOpen) ? '1px solid var(--border)' : 'none', transition: isMobile ? 'none' : 'width 0.2s ease' }}>
-          <div style={{ width: isMobile ? '100%' : 300, flexShrink: 0, display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div style={{ width: infoOpen ? 300 : 0, overflowY: infoOpen ? 'auto' : 'hidden', overflowX: 'hidden', flexShrink: 0, background: 'var(--bg)', display: 'flex', flexDirection: 'column', borderRight: infoOpen ? '1px solid var(--border)' : 'none', transition: 'width 0.2s ease' }}>
+          <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', flex: 1 }}>
 
             {/* Info tabs bar: Principal, Chef, Transport, Tour-BOAT, Wellness — always dark (Kommo) */}
             <div style={{ display: 'flex', borderBottom: '1px solid #253b4f', flexShrink: 0, overflowX: 'auto', background: '#162435' }}>
@@ -609,47 +513,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   </div>
                 </div>
               </div>
-              {/* Solar Data block */}
-              {lead.solar_data?.calc && (
-                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>☀ Sistema Solar</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
-                    {[
-                      ['Sistema', `${lead.solar_data.calc.systemKw} kW`],
-                      ['Paneles', `${lead.solar_data.calc.panels} uds`],
-                      ['Prom. mensual', `${lead.solar_data.calc.avg} kWh`],
-                      ['Ahorro anual', `$${(lead.solar_data.calc.annualSavings||0).toLocaleString()}`],
-                    ].map(([k, v]) => (
-                      <div key={k} style={{ background: 'var(--surface2)', borderRadius: 6, padding: '6px 8px' }}>
-                        <div style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>{k}</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginTop: 1 }}>{v}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const data = await api.leadPropuesta(lead.id);
-                        if (!data.pdf) throw new Error('Sin PDF');
-                        const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
-                        const blob  = new Blob([bytes], { type: 'application/pdf' });
-                        const url   = URL.createObjectURL(blob);
-                        const a     = document.createElement('a');
-                        a.href      = url;
-                        a.download  = data.filename || `Propuesta-${lead.id}.pdf`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      } catch (err) {
-                        alert('Error generando propuesta: ' + err.message);
-                      }
-                    }}
-                    style={{ width: '100%', background: '#1877f2', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                  >
-                    <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    Generar Propuesta PDF
-                  </button>
-                </div>
-              )}
               {/* Contact */}
               <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Contact</div>
@@ -792,8 +655,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           </div>
         </div>{/* end LEFT info sidebar */}
 
-        {/* Toggle button — only on desktop */}
-        {!isMobile && <button
+        {/* Toggle button */}
+        <button
           onClick={() => setInfoOpen(o => !o)}
           title={infoOpen ? 'Hide info' : 'Show info'}
           style={{
@@ -808,13 +671,13 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           <svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             {infoOpen ? <path d="M6 2L2 6L6 10"/> : <path d="M2 2L6 6L2 10"/>}
           </svg>
-        </button>}
+        </button>
 
         {/* RIGHT: Chat + Tabs */}
-        <div style={{ flex: isMobile && mobileTab === 'info' ? 0 : 1, display: isMobile && mobileTab === 'info' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
         {/* Tabs */}
-        <div className="flex border-b border-border flex-shrink-0 overflow-x-auto scrollbar-hide" style={{ display: isMobile ? 'none' : undefined }}>
+        <div className="flex border-b border-border flex-shrink-0 overflow-x-auto scrollbar-hide">
           {[
             { key: 'chat',      label: '💬', full: t('leads.tab.chat', lang), count: messages.length },
             { key: 'notas',     label: '📝', full: t('leads.tab.notes', lang), count: notes.length },
@@ -906,52 +769,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           {/* CHAT */}
           {tab === 'chat' && (
             <div className="flex flex-col h-full">
-              {/* Pipeline + Stage chips (Kommo style) — desktop only */}
-              {!isMobile && (() => {
-                const pip = pipelines.find(p => p.id === lead.pipeline_id);
-                const stageName = lead.stage_name || 'Etapa';
-                const pipelineName = pip?.name || lead.pipeline_name || 'Pipeline';
-                return (
-                  <div style={{ flexShrink: 0, background: '#0f1419', borderBottom: '1px solid #242a35' }}>
-                    <div style={{ display: 'flex', gap: 6, padding: '6px 12px', flexWrap: 'wrap' }}>
-                      {/* Pipeline chip — outline style */}
-                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 3, border: '1px solid #64748b', color: '#94a3b8', cursor: 'default', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                        title={pipelineName}>
-                        {pipelineName.length > 18 ? pipelineName.slice(0, 18) + '…' : pipelineName}
-                      </span>
-                      {/* Stage chip — yellow, toggles dropdown */}
-                      <span
-                        onClick={() => setShowStageDropdown(s => !s)}
-                        style={{ fontSize: 11, padding: '2px 8px', borderRadius: 3, background: '#ffbc00', color: '#000', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'relative' }}
-                        title={stageName}>
-                        {stageName.length > 22 ? stageName.slice(0, 22) + '…' : stageName} ▼
-                      </span>
-                    </div>
-                    {/* Stage selector dropdown */}
-                    {showStageDropdown && (
-                      <div style={{ padding: '6px 12px 10px', borderTop: '1px solid #1e2a38' }}>
-                        <div style={{ fontSize: 10, color: '#64748b', marginBottom: 5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cambiar etapa</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                          {allStages.map(s => (
-                            <button
-                              key={s.id}
-                              onClick={async () => { await moverEtapa(s.id); setShowStageDropdown(false); }}
-                              style={{
-                                fontSize: 11, padding: '3px 10px', borderRadius: 12, cursor: 'pointer', border: 'none',
-                                background: lead.stage_id === s.id ? (s.color || '#ffbc00') : `${s.color || '#64748b'}22`,
-                                color: lead.stage_id === s.id ? '#000' : (s.color || '#94a3b8'),
-                                fontWeight: lead.stage_id === s.id ? 700 : 400,
-                              }}
-                            >
-                              {s.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
               {/* Bot toggle + AI summary bar */}
               <div className="px-4 pt-3 pb-1 flex-shrink-0 flex items-center gap-2 flex-wrap">
                 {/* Bot on/off toggle */}
@@ -1003,57 +820,19 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
 
               {/* AI Summary box */}
               {resumen && (
-                <div className="mx-4 mt-2 mb-1 flex-shrink-0 bg-purple-500/10 border border-purple-500/30 rounded-xl px-4 py-3">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <div className="text-xs font-semibold text-purple-300">✨ Resumen IA</div>
-                    <button
-                      onClick={() => setResumen(null)}
-                      style={{ background: 'rgba(168,85,247,0.2)', border: '1px solid rgba(168,85,247,0.35)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, color: '#c084fc', cursor: 'pointer', lineHeight: 1.4 }}
-                    >✕ Cerrar</button>
-                  </div>
+                <div className="mx-4 mt-2 mb-1 flex-shrink-0 bg-purple-500/10 border border-purple-500/30 rounded-xl px-4 py-3 relative">
+                  <button
+                    onClick={() => setResumen(null)}
+                    className="absolute top-2 right-2 text-purple-300 hover:text-white text-sm leading-none"
+                  >×</button>
+                  <div className="text-xs font-semibold text-purple-300 mb-2">Resumen IA</div>
                   <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">{resumen}</div>
                 </div>
               )}
 
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {messages.length === 0 && notes.length === 0 && leadEmails.length === 0 && <p className="text-muted text-sm text-center py-8">Sin mensajes aún</p>}
-                {[
-                  ...messages.map(m => ({ ...m, _type: 'msg' })),
-                  ...notes.map(n => ({ ...n, _type: 'note' })),
-                  ...leadEmails.map(e => ({ ...e, _type: 'email' })),
-                ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).map((item, i) => {
-                  if (item._type === 'note') {
-                    return (
-                      <div key={`note_${item.id}`} className="flex justify-center">
-                        <div style={{ maxWidth: '80%', borderRadius: 12, padding: '8px 14px', background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.30)', textAlign: 'center' }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', marginBottom: 3, letterSpacing: 0.5 }}>🔒 Nota interna</div>
-                          <div style={{ fontSize: 13, color: 'var(--text)', whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>{item.text}</div>
-                          <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>{item.user_name} · {tiempoRelativo(item.created_at, lang)}</div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  if (item._type === 'email') {
-                    const esEnviado = item.direction === 'outbound';
-                    return (
-                      <div key={`email_${item.id}`} className={`flex ${esEnviado ? 'justify-end' : 'justify-start'}`}>
-                        <div style={{ maxWidth: '82%', borderRadius: 12, padding: '10px 14px',
-                          background: esEnviado ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.06)',
-                          border: `1px solid ${esEnviado ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.12)'}` }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: esEnviado ? '#818cf8' : 'var(--muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <span>✉️</span>
-                            <span>{esEnviado ? `${item.from_email} → ${item.to_email}` : `De: ${item.from_email}`}</span>
-                          </div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>{item.subject}</div>
-                          <div style={{ fontSize: 13, color: 'var(--text)', whiteSpace: 'pre-wrap', lineHeight: 1.45, maxHeight: 120, overflowY: 'auto' }}>{item.body}</div>
-                          <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 6, textAlign: esEnviado ? 'right' : 'left' }}>
-                            {tiempoRelativo(item.created_at, lang)}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  const m = item;
+                {messages.length === 0 && <p className="text-muted text-sm text-center py-8">Sin mensajes aún</p>}
+                {messages.map((m, i) => {
                   const esCliente = m.direction === 'inbound';
                   const trKey = `msg_${leadId}_${i}`;
                   const tr = chatTranslations[trKey];
@@ -1066,7 +845,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     } catch { setChatTranslations(p => { const n={...p}; delete n[trKey]; return n; }); }
                   };
                   return (
-                    <div key={`msg_${i}`} className={`flex ${esCliente ? 'justify-start' : 'justify-end'}`}>
+                    <div key={i} className={`flex ${esCliente ? 'justify-start' : 'justify-end'}`}>
                       <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
                         esCliente ? 'bg-white/10 text-slate-200 rounded-tl-sm'
                           : m.is_bot ? 'bg-purple-500/20 border border-purple-500/30 text-white rounded-tr-sm'
@@ -1101,64 +880,46 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                 <div ref={bottomRef} />
               </div>
 
-              {/* ── Compositor inferior (position: relative para el picker flotante) ── */}
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-
-                {/* ── Template picker: flota hacia ARRIBA como un panel ── */}
-                {showReplies && (
-                  <div style={{
-                    position: 'absolute', bottom: '100%', left: 0, right: 0, zIndex: 20,
-                    background: 'var(--surface)', borderTop: '1px solid var(--border)',
-                    borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)',
-                    borderRadius: '12px 12px 0 0', boxShadow: '0 -6px 24px rgba(0,0,0,0.35)',
-                    maxHeight: 260, display: 'flex', flexDirection: 'column',
-                  }}>
-                    <div style={{ padding: '8px 14px 6px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13 }}>⚡</span>
-                      <input
-                        autoFocus
-                        value={repliesFilter}
-                        onChange={e => setRepliesFilter(e.target.value)}
-                        placeholder="Buscar plantilla... (variables: {{nombre}}, {{fecha}}, {{telefono}})"
-                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 12.5, color: 'var(--text)', fontFamily: 'inherit' }}
-                      />
-                      <button onClick={() => setShowReplies(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px' }}>×</button>
-                    </div>
-                    <div style={{ overflowY: 'auto', flex: 1 }}>
-                      {quickReplies.length === 0 ? (
-                        <div style={{ padding: '20px 14px', textAlign: 'center', fontSize: 12, color: 'var(--muted)' }}>
-                          Sin plantillas aún — créalas en Configuración → Respuestas rápidas
-                        </div>
-                      ) : (() => {
-                        const filtered = quickReplies.filter(r =>
-                          !repliesFilter || r.title.toLowerCase().includes(repliesFilter.toLowerCase()) || r.text.toLowerCase().includes(repliesFilter.toLowerCase())
-                        );
-                        const categories = [...new Set(filtered.map(r => r.category || 'General'))];
-                        return categories.map(cat => (
-                          <div key={cat}>
-                            <div style={{ padding: '6px 14px 2px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.8 }}>{cat}</div>
-                            {filtered.filter(r => (r.category || 'General') === cat).map(r => (
-                              <button key={r.id} onClick={() => insertarRespuesta(r)}
-                                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                                className="hover:bg-white/5 transition-colors">
-                                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{r.title}</div>
-                                <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{r.text.slice(0, 80)}</div>
-                              </button>
-                            ))}
-                          </div>
-                        ));
-                      })()}
-                    </div>
+              {showReplies && quickReplies.length > 0 && (
+                <div className="border-t border-border bg-bg/50" style={{ maxHeight: 220, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--border)' }}>
+                    <input
+                      autoFocus
+                      value={repliesFilter}
+                      onChange={e => setRepliesFilter(e.target.value)}
+                      placeholder="Buscar respuesta... (variables: {{nombre}}, {{fecha}}, {{telefono}})"
+                      style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 11.5, color: 'var(--text)', outline: 'none' }}
+                    />
                   </div>
-                )}
+                  <div style={{ overflowY: 'auto', flex: 1 }}>
+                    {(() => {
+                      const filtered = quickReplies.filter(r =>
+                        !repliesFilter || r.title.toLowerCase().includes(repliesFilter.toLowerCase()) || r.text.toLowerCase().includes(repliesFilter.toLowerCase())
+                      );
+                      const categories = [...new Set(filtered.map(r => r.category || 'General'))];
+                      return categories.map(cat => (
+                        <div key={cat}>
+                          <div style={{ padding: '4px 12px 2px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>{cat}</div>
+                          {filtered.filter(r => (r.category || 'General') === cat).map(r => (
+                            <button key={r.id} onClick={() => insertarRespuesta(r)}
+                              className="w-full text-left px-3 py-1.5 hover:bg-white/5 transition-colors" style={{ display: 'block' }}>
+                              <span className="text-xs font-medium text-white">{r.title}: </span>
+                              <span className="text-xs text-muted">{r.text.slice(0, 70)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
 
-              {/* ── Selector de modo: Chat / Nota / Tarea / Email | Auto / SMS ── */}
-              <div style={{ borderTop: '1px solid var(--border)', padding: '8px 16px 0', display: 'flex', gap: 2, alignItems: 'center' }}>
+              {/* ── Selector de modo: Chat / Nota / Tarea ── */}
+              <div style={{ borderTop: '1px solid var(--border)', padding: '8px 16px 0', display: 'flex', gap: 2, flexShrink: 0 }}>
                 {[
                   { key: 'chat',  label: '💬 Chat' },
                   { key: 'nota',  label: '📝 Nota' },
                   { key: 'tarea', label: '✓ Tarea' },
-                  { key: 'email', label: '✉️ Email' },
                 ].map(m => (
                   <button key={m.key} onClick={() => setInputMode(m.key)} style={{
                     fontSize: 12, padding: '5px 12px', borderRadius: '6px 6px 0 0', border: 'none', cursor: 'pointer',
@@ -1168,18 +929,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     borderBottom: inputMode === m.key ? '2px solid var(--accent)' : '2px solid transparent',
                     transition: 'all 0.12s',
                   }}>{m.label}</button>
-                ))}
-                <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px', flexShrink: 0 }} />
-                {[
-                  { key: 'auto', label: 'Auto' },
-                  { key: 'sms',  label: '💬 SMS' },
-                ].map(c => (
-                  <button key={c.key} onClick={() => { setChatChannel(c.key); setInputMode('chat'); }} style={{
-                    fontSize: 11, padding: '4px 10px', borderRadius: 12, border: `1px solid ${chatChannel === c.key ? 'var(--accent)' : 'var(--border)'}`,
-                    background: chatChannel === c.key ? 'rgba(45,212,191,0.12)' : 'transparent',
-                    color: chatChannel === c.key ? 'var(--accent)' : 'var(--muted)',
-                    cursor: 'pointer', transition: 'all 0.12s', flexShrink: 0,
-                  }}>{c.label}</button>
                 ))}
               </div>
 
@@ -1193,7 +942,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                       value={quickNote}
                       onChange={e => setQuickNote(e.target.value)}
                       placeholder="Escribe una nota interna..."
-                      style={{ width: '100%', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.30)', borderRadius: 8, padding: '8px 12px', color: 'var(--text)', fontSize: 13, resize: 'none', outline: 'none', fontFamily: 'inherit' }}
+                      style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', color: 'var(--text)', fontSize: 13, resize: 'none', outline: 'none', fontFamily: 'inherit' }}
                       onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { if (quickNote.trim()) { agregarNota().then ? null : null; api.createNote(leadId, quickNote.trim()).then(n => { setNotes(p => [...p, n]); setQuickNote(''); }).catch(e => alert(e.message)); } } }}
                     />
                     <button
@@ -1220,20 +969,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                       value={quickTask.title}
                       onChange={e => setQuickTask(p => ({ ...p, title: e.target.value }))}
                     />
-                    {/* Quick date chips */}
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {[
-                        { label: 'Hoy', getDue: () => { const d = new Date(); d.setHours(9,0,0,0); return d.toISOString().slice(0,16); } },
-                        { label: 'Mañana', getDue: () => { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(9,0,0,0); return d.toISOString().slice(0,16); } },
-                        { label: '+1 semana', getDue: () => { const d = new Date(); d.setDate(d.getDate()+7); d.setHours(9,0,0,0); return d.toISOString().slice(0,16); } },
-                      ].map(chip => (
-                        <button key={chip.label}
-                          onClick={() => setQuickTask(p => ({ ...p, due_date: chip.getDue(), full_day: false }))}
-                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--muted)', cursor: 'pointer' }}>
-                          {chip.label}
-                        </button>
-                      ))}
-                    </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       {/* Full day toggle */}
                       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)', cursor: 'pointer', flexShrink: 0 }}>
@@ -1291,144 +1026,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   </div>
                 )}
 
-                {/* ── MODO EMAIL (estilo Kommo) ── */}
-                {inputMode === 'email' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface2)' }}>
-
-                    {/* ── Fila 1: Plantilla (siempre visible, como en Kommo) ── */}
-                    <div style={{ borderBottom: '1px solid var(--border)', position: 'relative' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px' }}>
-                        <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0, width: 52 }}>Plantilla:</span>
-                        <input
-                          value={emailRepliesFilter}
-                          onChange={e => { setEmailRepliesFilter(e.target.value); setShowEmailReplies(true); }}
-                          onFocus={() => setShowEmailReplies(true)}
-                          placeholder="Buscar plantilla..."
-                          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: 'var(--text)', fontFamily: 'inherit' }}
-                        />
-                        {emailRepliesFilter && (
-                          <button onClick={() => { setEmailRepliesFilter(''); setShowEmailReplies(false); }}
-                            style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>
-                        )}
-                      </div>
-                      {/* Dropdown de resultados */}
-                      {showEmailReplies && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30,
-                          background: 'var(--surface)', border: '1px solid var(--border)', borderTop: 'none',
-                          borderRadius: '0 0 8px 8px', boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-                          maxHeight: 200, overflowY: 'auto' }}>
-                          {quickReplies.length === 0 ? (
-                            <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
-                              Sin plantillas — créalas en Configuración → Respuestas rápidas
-                            </div>
-                          ) : (() => {
-                            const filtered = quickReplies.filter(r =>
-                              !emailRepliesFilter || r.title.toLowerCase().includes(emailRepliesFilter.toLowerCase()) || r.text.toLowerCase().includes(emailRepliesFilter.toLowerCase())
-                            );
-                            if (filtered.length === 0) return (
-                              <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>Sin resultados</div>
-                            );
-                            return filtered.map(r => (
-                              <button key={r.id}
-                                onMouseDown={e => e.preventDefault()} // evita que el onBlur cierre antes del click
-                                onClick={() => {
-                                  let txt = r.text;
-                                  const nombre   = lead?.contact_name || lead?.title || '';
-                                  const telefono = lead?.contact_phone || '';
-                                  const fecha    = tripInfo?.check_in ? new Date(tripInfo.check_in + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-                                  txt = txt.replace(/\{\{nombre\}\}/gi, nombre).replace(/\{\{telefono\}\}/gi, telefono).replace(/\{\{fecha\}\}/gi, fecha).replace(/\{\{checkin\}\}/gi, fecha);
-                                  setEmailDraft(p => ({ ...p, body: txt, subject: p.subject || r.title }));
-                                  setEmailRepliesFilter(r.title);
-                                  setShowEmailReplies(false);
-                                }}
-                                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px',
-                                  background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                                className="hover:bg-white/5 transition-colors">
-                                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)' }}>{r.title}</div>
-                                <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 1 }}>{r.text.slice(0, 75)}…</div>
-                              </button>
-                            ));
-                          })()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ── Fila 2: De ── */}
-                    <div style={{ borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '7px 12px', gap: 8 }}>
-                      <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0, width: 52 }}>De:</span>
-                      <div style={{ display: 'flex', gap: 5 }}>
-                        {['operations', 'bookings'].map(acc => (
-                          <button key={acc} onClick={() => setEmailDraft(p => ({ ...p, account: acc }))}
-                            style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, cursor: 'pointer',
-                              border: `1px solid ${emailDraft.account === acc ? 'var(--accent)' : 'var(--border)'}`,
-                              background: emailDraft.account === acc ? 'rgba(45,212,191,0.12)' : 'transparent',
-                              color: emailDraft.account === acc ? 'var(--accent)' : 'var(--muted)',
-                              fontWeight: emailDraft.account === acc ? 600 : 400 }}>
-                            {acc}@energydepotpr.com
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* ── Fila 3: Para ── */}
-                    <div style={{ borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '7px 12px', gap: 8 }}>
-                      <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0, width: 52 }}>Para:</span>
-                      <input value={emailDraft.to_email} onChange={e => setEmailDraft(p => ({ ...p, to_email: e.target.value }))}
-                        placeholder="correo@cliente.com"
-                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: 'var(--text)', fontFamily: 'inherit' }} />
-                    </div>
-
-                    {/* ── Fila 4: Asunto ── */}
-                    <div style={{ borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '7px 12px', gap: 8 }}>
-                      <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0, width: 52 }}>Asunto:</span>
-                      <input value={emailDraft.subject} onChange={e => setEmailDraft(p => ({ ...p, subject: e.target.value }))}
-                        placeholder="Escribe el asunto..."
-                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: 'var(--text)', fontFamily: 'inherit' }} />
-                    </div>
-
-                    {/* ── Cuerpo ── */}
-                    <textarea rows={4} value={emailDraft.body} onChange={e => setEmailDraft(p => ({ ...p, body: e.target.value }))}
-                      placeholder="Escribe el cuerpo del correo..."
-                      style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none',
-                        padding: '10px 12px', fontSize: 13, color: 'var(--text)', fontFamily: 'inherit', lineHeight: 1.6, boxSizing: 'border-box' }} />
-
-                    {/* ── Footer: Enviar / Cancelar ── */}
-                    <div style={{ borderTop: '1px solid var(--border)', padding: '8px 12px', display: 'flex', gap: 8, background: 'rgba(0,0,0,0.10)' }}>
-                      <button
-                        disabled={!emailDraft.to_email.trim() || !emailDraft.subject.trim() || !emailDraft.body.trim() || sendingEmail}
-                        onClick={async () => {
-                          if (sendingEmail) return;
-                          setSendingEmail(true);
-                          try {
-                            const result = await api.sendEmail({
-                              to_email: emailDraft.to_email.trim(),
-                              subject: emailDraft.subject.trim(),
-                              body: emailDraft.body.trim(),
-                              lead_id: leadId,
-                              contact_id: lead?.contact_id || undefined,
-                              account: emailDraft.account,
-                            });
-                            setLeadEmails(p => [result.email, ...p]);
-                            setEmailDraft(p => ({ ...p, subject: '', body: '' }));
-                            setEmailRepliesFilter('');
-                            if (!result.sent) alert('Email guardado pero no pudo enviarse (revisar credenciales SMTP).');
-                          } catch (e) { alert('Error al enviar email: ' + e.message); }
-                          finally { setSendingEmail(false); }
-                        }}
-                        style={{ fontSize: 13, fontWeight: 600, padding: '7px 20px', borderRadius: 8, border: 'none',
-                          background: (!emailDraft.to_email.trim() || !emailDraft.subject.trim() || !emailDraft.body.trim() || sendingEmail) ? 'var(--border)' : 'var(--accent)',
-                          color: '#fff', cursor: (!emailDraft.to_email.trim() || !emailDraft.subject.trim() || !emailDraft.body.trim() || sendingEmail) ? 'not-allowed' : 'pointer' }}
-                      >
-                        {sendingEmail ? 'Enviando...' : 'Enviar'}
-                      </button>
-                      <button onClick={() => { setEmailDraft(p => ({ ...p, subject: '', body: '' })); setEmailRepliesFilter(''); setShowEmailReplies(false); }}
-                        style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}>
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* ── MODO CHAT (default) ── */}
                 {inputMode === 'chat' && (<>
                 {/* Follow-up date picker inline */}
@@ -1455,24 +1052,38 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                       style={{ fontSize: 10, background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', marginLeft: 4 }}>✕ quitar</button>
                   </div>
                 )}
+                {/* Channel selector */}
+                <div className="flex gap-1 mb-2">
+                  {[
+                    { key: 'auto', label: 'Auto' },
+                    { key: 'sms',  label: '💬 SMS' },
+                  ].map(c => (
+                    <button key={c.key} onClick={() => setChatChannel(c.key)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                        chatChannel === c.key
+                          ? 'border-accent bg-accent/10 text-accent'
+                          : 'border-border text-muted hover:text-white'
+                      }`}>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex gap-2 items-end">
-                  <button onClick={() => setShowReplies(p => !p)} title="Plantillas de respuesta"
-                    className={`flex-shrink-0 self-end transition-colors`}
-                    style={{ padding: '7px 10px', borderRadius: 8, border: `1px solid ${showReplies ? 'var(--accent)' : 'var(--border)'}`, background: showReplies ? 'rgba(45,212,191,0.12)' : 'none', cursor: 'pointer', fontSize: 15, color: showReplies ? 'var(--accent)' : 'var(--muted)', lineHeight: 1 }}>
-                    ⚡
-                  </button>
-                  <div className="flex-1 relative" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {quickReplies.length > 0 && (
+                    <button onClick={() => setShowReplies(p => !p)}
+                      className={`p-2.5 rounded-lg border transition-colors flex-shrink-0 self-end ${showReplies ? 'border-accent text-accent bg-accent/10' : 'border-border text-muted hover:text-white'}`}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h7" />
+                      </svg>
+                    </button>
+                  )}
+                  <div className="flex-1 relative">
                     <textarea rows={2} value={chatText} onChange={e => { setChatText(e.target.value); setWasTranslated(false); }}
                       onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) enviarMensaje(); }}
                       placeholder="Escribe en español, usa 🌐 para traducir... (Ctrl+Enter)"
-                      className="input resize-none w-full text-sm" style={{ position: 'relative' }} />
+                      className="input resize-none w-full text-sm" />
                     {wasTranslated && (
-                      <span style={{ position: 'absolute', bottom: chatChannel === 'sms' ? 22 : 4, right: 8, fontSize: 10, color: '#10b981', pointerEvents: 'none' }}>Traducido ✓</span>
-                    )}
-                    {chatChannel === 'sms' && (
-                      <div style={{ fontSize: 10, color: chatText.length > 160 ? 'var(--danger)' : 'var(--muted)', textAlign: 'right', lineHeight: 1 }}>
-                        {chatText.length}/160{chatText.length > 160 ? ` · ${Math.ceil(chatText.length / 153)} SMS` : ''}
-                      </div>
+                      <span style={{ position: 'absolute', bottom: 4, right: 8, fontSize: 10, color: '#10b981', pointerEvents: 'none' }}>Traducido ✓</span>
                     )}
                   </div>
                   <button
@@ -1500,7 +1111,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                 </div>
                 </>)}
               </div>
-              </div>{/* /relative wrapper */}
             </div>
           )}
 
@@ -2451,7 +2061,7 @@ function KanbanColumn({ stage, leads, onMove, onEdit, onDelete, onOpen, selectMo
       </div>
 
       {/* Cards */}
-      <div style={{ flex: 1, padding: '0 4px', overflowY: 'auto', maxHeight: 'calc(100dvh - 220px)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ flex: 1, padding: '0 4px', overflowY: 'auto', maxHeight: 'calc(100vh - 210px)', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {leads.map(lead => {
           const isSelected = selectedIds.has(lead.id);
           const displayName = lead.contact_name || lead.title || 'Sin nombre';
@@ -2565,104 +2175,50 @@ function KanbanColumn({ stage, leads, onMove, onEdit, onDelete, onOpen, selectMo
 function ListaView({ leads, onOpen, onEdit, onDelete, selectMode, selectedIds, onToggleSelect }) {
   if (leads.length === 0) return <p className="text-muted text-sm text-center py-12">Sin leads</p>;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', background: '#161b24', borderRadius: 10, border: '1px solid #242a35', overflow: 'hidden' }}>
-      {leads.map((lead, i) => {
+    <div className="grid grid-cols-2 gap-3 pb-4">
+      {leads.map(lead => {
         const isSelected = selectedIds.has(lead.id);
-        const initial = (lead.contact_name || lead.title || '?')[0].toUpperCase();
-        const avatarColor = lead.stage_color || '#2dd4bf';
-        const createdDate = lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
         return (
           <div key={lead.id}
             onClick={selectMode ? () => onToggleSelect(lead.id) : () => onOpen(lead.id)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              padding: '10px 16px',
-              borderBottom: i < leads.length - 1 ? '1px solid #242a35' : 'none',
-              cursor: 'pointer',
-              background: isSelected ? 'rgba(45,212,191,0.06)' : 'transparent',
-              transition: 'background 0.12s',
-            }}
-            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
-            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
-          >
-            {/* Checkbox (select mode) */}
-            {selectMode && (
-              <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${isSelected ? '#2dd4bf' : '#64748b'}`, background: isSelected ? '#2dd4bf' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0f1419" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>}
-              </div>
-            )}
-            {/* Avatar */}
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: `${avatarColor}22`, color: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0, border: `1px solid ${avatarColor}33` }}>
-              {initial}
-            </div>
-            {/* Main info */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {/* Name row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#2dd4bf', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}
-                  title={lead.title}>
-                  {lead.title}
-                </span>
-                {lead.stage_name && (
-                  <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 10, background: `${lead.stage_color || '#64748b'}22`, color: lead.stage_color || '#94a3b8', border: `1px solid ${lead.stage_color || '#64748b'}33`, whiteSpace: 'nowrap' }}>
-                    {lead.stage_name}
-                  </span>
-                )}
-                {lead.value > 0 && (
-                  <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    ${Number(lead.value).toLocaleString()}
-                  </span>
-                )}
-              </div>
-              {/* Tags row */}
-              {lead.tags && lead.tags.length > 0 && (
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                  {lead.tags.slice(0, 4).map((tag, ti) => (
-                    <span key={ti} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: 'rgba(100,116,139,0.2)', color: '#94a3b8', border: '1px solid rgba(100,116,139,0.3)' }}>
-                      {typeof tag === 'string' ? tag : tag.tag}
-                    </span>
-                  ))}
+            className={`bg-surface border rounded-xl p-4 cursor-pointer transition-colors ${isSelected ? 'border-accent/60 bg-accent/5' : 'border-border hover:border-accent/40'}`}>
+            <div className="flex items-start gap-2 mb-2">
+              {selectMode && (
+                <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${isSelected ? '#1b9af5' : 'var(--muted)'}`, background: isSelected ? '#1b9af5' : 'transparent', flexShrink: 0, marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>}
                 </div>
               )}
-              {/* Date + agent + tasks row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
-                {createdDate && (
-                  <span style={{ fontSize: 10, color: '#64748b' }}>{createdDate}</span>
-                )}
+              <div className="text-sm font-semibold text-white leading-tight flex-1 min-w-0">{lead.title}</div>
+              {lead.stage_name && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                  style={{ backgroundColor: `${lead.stage_color}20`, color: lead.stage_color }}>
+                  {lead.stage_name}
+                </span>
+              )}
+            </div>
+            {lead.contact_name && <div className="text-xs text-muted mb-2">{lead.contact_name}</div>}
+            <div className="flex items-center justify-between mt-auto">
+              <div className="flex items-center gap-3">
+                {lead.value > 0 && <span className="text-xs text-emerald-400 font-medium">${Number(lead.value).toLocaleString()}</span>}
                 {lead.assigned_name && (
-                  <span style={{ fontSize: 10, color: '#2dd4bf', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'rgba(45,212,191,0.2)', color: '#2dd4bf', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700 }}>
+                  <div className="flex items-center gap-1">
+                    <div className="w-4 h-4 rounded-full bg-accent/20 text-accent text-[8px] font-bold flex items-center justify-center">
                       {lead.assigned_name[0].toUpperCase()}
                     </div>
-                    {lead.assigned_name}
-                  </span>
+                    <span className="text-[10px] text-muted">{lead.assigned_name}</span>
+                  </div>
                 )}
-                {/* Tasks indicator */}
-                <span style={{ fontSize: 10, color: '#f97316' }}>
-                  No hay tareas •
-                </span>
               </div>
+              <span className="text-[10px] text-muted">{tiempoRelativo(lead.updated_at)}</span>
             </div>
-            {/* Updated time */}
-            <div style={{ flexShrink: 0, textAlign: 'right' }}>
-              <span style={{ fontSize: 10, color: '#64748b', whiteSpace: 'nowrap' }}>{tiempoRelativo(lead.updated_at)}</span>
-              {!selectMode && (
-                <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', marginTop: 4 }}>
-                  <button onClick={e => { e.stopPropagation(); onEdit(lead); }}
-                    style={{ fontSize: 10, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 5px', borderRadius: 4 }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                    onMouseLeave={e => e.currentTarget.style.color = '#64748b'}>
-                    Editar
-                  </button>
-                  <button onClick={e => { e.stopPropagation(); onDelete(lead.id); }}
-                    style={{ fontSize: 10, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 5px', borderRadius: 4 }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                    onMouseLeave={e => e.currentTarget.style.color = '#64748b'}>
-                    Eliminar
-                  </button>
-                </div>
-              )}
-            </div>
+            {!selectMode && (
+              <div className="flex gap-1 mt-3 pt-2.5 border-t border-border/40">
+                <button onClick={e => { e.stopPropagation(); onEdit(lead); }}
+                  className="text-[10px] text-muted hover:text-white px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors">Editar</button>
+                <button onClick={e => { e.stopPropagation(); onDelete(lead.id); }}
+                  className="text-[10px] text-muted hover:text-danger px-1.5 py-0.5 rounded hover:bg-danger/5 transition-colors">Eliminar</button>
+              </div>
+            )}
           </div>
         );
       })}
@@ -2737,7 +2293,7 @@ function TablaView({ leads, onOpen, onEdit, onDelete, selectMode, selectedIds, o
 function MobileLeadCard({ lead, onOpen, onEdit, onDelete }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border/50 active:bg-white/3 transition-colors"
-      onClick={() => onOpen(lead)}>
+      onClick={() => onOpen(lead.id)}>
       <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
         style={{ backgroundColor: `${lead.stage_color || '#1b9af5'}20`, color: lead.stage_color || '#1b9af5' }}>
         {(lead.contact_name || lead.title || '?')[0].toUpperCase()}
@@ -2823,10 +2379,9 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [panelLeadId, setPanelLeadId] = useState(null);
-  const [previewLead, setPreviewLead] = useState(null); // quick preview sheet on mobile
   const [activePipeline, setActivePipeline] = useState(null);
   const [activeStage, setActiveStage] = useState(null);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(false);
   const [search, setSearch] = useState('');
   const [desktopView, setDesktopView] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -3229,7 +2784,7 @@ export default function LeadsPage() {
             <MobileLeadCard
               key={lead.id}
               lead={lead}
-              onOpen={lead => setPreviewLead(lead)}
+              onOpen={id => setPanelLeadId(id)}
               onEdit={lead => setModal(lead)}
               onDelete={eliminar}
             />
@@ -3240,58 +2795,10 @@ export default function LeadsPage() {
           <LeadModal lead={modal === 'new' ? null : modal} pipelines={pipelines} agents={agents}
             onClose={() => setModal(null)} onSaved={cargar} />
         )}
-        {/* Quick preview sheet */}
-        {previewLead && !panelLeadId && (
-          <>
-            <div onClick={() => setPreviewLead(null)} style={{ position: 'fixed', inset: 0, zIndex: 179, background: 'rgba(0,0,0,0.45)' }} />
-            <div style={{ position: 'fixed', bottom: 60, left: 0, right: 0, zIndex: 180, background: 'var(--surface)', borderRadius: '20px 20px 0 0', borderTop: '1px solid var(--border)' }}>
-              {/* Grab handle */}
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 6px' }}>
-                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
-              </div>
-              <div style={{ padding: '0 20px 20px' }}>
-                {/* Avatar + name */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                  <div style={{ width: 46, height: 46, borderRadius: '50%', backgroundColor: `${previewLead.stage_color || '#1b9af5'}20`, color: previewLead.stage_color || '#1b9af5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
-                    {(previewLead.contact_name || previewLead.title || '?')[0].toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{previewLead.title}</div>
-                    {previewLead.contact_name && previewLead.contact_name !== previewLead.title && (
-                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{previewLead.contact_name}</div>
-                    )}
-                  </div>
-                  {previewLead.value > 0 && (
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#10b981', flexShrink: 0 }}>${Number(previewLead.value).toLocaleString()}</div>
-                  )}
-                </div>
-                {/* Stage + phone row */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
-                  {previewLead.stage_name && (
-                    <span style={{ fontSize: 11, padding: '4px 12px', borderRadius: 12, backgroundColor: `${previewLead.stage_color}20`, color: previewLead.stage_color, fontWeight: 600 }}>
-                      {previewLead.stage_name}
-                    </span>
-                  )}
-                  {previewLead.contact_phone && (
-                    <span style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      📞 {previewLead.contact_phone}
-                    </span>
-                  )}
-                </div>
-                {/* Open button */}
-                <button
-                  onClick={() => { setPanelLeadId(previewLead.id); setPreviewLead(null); }}
-                  style={{ width: '100%', background: 'var(--accent)', border: 'none', borderRadius: 12, padding: '14px 0', fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>
-                  Abrir lead →
-                </button>
-              </div>
-            </div>
-          </>
-        )}
         {panelLeadId && (
           <LeadPanel leadId={panelLeadId} pipelines={pipelines} agents={agents}
             onClose={() => setPanelLeadId(null)} onUpdated={cargar}
-            leads={leadsFiltrados} onNavigate={id => setPanelLeadId(id)} lang={lang} isMobile={true} />
+            leads={leadsFiltrados} onNavigate={id => setPanelLeadId(id)} lang={lang} />
         )}
       </div>
     );
@@ -3536,7 +3043,6 @@ export default function LeadsPage() {
           padding: desktopView === 'kanban' ? '16px 16px 80px' : '16px',
           paddingBottom: selectMode && selectedIds.size > 0 ? 80 : undefined,
           cursor: desktopView === 'kanban' ? 'grab' : undefined,
-          WebkitOverflowScrolling: desktopView === 'kanban' ? 'touch' : undefined,
         }}
         onMouseDown={desktopView === 'kanban' ? onKanbanMouseDown : undefined}
         onMouseMove={desktopView === 'kanban' ? onKanbanMouseMove : undefined}

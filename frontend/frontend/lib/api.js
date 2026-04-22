@@ -368,9 +368,6 @@ export const api = {
     return fetch(`${B}/api/reports/financial/excel${year?`?year=${year}`:''}`, { headers: { Authorization: `Bearer ${t}` }}).then(r=>r.blob());
   },
 
-  // Solar proposal
-  leadPropuesta: (id) => req('GET', `/api/leads/${id}/propuesta`),
-
   // Reports
   downloadReport: (period = 30) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('crm_token') : '';

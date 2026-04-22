@@ -626,6 +626,11 @@ const finReports = require('./controllers/financialReportController');
 app.get('/api/reports/financial',        finReports.resumenFinanciero);
 app.get('/api/reports/financial/excel',  finReports.exportarExcel);
 
+// Public: website cotizacion form → create lead with solar data (no auth)
+const { createPublicLead, generarPropuestaPDF } = require('./controllers/publicLeadController');
+app.post('/api/public/leads', publicTokenLimiter, createPublicLead);
+app.get('/api/leads/:id/propuesta', authenticate, generarPropuestaPDF);
+
 // Global error handler — never expose internal error details to clients
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.message);
