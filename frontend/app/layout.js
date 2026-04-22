@@ -13,9 +13,9 @@ export const metadata = {
     title: 'ED CRM',
   },
   icons: {
-    icon: '/logo.webp',
-    apple: '/logo.webp',
-    shortcut: '/logo.webp',
+    icon: '/logo.png',
+    apple: '/logo.png',
+    shortcut: '/logo.png',
   },
 };
 
@@ -37,8 +37,8 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="ED CRM" />
-        <link rel="apple-touch-icon" href="/logo.webp" />
-        <link rel="apple-touch-startup-image" href="/logo.webp" />
+        <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="apple-touch-startup-image" href="/logo.png" />
         <meta name="theme-color" content="#1b9af5" />
         {/* Prevent zoom on inputs (iOS) */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
