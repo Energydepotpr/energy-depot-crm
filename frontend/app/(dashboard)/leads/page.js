@@ -381,7 +381,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   };
 
   if (!lead) return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: isMobile ? 200 : 50, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end', background: isMobile ? 'var(--bg)' : undefined }}>
+    <div style={{ position: 'fixed', top: 0, bottom: 0, left: isMobile ? 0 : 68, right: 0, zIndex: isMobile ? 200 : 50, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end', background: isMobile ? 'var(--bg)' : undefined }}>
       {!isMobile && <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)' }} />}
       <div className="relative w-full max-w-xl bg-surface border-l border-border flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -396,7 +396,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
       className="lead-panel-overlay"
       style={{
         position: 'fixed',
-        top: 0, left: 0, right: 0,
+        top: 0, left: isMobile ? 0 : 68, right: 0,
         bottom: isMobile ? 60 : 0,
         zIndex: isMobile ? 200 : 50,
         display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end',
