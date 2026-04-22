@@ -405,7 +405,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
       {!isMobile && <div className="absolute inset-0 bg-black/20" onClick={onClose} />}
       <div
         className="relative bg-surface border-l border-border flex flex-col shadow-2xl"
-        style={{ width: isMobile ? '100%' : 'min(calc(100vw - 60px), 1100px)' }}
+        style={{ width: isMobile ? '100%' : 'min(calc(100vw - 68px), 1100px)' }}
       >
 
         {/* Header — always dark navy (Kommo style) */}
