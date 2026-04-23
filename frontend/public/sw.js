@@ -1,5 +1,5 @@
-const CACHE = 'edpr-crm-v4';
-const PRECACHE = ['/dashboard', '/leads', '/inbox', '/contacts', '/logo.webp'];
+const CACHE = 'edpr-crm-v5';
+const PRECACHE = ['/dashboard', '/leads', '/inbox', '/contacts', '/logo.png'];
 
 // ── Install: pre-cache shell ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
