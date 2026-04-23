@@ -46,7 +46,7 @@ async function listar(req, res) {
       LEFT JOIN lead_tags lt ON lt.lead_id = l.id
       ${where}
       GROUP BY l.id, c.name, c.phone, ps.name, ps.color, p.name, u.name
-      ORDER BY l.kommo_position ASC, l.updated_at DESC
+      ORDER BY l.updated_at DESC
       LIMIT $${limitIdx} OFFSET $${offsetIdx}
     `, params);
 
