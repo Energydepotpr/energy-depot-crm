@@ -564,14 +564,10 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
         <div style={{ width: isMobile ? (mobileTab === 'info' ? '100%' : '0') : (infoOpen ? 300 : 0), overflowY: (isMobile ? mobileTab === 'info' : infoOpen) ? 'auto' : 'hidden', overflowX: 'hidden', flexShrink: 0, background: 'var(--bg)', display: 'flex', flexDirection: 'column', borderRight: (!isMobile && infoOpen) ? '1px solid var(--border)' : 'none', transition: isMobile ? 'none' : 'width 0.2s ease' }}>
           <div style={{ width: isMobile ? '100%' : 300, flexShrink: 0, display: 'flex', flexDirection: 'column', flex: 1 }}>
 
-            {/* Info tabs bar: Principal, Chef, Transport, Tour-BOAT, Wellness — always dark (Kommo) */}
+            {/* Info tabs bar */}
             <div style={{ display: 'flex', borderBottom: '1px solid #253b4f', flexShrink: 0, overflowX: 'auto', background: '#162435' }}>
               {[
                 { key: 'principal', label: 'Principal' },
-                { key: 'chef',      label: 'Chef' },
-                { key: 'transport', label: 'Transport' },
-                { key: 'boat',      label: 'Tour-BOAT' },
-                { key: 'wellness',  label: 'Wellness' },
               ].map(it => (
                 <button key={it.key} onClick={() => setInfoTab(it.key)} style={{
                   flexShrink: 0, padding: '8px 12px', fontSize: 11, fontWeight: infoTab === it.key ? 700 : 400,
@@ -669,39 +665,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   <SidebarField label="Email" value={lead.contact_email || ''} onChange={v => setLead(p => ({...p, contact_email: v}))} onBlur={async v => { try { await api.moveLead(leadId, { contact_email: v }); } catch {} }} />
                 </div>
               </div>
-              {/* Trip Info */}
-              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Trip Info</div>
-                  {tripDirty && <div style={{ fontSize: 9, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 3 }}><div style={{ width: 5, height: 5, borderRadius: '50%', background: '#f59e0b' }} />saving...</div>}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <SidebarField label="Hotel - Airbnb" value={tripInfo.hotel_airbnb || ''} onChange={v => { setTripInfo(p => ({...p, hotel_airbnb: v})); setTripDirty(true); }} />
-                  <SidebarField label="Host" value={tripInfo.host_nombre || ''} onChange={v => { setTripInfo(p => ({...p, host_nombre: v})); setTripDirty(true); }} />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    <SidebarField label="Check-in" type="date" value={tripInfo.check_in ? tripInfo.check_in.slice(0,10) : ''} onChange={v => { setTripInfo(p => ({...p, check_in: v})); setTripDirty(true); }} />
-                    <SidebarField label="Check-out" type="date" value={tripInfo.check_out ? tripInfo.check_out.slice(0,10) : ''} onChange={v => { setTripInfo(p => ({...p, check_out: v})); setTripDirty(true); }} />
-                  </div>
-                  {tripInfo.check_in && tripInfo.check_out && (() => {
-                    const nights = Math.round((new Date(tripInfo.check_out) - new Date(tripInfo.check_in)) / 86400000);
-                    return nights > 0 ? <div style={{ fontSize: 11, color: '#1b9af5' }}>📅 {nights} night{nights !== 1 ? 's' : ''}</div> : null;
-                  })()}
-                  <SidebarField label="Airbnb Max. People" type="number" value={tripInfo.airbnb_max_people || ''} onChange={v => { setTripInfo(p => ({...p, airbnb_max_people: v})); setTripDirty(true); }} />
-                  <SidebarField label="Days of Stay" value={tripInfo.dias_estadia || ''} onChange={v => { setTripInfo(p => ({...p, dias_estadia: v})); setTripDirty(true); }} />
-                  <SidebarField label="Needs Transport" value={tripInfo.necesita_transporte || ''} placeholder="Yes / No" onChange={v => { setTripInfo(p => ({...p, necesita_transporte: v})); setTripDirty(true); }} />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    <SidebarField label="People" type="number" value={tripInfo.cantidad_personas || ''} onChange={v => { setTripInfo(p => ({...p, cantidad_personas: v})); setTripDirty(true); }} />
-                    <SidebarField label="Adults" type="number" value={tripInfo.adultos || ''} onChange={v => { setTripInfo(p => ({...p, adultos: v})); setTripDirty(true); }} />
-                  </div>
-                  <SidebarField label="Senior ages" value={tripInfo.edades_seniors || ''} placeholder="65,70" onChange={v => { setTripInfo(p => ({...p, edades_seniors: v})); setTripDirty(true); }} />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    <SidebarField label="Kids" type="number" value={tripInfo.ninos || ''} onChange={v => { setTripInfo(p => ({...p, ninos: v})); setTripDirty(true); }} />
-                    <SidebarField label="Kids ages" value={tripInfo.edades || ''} placeholder="5,8" onChange={v => { setTripInfo(p => ({...p, edades: v})); setTripDirty(true); }} />
-                  </div>
-                  <SidebarField label="Interests" value={tripInfo.intereses || ''} onChange={v => { setTripInfo(p => ({...p, intereses: v})); setTripDirty(true); }} />
-                  <SidebarField label="Special notes" value={tripInfo.notas_especiales || ''} onChange={v => { setTripInfo(p => ({...p, notas_especiales: v})); setTripDirty(true); }} />
-                </div>
-              </div>
               {/* Tags */}
               <div style={{ padding: '12px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Tags</div>
@@ -725,69 +688,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
               </div>
             </>)}
 
-            {/* CHEF tab */}
-            {infoTab === 'chef' && (
-              <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Private Chef</div>
-                <SidebarField label="Date" type="date" value={tripInfo.chef_fecha || ''} onChange={v => { setTripInfo(p => ({...p, chef_fecha: v})); setTripDirty(true); }} />
-                <SidebarField label="Time" type="time" value={tripInfo.chef_hora || ''} onChange={v => { setTripInfo(p => ({...p, chef_hora: v})); setTripDirty(true); }} />
-                <SidebarField label="# Guests" type="number" value={tripInfo.chef_personas || ''} onChange={v => { setTripInfo(p => ({...p, chef_personas: v})); setTripDirty(true); }} />
-                <SidebarField label="Cuisine" value={tripInfo.chef_cocina || ''} placeholder="Italian, Caribbean..." onChange={v => { setTripInfo(p => ({...p, chef_cocina: v})); setTripDirty(true); }} />
-                <SidebarField label="Dietary restrictions" value={tripInfo.chef_restricciones || ''} placeholder="Vegan, gluten-free..." onChange={v => { setTripInfo(p => ({...p, chef_restricciones: v})); setTripDirty(true); }} />
-                <SidebarField label="Budget" value={tripInfo.chef_budget || ''} placeholder="$200" onChange={v => { setTripInfo(p => ({...p, chef_budget: v})); setTripDirty(true); }} />
-                <SidebarField label="Notes" value={tripInfo.chef_notas || ''} onChange={v => { setTripInfo(p => ({...p, chef_notas: v})); setTripDirty(true); }} />
-              </div>
-            )}
-
-            {/* TRANSPORT tab */}
-            {infoTab === 'transport' && (
-              <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Transportation</div>
-                <SidebarField label="Pickup location" value={tripInfo.transp_pickup || ''} placeholder="Airport, Airbnb..." onChange={v => { setTripInfo(p => ({...p, transp_pickup: v})); setTripDirty(true); }} />
-                <SidebarField label="Drop-off location" value={tripInfo.transp_dropoff || ''} onChange={v => { setTripInfo(p => ({...p, transp_dropoff: v})); setTripDirty(true); }} />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  <SidebarField label="Date" type="date" value={tripInfo.transp_fecha || ''} onChange={v => { setTripInfo(p => ({...p, transp_fecha: v})); setTripDirty(true); }} />
-                  <SidebarField label="Time" type="time" value={tripInfo.transp_hora || ''} onChange={v => { setTripInfo(p => ({...p, transp_hora: v})); setTripDirty(true); }} />
-                </div>
-                <SidebarField label="# Passengers" type="number" value={tripInfo.transp_pasajeros || ''} onChange={v => { setTripInfo(p => ({...p, transp_pasajeros: v})); setTripDirty(true); }} />
-                <SidebarField label="Vehicle type" value={tripInfo.transp_tipo || ''} placeholder="Van, SUV, Bus..." onChange={v => { setTripInfo(p => ({...p, transp_tipo: v})); setTripDirty(true); }} />
-                <SidebarField label="Flight / arrival info" value={tripInfo.transp_vuelo || ''} onChange={v => { setTripInfo(p => ({...p, transp_vuelo: v})); setTripDirty(true); }} />
-                <SidebarField label="Notes" value={tripInfo.transp_notas || ''} onChange={v => { setTripInfo(p => ({...p, transp_notas: v})); setTripDirty(true); }} />
-              </div>
-            )}
-
-            {/* TOUR-BOAT tab */}
-            {infoTab === 'boat' && (
-              <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Tour - BOAT</div>
-                <SidebarField label="Tour / Boat name" value={tripInfo.boat_nombre || ''} onChange={v => { setTripInfo(p => ({...p, boat_nombre: v})); setTripDirty(true); }} />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  <SidebarField label="Date" type="date" value={tripInfo.boat_fecha || ''} onChange={v => { setTripInfo(p => ({...p, boat_fecha: v})); setTripDirty(true); }} />
-                  <SidebarField label="Time" type="time" value={tripInfo.boat_hora || ''} onChange={v => { setTripInfo(p => ({...p, boat_hora: v})); setTripDirty(true); }} />
-                </div>
-                <SidebarField label="# Guests" type="number" value={tripInfo.boat_personas || ''} onChange={v => { setTripInfo(p => ({...p, boat_personas: v})); setTripDirty(true); }} />
-                <SidebarField label="Destination / Route" value={tripInfo.boat_destino || ''} placeholder="Culebra, Icacos..." onChange={v => { setTripInfo(p => ({...p, boat_destino: v})); setTripDirty(true); }} />
-                <SidebarField label="Snorkel gear needed" value={tripInfo.boat_snorkel || ''} placeholder="Yes / No / # sets" onChange={v => { setTripInfo(p => ({...p, boat_snorkel: v})); setTripDirty(true); }} />
-                <SidebarField label="FareHarbor booking" value={tripInfo.boat_fareharbor || ''} onChange={v => { setTripInfo(p => ({...p, boat_fareharbor: v})); setTripDirty(true); }} />
-                <SidebarField label="Notes" value={tripInfo.boat_notas || ''} onChange={v => { setTripInfo(p => ({...p, boat_notas: v})); setTripDirty(true); }} />
-              </div>
-            )}
-
-            {/* WELLNESS tab */}
-            {infoTab === 'wellness' && (
-              <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Wellness</div>
-                <SidebarField label="Service type" value={tripInfo.well_tipo || ''} placeholder="Massage, Yoga, Spa..." onChange={v => { setTripInfo(p => ({...p, well_tipo: v})); setTripDirty(true); }} />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  <SidebarField label="Date" type="date" value={tripInfo.well_fecha || ''} onChange={v => { setTripInfo(p => ({...p, well_fecha: v})); setTripDirty(true); }} />
-                  <SidebarField label="Time" type="time" value={tripInfo.well_hora || ''} onChange={v => { setTripInfo(p => ({...p, well_hora: v})); setTripDirty(true); }} />
-                </div>
-                <SidebarField label="# Guests" type="number" value={tripInfo.well_personas || ''} onChange={v => { setTripInfo(p => ({...p, well_personas: v})); setTripDirty(true); }} />
-                <SidebarField label="Location / Provider" value={tripInfo.well_lugar || ''} onChange={v => { setTripInfo(p => ({...p, well_lugar: v})); setTripDirty(true); }} />
-                <SidebarField label="Preferences / Allergies" value={tripInfo.well_preferencias || ''} onChange={v => { setTripInfo(p => ({...p, well_preferencias: v})); setTripDirty(true); }} />
-                <SidebarField label="Notes" value={tripInfo.well_notas || ''} onChange={v => { setTripInfo(p => ({...p, well_notas: v})); setTripDirty(true); }} />
-              </div>
-            )}
 
           </div>
         </div>{/* end LEFT info sidebar */}
