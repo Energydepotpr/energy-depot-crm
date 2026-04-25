@@ -2647,8 +2647,9 @@ function LeadRow({ lead, onOpen, onEdit, onDelete, selectMode, selectedIds, onTo
   const initial    = (lead.contact_name || lead.title || '?')[0].toUpperCase();
   const avatarColor = lead.stage_color || '#2dd4bf';
   const createdDate = lead.created_at ? new Date(lead.created_at).toLocaleDateString('es-PR', { month: 'short', day: 'numeric' }) : '';
-  const hasSolar   = lead.solar_data?.meses?.some(v => Number(v) > 0);
-  const hasCalc    = !!lead.solar_data?.calc;
+  const sd_        = lead.solar_data || {};
+  const hasSolar   = !!(sd_ && (sd_.meses?.some(v => Number(v) > 0) || sd_.calc?.systemKw > 0 || sd_.pagoLuz || sd_.batteries?.length));
+  const hasCalc    = !!(sd_.calc?.systemKw > 0);
   return (
     <div
       onClick={selectMode ? () => onToggleSelect(lead.id) : () => onOpen(lead.id)}
@@ -2699,8 +2700,9 @@ function LeadRow({ lead, onOpen, onEdit, onDelete, selectMode, selectedIds, onTo
 function ListaView({ leads, onOpen, onEdit, onDelete, selectMode, selectedIds, onToggleSelect }) {
   if (leads.length === 0) return <p className="text-muted text-sm text-center py-12">Sin leads</p>;
 
-  const listos    = leads.filter(l => l.solar_data?.meses?.some(v => Number(v) > 0));
-  const sinDatos  = leads.filter(l => !l.solar_data?.meses?.some(v => Number(v) > 0));
+  const tieneSolar = l => { const s = l.solar_data || {}; return !!(s.meses?.some(v=>Number(v)>0) || s.calc?.systemKw > 0 || s.pagoLuz || s.batteries?.length); };
+  const listos    = leads.filter(tieneSolar);
+  const sinDatos  = leads.filter(l => !tieneSolar(l));
 
   const Section = ({ title, color, bg, items }) => items.length === 0 ? null : (
     <div style={{ marginBottom:18 }}>
