@@ -1,78 +1,85 @@
-@import url('https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ══════════════════════════════════════════════════════
-   DESIGN SYSTEM — Kommo-style (dark navy-blue)
+   DESIGN SYSTEM — Energy Depot PR
+   Brand: deep navy #1a3c8f + cyan accent #67e8f9
    ══════════════════════════════════════════════════════ */
 
 :root {
-  /* Paleta Kommo — teal-navy oscuro */
-  --bg:             #16202c;
-  --surface:        #1c2d3e;
-  --surface2:       #1f3347;
-  --border:         #253b4f;
-  --text:           #e0eaf5;
-  --text-dim:       #8fb0c8;
-  --muted:          #6a8fa8;
-  --accent:         #1b9af5;
-  --accent-hover:   #0d85e8;
-  --success:        #00c9a7;
-  --danger:         #ff5b5b;
-  --warning:        #ffbc00;
-  /* Sidebar — color exacto de Kommo (rgb 21,48,67) */
-  --sidebar-bg:        #153043;
-  --sidebar-border:    #1a3a52;
-  --sidebar-icon:      #6a8fa8;
-  --sidebar-text:      #f2f2f2;
-  --sidebar-active-bg: #1c3d55;
-  --sidebar-active:    #1b9af5;
+  /* Dark mode — Energy Depot navy */
+  --bg:             #0f1929;
+  --surface:        #182338;
+  --surface2:       #1f2d45;
+  --border:         #2a3a55;
+  --text:           #e6edf7;
+  --text-dim:       #94a8c4;
+  --muted:          #6e84a3;
+  --accent:         #3b82f6;
+  --accent-hover:   #2563eb;
+  --brand:          #1a3c8f;
+  --brand-light:    #67e8f9;
+  --success:        #10b981;
+  --danger:         #ef4444;
+  --warning:        #f59e0b;
+  /* Sidebar — Energy Depot deep navy */
+  --sidebar-bg:        #0f2558;
+  --sidebar-border:    #1a3c8f;
+  --sidebar-icon:      #94a8c4;
+  --sidebar-text:      #ffffff;
+  --sidebar-active-bg: rgba(103,232,249,0.10);
+  --sidebar-active:    #67e8f9;
   /* Mobile nav */
-  --mobile-header-bg:     #153043;
-  --mobile-header-border: #1a3a52;
-  --mobile-nav-bg:        #153043;
-  --mobile-nav-border:    #1a3a52;
-  --mobile-nav-icon:      #6a8fa8;
-  --mobile-nav-active:    #1b9af5;
+  --mobile-header-bg:     #0f2558;
+  --mobile-header-border: #1a3c8f;
+  --mobile-nav-bg:        #0f2558;
+  --mobile-nav-border:    #1a3c8f;
+  --mobile-nav-icon:      #94a8c4;
+  --mobile-nav-active:    #67e8f9;
 }
 
 [data-theme="light"] {
-  --bg:             #eef1f6;
+  --bg:             #f1f5fb;
   --surface:        #ffffff;
-  --surface2:       #e5eaf1;
-  --border:         #c6d0dc;
-  --text:           #18253a;
-  --text-dim:       #2e4560;
-  --muted:          #4e6a82;   /* más oscuro que dark mode para legibilidad en blanco */
-  --accent:         #1b9af5;
-  --accent-hover:   #0d85e8;
-  --success:        #00c9a7;
-  --danger:         #e03f3f;
+  --surface2:       #e8eef7;
+  --border:         #d1dbe8;
+  --text:           #0f2558;
+  --text-dim:       #2a3a55;
+  --muted:          #5b6f8a;
+  --accent:         #1a3c8f;
+  --accent-hover:   #142e6e;
+  --brand:          #1a3c8f;
+  --brand-light:    #06b6d4;
+  --success:        #059669;
+  --danger:         #dc2626;
   --warning:        #d97706;
-  /* Sidebar stays Kommo-dark in light mode */
-  --sidebar-bg:        #153043;
-  --sidebar-border:    #1a3a52;
-  --sidebar-icon:      #6a8fa8;
-  --sidebar-text:      #f2f2f2;
-  --sidebar-active-bg: #1c3d55;
-  --sidebar-active:    #1b9af5;
-  /* Mobile nav */
+  /* Sidebar stays Energy Depot navy in light mode */
+  --sidebar-bg:        #0f2558;
+  --sidebar-border:    #1a3c8f;
+  --sidebar-icon:      #94a8c4;
+  --sidebar-text:      #ffffff;
+  --sidebar-active-bg: rgba(103,232,249,0.10);
+  --sidebar-active:    #67e8f9;
+  /* Mobile nav — light */
   --mobile-header-bg:     #ffffff;
-  --mobile-header-border: #c6d0dc;
+  --mobile-header-border: #d1dbe8;
   --mobile-nav-bg:        #ffffff;
-  --mobile-nav-border:    #c6d0dc;
-  --mobile-nav-icon:      #4e6a82;
-  --mobile-nav-active:    #1b9af5;
+  --mobile-nav-border:    #d1dbe8;
+  --mobile-nav-icon:      #5b6f8a;
+  --mobile-nav-active:    #1a3c8f;
 }
 
 html, body {
   background-color: var(--bg);
   color: var(--text);
-  font-family: 'PT Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer components {
