@@ -2066,9 +2066,9 @@ function cotCalc(meses, batPrecio) {
   const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
   const panels=Math.round(annCons*1.07/1460*1000/550), kw=parseFloat((panels*550/1000).toFixed(2));
   const annProd=Math.round(kw*1460), costBase=Math.round(kw*2150), sub=costBase+batPrecio;
-  const c30=Math.round(sub*0.3), net=sub-c30, pagoLuma=Math.round(avg*0.26);
+  const pagoLuma=Math.round(avg*0.26);
   const offset=annCons>0?Math.min(Math.round(annProd/annCons*100),100):0;
-  return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, c30, net, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*0.008711), pagoBat:Math.round(sub*0.008711) };
+  return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*0.008711), pagoBat:Math.round(sub*0.008711) };
 }
 
 function CotizarTab({ lead, leadId, onLeadUpdate }) {
@@ -2203,9 +2203,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'12px 16px', fontSize:12 }}>
             {[['Sistema FV',cotFmt(calc.costBase),''],
               ...(BATERIAS_COT[batIdx].precio>0?[[BATERIAS_COT[batIdx].name,cotFmt(BATERIAS_COT[batIdx].precio),'']]:[] ),
-              ['Subtotal',cotFmt(calc.sub),''],
-              ['Crédito 30%',`-${cotFmt(calc.c30)}`,'green'],
-              ['Precio Neto',cotFmt(calc.net),'bold'],
+              ['Total',cotFmt(calc.sub),'bold'],
             ].map(([k,v,st])=>(
               <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderTop:st==='bold'?'1px solid var(--border)':undefined, marginTop:st==='bold'?4:0 }}>
                 <span style={{ color:st==='green'?'#10b981':'var(--muted)' }}>{k}</span>

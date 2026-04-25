@@ -29,15 +29,13 @@ function calcular(meses, batPrecio) {
   const annProd  = Math.round(systemKw * FACTOR);
   const costBase = Math.round(systemKw * KW_PREC);
   const subtotal = costBase + batPrecio;
-  const credit30 = Math.round(subtotal * 0.3);
-  const netCost  = subtotal - credit30;
   const pagoLuma = Math.round(avgKwh * TARIFA);
   const annSav   = pagoLuma * 12;
   const roi      = annSav > 0 ? Math.round(costBase / annSav) : 0;
   const offset   = annCons > 0 ? Math.min(Math.round(annProd / annCons * 100), 100) : 0;
   const pagoFV   = Math.round(costBase * PMT_15);
   const pagoBat  = Math.round(subtotal * PMT_15);
-  return { avgKwh: Math.round(avgKwh), annCons, panels, systemKw, annProd, costBase, subtotal, credit30, netCost, pagoLuma, annSav, roi, offset, pagoFV, pagoBat };
+  return { avgKwh: Math.round(avgKwh), annCons, panels, systemKw, annProd, costBase, subtotal, pagoLuma, annSav, roi, offset, pagoFV, pagoBat };
 }
 
 const fmt  = n => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -279,9 +277,7 @@ function CotizadorInner() {
                 {[
                   ['Sistema FV', fmt(calc.costBase), false],
                   ...(BATERIAS[batIdx].precio > 0 ? [[BATERIAS[batIdx].name, fmt(BATERIAS[batIdx].precio), false]] : []),
-                  ['Subtotal', fmt(calc.subtotal), false],
-                  ['Crédito Federal 30%', `-${fmt(calc.credit30)}`, 'green'],
-                  ['Precio Neto', fmt(calc.netCost), 'bold'],
+                  ['Total', fmt(calc.subtotal), 'bold'],
                 ].map(([k,v,style]) => (
                   <div key={k} style={{ display:'flex', justifyContent:'space-between', paddingTop: style==='bold'?8:0, borderTop: style==='bold'?'1px solid var(--border)':undefined }}>
                     <span style={{ color: style==='green'?'#10b981':'var(--muted)' }}>{k}</span>
