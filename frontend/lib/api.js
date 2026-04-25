@@ -369,8 +369,9 @@ export const api = {
   },
 
   // Solar proposal
-  leadPropuesta:  (id)       => req('GET',   `/api/leads/${id}/propuesta`),
-  saveSolarData:  (id, data) => req('PATCH', `/api/leads/${id}/solar`, data),
+  leadPropuesta:     (id)       => req('GET',   `/api/leads/${id}/propuesta`),
+  saveSolarData:     (id, data) => req('PATCH', `/api/leads/${id}/solar`, data),
+  generarContrato:   (id, data) => req('POST',  `/api/leads/${id}/contrato-solar`, data),
 
   // Reports
   downloadReport: (period = 30) => {

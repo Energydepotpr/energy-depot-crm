@@ -2079,9 +2079,13 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
   const [meses, setMeses]   = useState(initMeses);
   const [batIdx, setBatIdx] = useState(initBat);
   const [calc, setCalc]     = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [pdfLoad, setPdfLoad] = useState(false);
-  const [msg, setMsg]       = useState('');
+  const [saving, setSaving]       = useState(false);
+  const [pdfLoad, setPdfLoad]     = useState(false);
+  const [contratoLoad, setContratoLoad] = useState(false);
+  const [showContrato, setShowContrato] = useState(false);
+  const [modalidad, setModalidad] = useState('efectivo');
+  const [prontoDado, setProntoDado] = useState('');
+  const [msg, setMsg]             = useState('');
 
   useEffect(() => { setCalc(cotCalc(meses, BATERIAS_COT[batIdx].precio)); }, [meses, batIdx]);
 
@@ -2100,6 +2104,23 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
       if (onLeadUpdate) onLeadUpdate();
     } catch(e) { showMsg('Error: '+e.message); }
     finally { setSaving(false); }
+  };
+
+  const generarContrato = async () => {
+    setContratoLoad(true);
+    try {
+      await guardar();
+      const data = await api.generarContrato(leadId, { modalidad, prontoDado: Number(prontoDado)||0 });
+      if (!data.pdf) throw new Error('Sin PDF');
+      const bytes = Uint8Array.from(atob(data.pdf), c=>c.charCodeAt(0));
+      const blob  = new Blob([bytes],{type:'application/pdf'});
+      const url   = URL.createObjectURL(blob);
+      const a     = document.createElement('a'); a.href=url; a.download=data.filename||`Contrato-${leadId}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      setShowContrato(false);
+      showMsg('✓ Contrato generado y guardado');
+    } catch(e) { showMsg('Error: '+e.message); }
+    finally { setContratoLoad(false); }
   };
 
   const generarPDF = async () => {
@@ -2130,8 +2151,41 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
         </button>
         <button onClick={generarPDF} disabled={!calc||pdfLoad} style={{ background:'#1a3c8f', border:'none', borderRadius:6, padding:'6px 14px', fontSize:12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc||pdfLoad?0.5:1, display:'flex', alignItems:'center', gap:6 }}>
           <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          {pdfLoad?'Generando…':'Generar PDF'}
+          {pdfLoad?'Generando…':'Propuesta PDF'}
         </button>
+        <button onClick={()=>setShowContrato(true)} disabled={!calc} style={{ background:'#10b981', border:'none', borderRadius:6, padding:'6px 14px', fontSize:12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc?0.5:1, display:'flex', alignItems:'center', gap:6 }}>
+          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          Generar Contrato
+        </button>
+
+        {/* Modal contrato */}
+        {showContrato && (
+          <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }} onClick={()=>setShowContrato(false)}>
+            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:28, width:360 }} onClick={e=>e.stopPropagation()}>
+              <div style={{ fontSize:15, fontWeight:700, color:'var(--text)', marginBottom:20 }}>📄 Generar Contrato Solar</div>
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Modalidad de Pago</label>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                  {[['efectivo','💵 Efectivo (50/50)'],['financiamiento','🏦 Financiamiento']].map(([v,l])=>(
+                    <button key={v} onClick={()=>setModalidad(v)} style={{ border: modalidad===v?'2px solid #10b981':'1px solid var(--border)', borderRadius:8, padding:'10px 12px', background: modalidad===v?'rgba(16,185,129,0.12)':'var(--bg)', cursor:'pointer', fontSize:12, fontWeight:600, color: modalidad===v?'#10b981':'var(--text)' }}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              {modalidad==='financiamiento' && (
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Pronto Dado ($)</label>
+                  <input type="number" value={prontoDado} onChange={e=>setProntoDado(e.target.value)} placeholder="ej: 5000" style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
+                </div>
+              )}
+              <div style={{ display:'flex', gap:10, marginTop:20 }}>
+                <button onClick={()=>setShowContrato(false)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'9px', fontSize:13, color:'var(--muted)', cursor:'pointer' }}>Cancelar</button>
+                <button onClick={generarContrato} disabled={contratoLoad} style={{ flex:2, background:'#10b981', border:'none', borderRadius:8, padding:'9px', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer', opacity:contratoLoad?0.6:1 }}>
+                  {contratoLoad?'Generando…':'✓ Generar y Descargar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* kWh inputs */}
