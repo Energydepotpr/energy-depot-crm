@@ -726,6 +726,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             { key: 'contactos', label: '👥', full: t('leads.tab.contacts', lang), count: leadContacts.length },
             { key: 'notas-int', label: '🔒', full: t('leads.tab.intNotes', lang), count: internalNotes.length },
             { key: 'ai',        label: '🤖', full: t('leads.tab.ai', lang), count: 0 },
+            { key: 'cotizar',   label: '☀️', full: 'Cotizar', count: lead.solar_data?.calc ? 1 : 0 },
           ].map(tab_item => (
             <button key={tab_item.key} onClick={() => setTab(tab_item.key)}
               className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 flex flex-col items-center gap-0.5 ${
@@ -2034,11 +2035,190 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
               )}
             </div>
           )}
+          {/* ─── TAB: COTIZAR ─── */}
+          {tab === 'cotizar' && <CotizarTab lead={lead} leadId={leadId} onLeadUpdate={() => api.lead(leadId).then(setLead).catch(()=>{})} />}
+
         </div>{/* end Content */}
         </div>{/* end RIGHT Chat */}
         </div>{/* end body flex-row */}
 
       </div>
+    </div>
+  );
+}
+
+// ─── Cotizar Tab ──────────────────────────────────────────────────────────────
+const BATERIAS_COT = [
+  { name:'Sin batería',          precio:0 },
+  { name:'SolaX ESS 10.24 kWh', precio:9900 },
+  { name:'SolaX ESS 15.36 kWh', precio:12950 },
+  { name:'SolaX ESS 20.48 kWh', precio:15900 },
+  { name:'FranklinWH G2',       precio:13539 },
+  { name:'Tesla PowerWall 3',   precio:11992 },
+];
+const MESES_L = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const cotFmt  = n => `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+const cotFmtK = n => Number(n).toLocaleString('en-US');
+
+function cotCalc(meses, batPrecio) {
+  const filled = meses.map(Number).filter(v=>v>0);
+  if (!filled.length) return null;
+  const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
+  const panels=Math.round(annCons*1.07/1460*1000/550), kw=parseFloat((panels*550/1000).toFixed(2));
+  const annProd=Math.round(kw*1460), costBase=Math.round(kw*2150), sub=costBase+batPrecio;
+  const c30=Math.round(sub*0.3), net=sub-c30, pagoLuma=Math.round(avg*0.26);
+  const offset=annCons>0?Math.min(Math.round(annProd/annCons*100),100):0;
+  return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, c30, net, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*0.008711), pagoBat:Math.round(sub*0.008711) };
+}
+
+function CotizarTab({ lead, leadId, onLeadUpdate }) {
+  const sd = lead?.solar_data || {};
+  const initMeses = () => { const m=Array(12).fill(''); (sd.meses||[]).slice(0,12).forEach((v,i)=>{ m[i]=v||''; }); return m; };
+  const initBat   = () => { if (!sd.batteries?.length) return 0; const i=BATERIAS_COT.findIndex(b=>b.name===sd.batteries[0]?.name); return i>=0?i:0; };
+
+  const [meses, setMeses]   = useState(initMeses);
+  const [batIdx, setBatIdx] = useState(initBat);
+  const [calc, setCalc]     = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [pdfLoad, setPdfLoad] = useState(false);
+  const [msg, setMsg]       = useState('');
+
+  useEffect(() => { setCalc(cotCalc(meses, BATERIAS_COT[batIdx].precio)); }, [meses, batIdx]);
+
+  const showMsg = t => { setMsg(t); setTimeout(()=>setMsg(''),3000); };
+
+  const guardar = async () => {
+    if (!calc) return;
+    setSaving(true);
+    try {
+      const bat = BATERIAS_COT[batIdx];
+      await api.saveSolarData(leadId, {
+        solar_data: { ...sd, meses, calc: { avg:calc.avg, systemKw:calc.kw, panels:calc.panels, costBase:calc.costBase, annualSavings:calc.annSav, roi:calc.roi, annProd:calc.annProd, annCons:calc.annCons }, batteries: bat.precio>0?[{name:bat.name,qty:1,unitPrice:bat.precio}]:[], pagoLuz:calc.pagoLuma },
+        value: calc.costBase,
+      });
+      showMsg('✓ Guardado');
+      if (onLeadUpdate) onLeadUpdate();
+    } catch(e) { showMsg('Error: '+e.message); }
+    finally { setSaving(false); }
+  };
+
+  const generarPDF = async () => {
+    setPdfLoad(true);
+    try {
+      await guardar();
+      const data = await api.leadPropuesta(leadId);
+      if (!data.pdf) throw new Error('Sin PDF');
+      const bytes=Uint8Array.from(atob(data.pdf),c=>c.charCodeAt(0));
+      const blob=new Blob([bytes],{type:'application/pdf'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=data.filename||`Propuesta-${leadId}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) { showMsg('Error PDF: '+e.message); }
+    finally { setPdfLoad(false); }
+  };
+
+  const inp = { width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:5, padding:'6px 8px', fontSize:12, color:'var(--text)', outline:'none', boxSizing:'border-box', textAlign:'center' };
+
+  return (
+    <div style={{ padding:16, display:'flex', flexDirection:'column', gap:14 }}>
+      {/* Actions */}
+      <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+        {msg && <span style={{ fontSize:12, color: msg.startsWith('✓')?'#10b981':'#ef4444', fontWeight:600 }}>{msg}</span>}
+        <div style={{ flex:1 }} />
+        <button onClick={guardar} disabled={saving||!calc} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, padding:'6px 14px', fontSize:12, fontWeight:600, color:'var(--text)', cursor:'pointer', opacity:!calc||saving?0.5:1 }}>
+          {saving?'Guardando…':'Guardar Cotización'}
+        </button>
+        <button onClick={generarPDF} disabled={!calc||pdfLoad} style={{ background:'#1a3c8f', border:'none', borderRadius:6, padding:'6px 14px', fontSize:12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc||pdfLoad?0.5:1, display:'flex', alignItems:'center', gap:6 }}>
+          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          {pdfLoad?'Generando…':'Generar PDF'}
+        </button>
+      </div>
+
+      {/* kWh inputs */}
+      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
+        <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Consumo Mensual (kWh)</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:7 }}>
+          {MESES_L.map((m,i) => (
+            <div key={i}>
+              <div style={{ fontSize:9, color:'var(--muted)', fontWeight:600, textAlign:'center', marginBottom:3 }}>{m}</div>
+              <input type="number" min="0" value={meses[i]} onChange={e=>{ const n=[...meses]; n[i]=e.target.value; setMeses(n); }}
+                style={{ ...inp, color:Number(meses[i])>0?'#3b82f6':'var(--text)', fontWeight:Number(meses[i])>0?700:400 }} />
+            </div>
+          ))}
+        </div>
+        {calc && (
+          <div style={{ marginTop:10, fontSize:11, color:'var(--muted)', display:'flex', gap:14, flexWrap:'wrap' }}>
+            <span>Prom: <strong style={{color:'var(--text)'}}>{cotFmtK(calc.avg)} kWh/mes</strong></span>
+            <span>LUMA est.: <strong style={{color:'#ef4444'}}>{cotFmt(calc.pagoLuma)}/mes</strong></span>
+          </div>
+        )}
+      </div>
+
+      {/* Batería */}
+      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
+        <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Batería</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
+          {BATERIAS_COT.map((b,i) => (
+            <button key={i} onClick={()=>setBatIdx(i)} style={{ border:batIdx===i?'2px solid #1a3c8f':'1px solid var(--border)', borderRadius:7, padding:'8px 12px', textAlign:'left', cursor:'pointer', background:batIdx===i?'rgba(26,60,143,0.12)':'var(--bg)' }}>
+              <div style={{ fontSize:11, fontWeight:700, color:batIdx===i?'#60a5fa':'var(--text)' }}>{b.name}</div>
+              {b.precio>0 && <div style={{ fontSize:10, color:'var(--muted)', marginTop:1 }}>{cotFmt(b.precio)}</div>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Resultados */}
+      {calc && (
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {/* Sistema */}
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Sistema Recomendado</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
+              {[['kW DC',calc.kw],['Paneles',calc.panels+' uds'],['Prod/año',cotFmtK(calc.annProd)+' kWh'],['Cobertura',calc.offset+'%']].map(([k,v])=>(
+                <div key={k} style={{ background:'var(--bg)', borderRadius:6, padding:'8px', textAlign:'center' }}>
+                  <div style={{ fontSize:9, color:'var(--muted)', fontWeight:600 }}>{k}</div>
+                  <div style={{ fontSize:13, fontWeight:800, color:'var(--text)', marginTop:2 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Pagos */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:9 }}>
+            <div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:8, padding:'10px 14px' }}>
+              <div style={{ fontSize:10, fontWeight:600, color:'#991b1b' }}>LUMA Actual</div>
+              <div style={{ fontSize:20, fontWeight:900, color:'#dc2626' }}>{cotFmt(calc.pagoLuma)}</div>
+            </div>
+            <div style={{ background:'#dbeafe', border:'1px solid #93c5fd', borderRadius:8, padding:'10px 14px' }}>
+              <div style={{ fontSize:10, fontWeight:600, color:'#1e40af' }}>Solo Placas · 15a</div>
+              <div style={{ fontSize:20, fontWeight:900, color:'#1d4ed8' }}>{cotFmt(calc.pagoFV)}</div>
+            </div>
+            {BATERIAS_COT[batIdx].precio>0 && (
+              <div style={{ background:'#ede9fe', border:'1px solid #c4b5fd', borderRadius:8, padding:'10px 14px', gridColumn:'1/-1' }}>
+                <div style={{ fontSize:10, fontWeight:600, color:'#5b21b6' }}>Placas + Batería · 15a</div>
+                <div style={{ fontSize:20, fontWeight:900, color:'#6d28d9' }}>{cotFmt(calc.pagoBat)}</div>
+              </div>
+            )}
+          </div>
+          {/* Precios */}
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'12px 16px', fontSize:12 }}>
+            {[['Sistema FV',cotFmt(calc.costBase),''],
+              ...(BATERIAS_COT[batIdx].precio>0?[[BATERIAS_COT[batIdx].name,cotFmt(BATERIAS_COT[batIdx].precio),'']]:[] ),
+              ['Subtotal',cotFmt(calc.sub),''],
+              ['Crédito 30%',`-${cotFmt(calc.c30)}`,'green'],
+              ['Precio Neto',cotFmt(calc.net),'bold'],
+            ].map(([k,v,st])=>(
+              <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderTop:st==='bold'?'1px solid var(--border)':undefined, marginTop:st==='bold'?4:0 }}>
+                <span style={{ color:st==='green'?'#10b981':'var(--muted)' }}>{k}</span>
+                <span style={{ fontWeight:st==='bold'?800:500, color:st==='green'?'#10b981':'var(--text)' }}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ background:'#1a3c8f', borderRadius:8, padding:'12px 16px', display:'flex', justifyContent:'space-around' }}>
+            <div style={{ textAlign:'center' }}><div style={{ fontSize:9, color:'rgba(255,255,255,0.6)', textTransform:'uppercase' }}>Ahorro anual</div><div style={{ fontSize:16, fontWeight:900, color:'#fff' }}>{cotFmt(calc.annSav)}</div></div>
+            <div style={{ textAlign:'center' }}><div style={{ fontSize:9, color:'rgba(255,255,255,0.6)', textTransform:'uppercase' }}>ROI estimado</div><div style={{ fontSize:16, fontWeight:900, color:'#fff' }}>{calc.roi} años</div></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

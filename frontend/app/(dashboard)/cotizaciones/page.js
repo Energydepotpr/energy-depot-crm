@@ -1,837 +1,316 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { api } from '../../../lib/api';
 
-// ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-  bg:       'var(--bg)',
-  surface:  'var(--surface)',
-  surface2: 'var(--surface2)',
-  border:   'var(--border)',
-  text:     'var(--text)',
-  muted:    'var(--muted)',
-  accent:   'var(--accent)',
-  success:  'var(--success)',
-  danger:   'var(--danger)',
-  warning:  'var(--warning)',
-};
+const TARIFA  = 0.26;
+const FACTOR  = 1460;
+const KW_PREC = 2150;
+const PMT_15  = 0.008711;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function fmtDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-function fmtPrice(n) {
-  return `$${Number(n || 0).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-const STATUS_META = {
-  draft:    { label: 'Borrador',  color: '#94a3b8', bg: 'rgba(148,163,184,0.14)' },
-  sent:     { label: 'Enviada',   color: '#60a5fa', bg: 'rgba(96,165,250,0.14)'  },
-  accepted: { label: 'Aceptada', color: '#34d399', bg: 'rgba(52,211,153,0.14)'  },
-  rejected: { label: 'Rechazada',color: '#f87171', bg: 'rgba(248,113,113,0.14)' },
-  expired:  { label: 'Vencida',  color: '#fb923c', bg: 'rgba(251,146,60,0.14)'  },
-};
-
-function StatusBadge({ status }) {
-  const m = STATUS_META[status] || { label: status, color: C.muted, bg: C.surface2 };
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, color: m.color, background: m.bg }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
-      {m.label}
-    </span>
-  );
-}
-
-function Btn({ onClick, children, style = {}, disabled = false, title, type = 'button' }) {
-  return (
-    <button type={type} onClick={onClick} disabled={disabled} title={title}
-      style={{ cursor: disabled ? 'not-allowed' : 'pointer', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 500, opacity: disabled ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: 6, ...style }}>
-      {children}
-    </button>
-  );
-}
-
-function StatCard({ label, value, color = C.text }) {
-  return (
-    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '16px 20px', flex: '1 1 130px', minWidth: 120 }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{label}</div>
-    </div>
-  );
-}
-
-// ── Items editor ──────────────────────────────────────────────────────────────
-const EMPTY_ITEM = { description: '', qty: 1, unit_price: '', total: 0, product_id: null };
-
-function ItemsEditor({ items, setItems, catalogProducts }) {
-  const addItem = () => setItems(prev => [...prev, { ...EMPTY_ITEM }]);
-  const removeItem = (idx) => setItems(prev => prev.filter((_, i) => i !== idx));
-
-  const updateItem = (idx, field, value) => {
-    setItems(prev => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], [field]: value };
-      const qty   = Number(field === 'qty'        ? value : next[idx].qty)        || 0;
-      const price = Number(field === 'unit_price'  ? value : next[idx].unit_price) || 0;
-      next[idx].total = +(qty * price).toFixed(2);
-      return next;
-    });
-  };
-
-  const selectProduct = (idx, productId) => {
-    const product = catalogProducts.find(p => String(p.id) === String(productId));
-    if (!product) return;
-    setItems(prev => {
-      const next = [...prev];
-      next[idx] = {
-        ...next[idx],
-        description: product.name,
-        unit_price:  String(product.price),
-        product_id:  product.id,
-        total:       +(Number(next[idx].qty || 1) * Number(product.price)).toFixed(2),
-      };
-      return next;
-    });
-  };
-
-  const inputStyle = {
-    background: C.surface2, border: `1px solid ${C.border}`,
-    borderRadius: 8, padding: '7px 10px', fontSize: 13, color: C.text,
-    outline: 'none', boxSizing: 'border-box', width: '100%',
-  };
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>ITEMS</span>
-        <Btn onClick={addItem} style={{ background: C.surface2, color: C.accent, padding: '4px 10px', fontSize: 12 }}>
-          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-          Agregar item
-        </Btn>
-      </div>
-
-      {items.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '20px 0', color: C.muted, fontSize: 13, background: C.surface2, borderRadius: 10 }}>
-          Sin items. Haz clic en "Agregar item".
-        </div>
-      )}
-
-      {items.map((item, idx) => (
-        <div key={idx} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px', marginBottom: 8 }}>
-          {/* Selector de producto del catálogo */}
-          {catalogProducts.length > 0 && (
-            <div style={{ marginBottom: 8 }}>
-              <select
-                value={item.product_id || ''}
-                onChange={e => selectProduct(idx, e.target.value)}
-                style={{ ...inputStyle, color: item.product_id ? C.text : C.muted, fontSize: 12 }}
-              >
-                <option value="">— Seleccionar del catálogo (opcional) —</option>
-                {catalogProducts.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} — {fmtPrice(p.price)}{p.unit ? ` / ${p.unit}` : ''}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div style={{ overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 100px 80px 30px', gap: 8, alignItems: 'center', minWidth: 360 }}>
-            {/* Descripción */}
-            <input
-              value={item.description}
-              onChange={e => updateItem(idx, 'description', e.target.value)}
-              placeholder="Descripción"
-              style={inputStyle}
-            />
-            {/* Cantidad */}
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={item.qty}
-              onChange={e => updateItem(idx, 'qty', e.target.value)}
-              placeholder="Cant."
-              style={{ ...inputStyle, textAlign: 'center' }}
-            />
-            {/* Precio unitario */}
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={item.unit_price}
-              onChange={e => updateItem(idx, 'unit_price', e.target.value)}
-              placeholder="Precio"
-              style={inputStyle}
-            />
-            {/* Total línea */}
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, textAlign: 'right' }}>
-              {fmtPrice(item.total)}
-            </div>
-            {/* Eliminar */}
-            <button
-              type="button"
-              onClick={() => removeItem(idx)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Panel de totales ──────────────────────────────────────────────────────────
-function TotalesPanel({ items, discount, tax }) {
-  const subtotal    = items.reduce((s, it) => s + (Number(it.qty || 1) * Number(it.unit_price || 0)), 0);
-  const discountAmt = subtotal * (Number(discount) / 100);
-  const taxable     = subtotal - discountAmt;
-  const taxAmt      = taxable * (Number(tax) / 100);
-  const total       = taxable + taxAmt;
-
-  return (
-    <div style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <Row2 label="Subtotal" value={fmtPrice(subtotal)} />
-      {Number(discount) > 0 && <Row2 label={`Descuento (${discount}%)`} value={`-${fmtPrice(discountAmt)}`} color={C.danger} />}
-      {Number(tax) > 0      && <Row2 label={`Impuesto (${tax}%)`}      value={fmtPrice(taxAmt)} />}
-      <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 4, paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>TOTAL</span>
-        <span style={{ fontSize: 16, fontWeight: 800, color: C.accent }}>{fmtPrice(total)}</span>
-      </div>
-    </div>
-  );
-}
-
-function Row2({ label, value, color }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-      <span style={{ color: C.muted }}>{label}</span>
-      <span style={{ color: color || C.text, fontWeight: 600 }}>{value}</span>
-    </div>
-  );
-}
-
-// ── Modal crear/editar cotización ─────────────────────────────────────────────
-const EMPTY_QUOTE = {
-  lead_id:     '',
-  contact_id:  '',
-  items:       [],
-  discount:    0,
-  tax:         0,
-  valid_until: '',
-  notes:       '',
-  status:      'draft',
-};
-
-function QuoteModal({ quote, leads, catalogProducts, onClose, onSaved }) {
-  const isEdit = !!quote;
-  const [form,    setForm]    = useState(EMPTY_QUOTE);
-  const [items,   setItems]   = useState([]);
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState('');
-  const [leadSearch, setLeadSearch] = useState('');
-  const [leadResults, setLeadResults] = useState([]);
-  const [showLeadDrop, setShowLeadDrop] = useState(false);
-  const [selectedLead, setSelectedLead] = useState(null);
-
-  useEffect(() => {
-    if (quote) {
-      setForm({
-        lead_id:     quote.lead_id     || '',
-        contact_id:  quote.contact_id  || '',
-        items:       [],
-        discount:    quote.discount    || 0,
-        tax:         quote.tax         || 0,
-        valid_until: quote.valid_until ? quote.valid_until.slice(0, 10) : '',
-        notes:       quote.notes       || '',
-        status:      quote.status      || 'draft',
-      });
-      const existingItems = Array.isArray(quote.items) ? quote.items : [];
-      setItems(existingItems.map(it => ({
-        description: it.description || '',
-        qty:         Number(it.qty || 1),
-        unit_price:  String(it.unit_price || 0),
-        total:       Number(it.total || 0),
-        product_id:  it.product_id || null,
-      })));
-      if (quote.lead_id && quote.lead_title) {
-        setSelectedLead({ id: quote.lead_id, title: quote.lead_title });
-        setLeadSearch(quote.lead_title);
-      }
-    } else {
-      setForm(EMPTY_QUOTE);
-      setItems([]);
-      setSelectedLead(null);
-      setLeadSearch('');
-    }
-  }, [quote]);
-
-  const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
-
-  // Buscar leads
-  useEffect(() => {
-    if (!leadSearch.trim() || selectedLead) {
-      setLeadResults([]);
-      setShowLeadDrop(false);
-      return;
-    }
-    const filtered = leads.filter(l =>
-      l.title.toLowerCase().includes(leadSearch.toLowerCase())
-    ).slice(0, 8);
-    setLeadResults(filtered);
-    setShowLeadDrop(filtered.length > 0);
-  }, [leadSearch, leads, selectedLead]);
-
-  const selectLead = (lead) => {
-    setSelectedLead(lead);
-    setLeadSearch(lead.title);
-    set('lead_id', lead.id);
-    if (lead.contact_id) set('contact_id', lead.contact_id);
-    setShowLeadDrop(false);
-  };
-
-  const clearLead = () => {
-    setSelectedLead(null);
-    setLeadSearch('');
-    set('lead_id', '');
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (items.length === 0) { setError('Agrega al menos un item'); return; }
-    for (const it of items) {
-      if (!it.description.trim()) { setError('Todos los items deben tener descripción'); return; }
-    }
-    setSaving(true);
-    setError('');
-    try {
-      const payload = {
-        lead_id:     form.lead_id     || null,
-        contact_id:  form.contact_id  || null,
-        items:       items.map(it => ({
-          description: it.description,
-          qty:         Number(it.qty),
-          unit_price:  Number(it.unit_price),
-          total:       Number(it.total),
-          product_id:  it.product_id || null,
-        })),
-        discount:    Number(form.discount) || 0,
-        tax:         Number(form.tax)      || 0,
-        valid_until: form.valid_until || null,
-        notes:       form.notes       || null,
-        status:      form.status,
-      };
-      if (isEdit) {
-        await api.updateQuote(quote.id, payload);
-      } else {
-        await api.createQuote(payload);
-      }
-      onSaved();
-    } catch (err) {
-      setError(err.message || 'Error al guardar');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const inputStyle = {
-    width: '100%', background: C.surface2, border: `1px solid ${C.border}`,
-    borderRadius: 10, padding: '9px 12px', fontSize: 14, color: C.text,
-    outline: 'none', boxSizing: 'border-box',
-  };
-  const labelStyle = { fontSize: 12, color: C.muted, marginBottom: 5, display: 'block', fontWeight: 500 };
-
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 18, width: '100%', maxWidth: 680, maxHeight: '93vh', overflowY: 'auto' }}>
-
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 16px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface, zIndex: 1 }}>
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: C.text }}>
-            {isEdit ? `Editar Cotización ${quote.quote_number}` : 'Nueva Cotización'}
-          </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 4, display: 'flex' }}>
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{ padding: '20px 24px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-
-          {/* Lead + Estado */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 12 }}>
-            {/* Buscador de Lead */}
-            <div style={{ position: 'relative' }}>
-              <label style={labelStyle}>Lead asociado</label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <input
-                  value={leadSearch}
-                  onChange={e => { setLeadSearch(e.target.value); if (selectedLead) clearLead(); }}
-                  placeholder="Buscar lead por nombre..."
-                  style={{ ...inputStyle, paddingRight: selectedLead ? 32 : 12 }}
-                  autoComplete="off"
-                />
-                {selectedLead && (
-                  <button type="button" onClick={clearLead}
-                    style={{ position: 'absolute', right: 10, background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 2, display: 'flex' }}>
-                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                  </button>
-                )}
-              </div>
-              {/* Dropdown leads */}
-              {showLeadDrop && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, zIndex: 100, boxShadow: '0 8px 24px rgba(0,0,0,0.25)', overflow: 'hidden', marginTop: 2 }}>
-                  {leadResults.map(l => (
-                    <button
-                      key={l.id}
-                      type="button"
-                      onClick={() => selectLead(l)}
-                      style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: C.text, borderBottom: `1px solid ${C.border}` }}
-                      onMouseEnter={e => e.currentTarget.style.background = C.surface2}
-                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                    >
-                      {l.title}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Estado */}
-            <div>
-              <label style={labelStyle}>Estado</label>
-              <select value={form.status} onChange={e => set('status', e.target.value)} style={inputStyle}>
-                <option value="draft">Borrador</option>
-                <option value="sent">Enviada</option>
-                <option value="accepted">Aceptada</option>
-                <option value="rejected">Rechazada</option>
-                <option value="expired">Vencida</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Válida hasta + Notas */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={labelStyle}>Válida hasta</label>
-              <input
-                type="date"
-                value={form.valid_until}
-                onChange={e => set('valid_until', e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Descuento (%) / Impuesto (%)</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={form.discount}
-                  onChange={e => set('discount', e.target.value)}
-                  placeholder="Desc %"
-                  style={inputStyle}
-                />
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={form.tax}
-                  onChange={e => set('tax', e.target.value)}
-                  placeholder="IVA %"
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Items */}
-          <div>
-            <ItemsEditor items={items} setItems={setItems} catalogProducts={catalogProducts} />
-          </div>
-
-          {/* Totales en tiempo real */}
-          {items.length > 0 && (
-            <TotalesPanel items={items} discount={form.discount} tax={form.tax} />
-          )}
-
-          {/* Notas */}
-          <div>
-            <label style={labelStyle}>Notas</label>
-            <textarea
-              value={form.notes}
-              onChange={e => set('notes', e.target.value)}
-              placeholder="Condiciones, observaciones, términos..."
-              rows={3}
-              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
-            />
-          </div>
-
-          {error && (
-            <div style={{ background: 'rgba(255,91,91,0.1)', border: `1px solid ${C.danger}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: C.danger }}>
-              {error}
-            </div>
-          )}
-
-          {/* Acciones */}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
-            <Btn onClick={onClose} style={{ background: C.surface2, color: C.muted }}>Cancelar</Btn>
-            <Btn type="submit" disabled={saving} style={{ background: C.accent, color: '#fff' }}>
-              {saving ? 'Guardando...' : (isEdit ? 'Guardar cambios' : 'Crear cotización')}
-            </Btn>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ── Página principal ──────────────────────────────────────────────────────────
-const STATUS_TABS = [
-  { key: '',         label: 'Todas'     },
-  { key: 'draft',    label: 'Borrador'  },
-  { key: 'sent',     label: 'Enviadas'  },
-  { key: 'accepted', label: 'Aceptadas' },
-  { key: 'rejected', label: 'Rechazadas'},
-  { key: 'expired',  label: 'Vencidas'  },
+const BATERIAS = [
+  { name: 'Sin batería',          precio: 0 },
+  { name: 'SolaX ESS 10.24 kWh', precio: 9900 },
+  { name: 'SolaX ESS 15.36 kWh', precio: 12950 },
+  { name: 'SolaX ESS 20.48 kWh', precio: 15900 },
+  { name: 'FranklinWH G2',       precio: 13539 },
+  { name: 'Tesla PowerWall 3',   precio: 11992 },
 ];
 
-export default function CotizacionesPage() {
-  const [quotes,   setQuotes]   = useState([]);
-  const [leads,    setLeads]    = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [search,   setSearch]   = useState('');
-  const [tabStatus, setTabStatus] = useState('');
+const MESES_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-  const [modalOpen,  setModalOpen]  = useState(false);
-  const [editQuote,  setEditQuote]  = useState(null);
-  const [delConfirm, setDelConfirm] = useState(null);
-  const [downloading, setDownloading] = useState(null);
-  const [changingStatus, setChangingStatus] = useState(null); // { quoteId, status }
+function calcular(meses, batPrecio) {
+  const filled = meses.map(Number).filter(v => v > 0);
+  if (!filled.length) return null;
+  const avgKwh   = filled.reduce((a,b) => a+b, 0) / filled.length;
+  const annCons  = Math.round(avgKwh * 12);
+  const panels   = Math.round((annCons * 1.07) / FACTOR * 1000 / 550);
+  const systemKw = parseFloat(((panels * 550) / 1000).toFixed(2));
+  const annProd  = Math.round(systemKw * FACTOR);
+  const costBase = Math.round(systemKw * KW_PREC);
+  const subtotal = costBase + batPrecio;
+  const credit30 = Math.round(subtotal * 0.3);
+  const netCost  = subtotal - credit30;
+  const pagoLuma = Math.round(avgKwh * TARIFA);
+  const annSav   = pagoLuma * 12;
+  const roi      = annSav > 0 ? Math.round(costBase / annSav) : 0;
+  const offset   = annCons > 0 ? Math.min(Math.round(annProd / annCons * 100), 100) : 0;
+  const pagoFV   = Math.round(costBase * PMT_15);
+  const pagoBat  = Math.round(subtotal * PMT_15);
+  return { avgKwh: Math.round(avgKwh), annCons, panels, systemKw, annProd, costBase, subtotal, credit30, netCost, pagoLuma, annSav, roi, offset, pagoFV, pagoBat };
+}
 
-  // ── Cargar datos ────────────────────────────────────────────────────────────
-  const loadQuotes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const q = new URLSearchParams();
-      if (search)    q.set('search', search);
-      if (tabStatus) q.set('status', tabStatus);
-      const qs = q.toString() ? `?${q.toString()}` : '';
-      const data = await api.quotes(qs);
-      setQuotes(data.quotes || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, tabStatus]);
+const fmt  = n => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtK = n => Number(n).toLocaleString('en-US');
 
-  useEffect(() => { loadQuotes(); }, [loadQuotes]);
+function CotizadorInner() {
+  const params     = useSearchParams();
+  const leadIdUrl  = params.get('leadId');
+
+  const [info, setInfo]       = useState({ name:'', email:'', phone:'', city:'', address:'', zip:'' });
+  const [meses, setMeses]     = useState(Array(12).fill(''));
+  const [batIdx, setBatIdx]   = useState(0);
+  const [calc, setCalc]       = useState(null);
+  const [leadId, setLeadId]   = useState(leadIdUrl || null);
+  const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [msg, setMsg]         = useState({ text:'', ok:true });
 
   useEffect(() => {
-    api.leads('?page=1').then(d => setLeads(d.leads || [])).catch(() => {});
-    api.products('?is_active=true').then(d => setProducts(d.products || [])).catch(() => {});
-  }, []);
+    if (!leadIdUrl) return;
+    setLoading(true);
+    api.lead(leadIdUrl).then(lead => {
+      if (!lead) return;
+      setLeadId(lead.id);
+      setInfo({
+        name:    lead.contact_name || lead.title || '',
+        email:   lead.solar_data?.email || lead.contact_email || '',
+        phone:   lead.solar_data?.telefono || lead.contact_phone || '',
+        city:    lead.solar_data?.city || '',
+        address: lead.solar_data?.address || '',
+        zip:     lead.solar_data?.zip || '',
+      });
+      const sd = lead.solar_data || {};
+      if (sd.meses?.length) {
+        const m = Array(12).fill('');
+        sd.meses.slice(0, 12).forEach((v, i) => { m[i] = v || ''; });
+        setMeses(m);
+      }
+      if (sd.batteries?.length) {
+        const idx = BATERIAS.findIndex(b => b.name === sd.batteries[0]?.name);
+        if (idx >= 0) setBatIdx(idx);
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [leadIdUrl]);
 
-  // ── Stats ───────────────────────────────────────────────────────────────────
-  const totalCount    = quotes.length;
-  const draftCount    = quotes.filter(q => q.status === 'draft').length;
-  const acceptedCount = quotes.filter(q => q.status === 'accepted').length;
-  const totalValue    = quotes.reduce((s, q) => s + Number(q.total || 0), 0);
+  useEffect(() => {
+    setCalc(calcular(meses, BATERIAS[batIdx].precio));
+  }, [meses, batIdx]);
 
-  // ── Acciones ────────────────────────────────────────────────────────────────
-  const openCreate = () => { setEditQuote(null); setModalOpen(true); };
-  const openEdit   = (q) => { setEditQuote(q);   setModalOpen(true); };
-  const closeModal = () => { setModalOpen(false); setEditQuote(null); };
-  const handleSaved = () => { closeModal(); loadQuotes(); };
+  const showMsg = (text, ok = true) => { setMsg({ text, ok }); setTimeout(() => setMsg({ text:'', ok:true }), 3000); };
 
-  const doDelete = async () => {
-    if (!delConfirm) return;
+  const guardarLead = async () => {
+    if (!info.name.trim()) return showMsg('El nombre es requerido', false);
+    setSaveLoading(true);
     try {
-      await api.deleteQuote(delConfirm.id);
-      setDelConfirm(null);
-      loadQuotes();
-    } catch (err) {
-      alert(err.message);
-    }
+      const bat = BATERIAS[batIdx];
+      const solarData = {
+        meses, calc,
+        batteries: bat.precio > 0 ? [{ name: bat.name, qty: 1, unitPrice: bat.precio }] : [],
+        pagoLuz:   calc?.pagoLuma || '',
+        email:     info.email,
+        telefono:  info.phone,
+        city:      info.city,
+        address:   info.address,
+        zip:       info.zip,
+        submittedAt: new Date().toISOString(),
+        source: 'cotizacion-crm',
+      };
+      if (leadId) {
+        await api.saveSolarData(leadId, { solar_data: solarData, value: calc?.costBase || 0 });
+        showMsg('✓ Lead actualizado');
+      } else {
+        const r = await api.createLead({ title: `${info.name}${info.city ? ` — ${info.city}` : ''}`, contact_name: info.name, contact_email: info.email, contact_phone: info.phone, solar_data: solarData, value: calc?.costBase || 0 });
+        const newId = r.id || r.lead_id;
+        setLeadId(newId);
+        showMsg('✓ Lead creado — #' + newId);
+      }
+    } catch (e) { showMsg('Error: ' + e.message, false); }
+    finally { setSaveLoading(false); }
   };
 
-  const handleDownloadPdf = async (quote) => {
-    setDownloading(quote.id);
+  const generarPDF = async () => {
+    const id = leadId;
+    if (!id) { await guardarLead(); return; }
+    setPdfLoading(true);
     try {
-      const data = await api.quotePdf(quote.id);
-      if (!data.pdf) throw new Error('No se recibió PDF');
-      const bytes  = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
-      const blob   = new Blob([bytes], { type: 'application/pdf' });
-      const url    = URL.createObjectURL(blob);
-      const a      = document.createElement('a');
-      a.href       = url;
-      a.download   = data.filename || `${quote.quote_number}.pdf`;
-      a.click();
+      const data = await api.leadPropuesta(id);
+      if (!data.pdf) throw new Error('Sin PDF');
+      const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
+      const blob  = new Blob([bytes], { type: 'application/pdf' });
+      const url   = URL.createObjectURL(blob);
+      const a     = document.createElement('a'); a.href = url; a.download = data.filename || `Propuesta-${id}.pdf`; a.click();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      alert('Error al generar PDF: ' + err.message);
-    } finally {
-      setDownloading(null);
-    }
+    } catch (e) { showMsg('Error PDF: ' + e.message, false); }
+    finally { setPdfLoading(false); }
   };
 
-  const handleChangeStatus = async (quoteId, newStatus) => {
-    setChangingStatus({ quoteId, status: newStatus });
-    try {
-      await api.quoteStatus(quoteId, newStatus);
-      loadQuotes();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setChangingStatus(null);
-    }
+  const S = {
+    card:  { background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'18px 20px' },
+    lbl:   { fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:4, display:'block' },
+    inp:   { width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', boxSizing:'border-box' },
+    sec:   { fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:12 },
+    stat:  { background:'var(--bg)', borderRadius:8, padding:'10px 14px', textAlign:'center' },
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  if (loading) return <div style={{ padding:60, textAlign:'center', color:'var(--muted)' }}>Cargando datos del lead…</div>;
+
   return (
-    <div style={{ background: C.bg, minHeight: '100vh', padding: '24px 24px 60px', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'var(--bg)', color:'var(--text)' }}>
 
-      {/* ── Top bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase' }}>Cotizaciones</span>
-          <span style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 20, padding: '2px 10px', fontSize: 12, color: C.muted, fontWeight: 600 }}>
-            {totalCount}
-          </span>
+      {/* Header */}
+      <div style={{ padding:'14px 24px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0, gap:12, flexWrap:'wrap' }}>
+        <div>
+          <div style={{ fontSize:17, fontWeight:800, color:'var(--text)' }}>☀️ Cotización Solar</div>
+          {leadId && <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>Lead #{leadId}{info.name ? ` · ${info.name}` : ''}</div>}
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {/* Búsqueda */}
-          <div style={{ position: 'relative' }}>
-            <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar cotizaciones..."
-              style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, fontSize: 13, color: C.text, outline: 'none', width: 210 }}
-            />
-          </div>
-
-          <Btn onClick={openCreate} style={{ background: C.accent, color: '#fff', padding: '8px 16px', borderRadius: 10, fontSize: 14 }}>
-            <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-            Nueva Cotización
-          </Btn>
-        </div>
-      </div>
-
-      {/* ── Stats ── */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <StatCard label="Total"    value={totalCount}       color={C.text}    />
-        <StatCard label="Borrador" value={draftCount}       color={C.muted}   />
-        <StatCard label="Aceptadas" value={acceptedCount}   color={C.success} />
-        <StatCard label="Valor total" value={fmtPrice(totalValue)} color={C.accent} />
-      </div>
-
-      {/* ── Tabs de estado ── */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: `1px solid ${C.border}`, flexWrap: 'wrap' }}>
-        {STATUS_TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setTabStatus(tab.key)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '10px 16px', fontSize: 13, fontWeight: 600,
-              color: tabStatus === tab.key ? C.accent : C.muted,
-              borderBottom: tabStatus === tab.key ? `2px solid ${C.accent}` : '2px solid transparent',
-              marginBottom: -1, transition: 'all 0.15s',
-            }}
-          >
-            {tab.label}
-            {tab.key === '' && totalCount > 0 && (
-              <span style={{ marginLeft: 6, background: C.surface2, borderRadius: 10, padding: '1px 6px', fontSize: 11 }}>{totalCount}</span>
-            )}
+        <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+          {msg.text && <span style={{ fontSize:12, fontWeight:600, color: msg.ok ? '#10b981' : '#ef4444' }}>{msg.text}</span>}
+          <button onClick={guardarLead} disabled={saveLoading || !info.name.trim()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:7, padding:'7px 16px', fontSize:13, fontWeight:600, color:'var(--text)', cursor:'pointer', opacity: saveLoading || !info.name.trim() ? 0.5 : 1 }}>
+            {saveLoading ? 'Guardando…' : leadId ? 'Actualizar Lead' : 'Guardar como Lead'}
           </button>
-        ))}
+          <button onClick={generarPDF} disabled={!calc || pdfLoading} style={{ background:'#1a3c8f', border:'none', borderRadius:7, padding:'7px 18px', fontSize:13, fontWeight:700, color:'#fff', cursor: calc ? 'pointer' : 'default', opacity: (!calc || pdfLoading) ? 0.5 : 1, display:'flex', alignItems:'center', gap:7 }}>
+            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            {pdfLoading ? 'Generando…' : 'Generar Propuesta PDF'}
+          </button>
+        </div>
       </div>
 
-      {/* ── Tabla ── */}
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto' }}>
-        {/* Header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 140px 110px 110px 130px 150px', borderBottom: `1px solid ${C.border}`, padding: '0 16px' }}>
-          {['Número', 'Lead / Cliente', 'Total', 'Estado', 'Válida hasta', 'Creada', 'Acciones'].map(h => (
-            <div key={h} style={{ padding: '12px 8px', fontSize: 11, color: C.muted, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>{h}</div>
-          ))}
+      {/* Body — 2 columnas */}
+      <div style={{ flex:1, overflow:'auto', padding:'20px 24px', display:'grid', gridTemplateColumns:'1fr 340px', gap:22, alignItems:'start' }}>
+
+        {/* ─── IZQUIERDA: Formulario ─── */}
+        <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+
+          {/* Info del cliente */}
+          <div style={S.card}>
+            <div style={S.sec}>Información del Cliente</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              {[['Nombre completo *','name','text'],['Email','email','email'],['Teléfono','phone','tel'],['Ciudad','city','text'],['Dirección','address','text'],['ZIP','zip','text']].map(([lbl, key, type]) => (
+                <div key={key} style={key==='name'||key==='address'?{gridColumn:'1/-1'}:{}}>
+                  <label style={S.lbl}>{lbl}</label>
+                  <input type={type} value={info[key]} onChange={e => setInfo(p => ({...p,[key]:e.target.value}))} style={S.inp} placeholder={lbl.replace(' *','')} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Consumo mensual kWh */}
+          <div style={S.card}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+              <div style={S.sec}>Consumo Mensual (kWh — de la factura LUMA)</div>
+              <button onClick={() => setMeses(Array(12).fill(''))} style={{ fontSize:11, color:'var(--muted)', background:'none', border:'none', cursor:'pointer' }}>Limpiar</button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10 }}>
+              {MESES_LABELS.map((m, i) => (
+                <div key={i}>
+                  <label style={{ ...S.lbl, marginBottom:4 }}>{m}</label>
+                  <input type="number" value={meses[i]} onChange={e => { const n=[...meses]; n[i]=e.target.value; setMeses(n); }} placeholder="kWh" min="0"
+                    style={{ ...S.inp, textAlign:'center', color: Number(meses[i]) > 0 ? '#3b82f6' : 'var(--text)', fontWeight: Number(meses[i]) > 0 ? 700 : 400 }} />
+                </div>
+              ))}
+            </div>
+            {calc && (
+              <div style={{ marginTop:12, padding:'8px 12px', background:'var(--bg)', borderRadius:6, fontSize:12, color:'var(--muted)', display:'flex', gap:16, flexWrap:'wrap' }}>
+                <span>Promedio: <strong style={{ color:'var(--text)' }}>{fmtK(calc.avgKwh)} kWh/mes</strong></span>
+                <span>Pago LUMA estimado: <strong style={{ color:'#ef4444' }}>{fmt(calc.pagoLuma)}/mes</strong></span>
+                <span>Consumo anual: <strong style={{ color:'var(--text)' }}>{fmtK(calc.annCons)} kWh</strong></span>
+              </div>
+            )}
+          </div>
+
+          {/* Batería */}
+          <div style={S.card}>
+            <div style={S.sec}>Sistema de Respaldo (Batería)</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              {BATERIAS.map((b, i) => (
+                <button key={i} onClick={() => setBatIdx(i)} style={{ border: batIdx===i ? '2px solid #1a3c8f' : '1px solid var(--border)', borderRadius:8, padding:'10px 14px', textAlign:'left', cursor:'pointer', background: batIdx===i ? 'rgba(26,60,143,0.1)' : 'var(--bg)', transition:'all 0.15s' }}>
+                  <div style={{ fontSize:12, fontWeight:700, color: batIdx===i ? '#60a5fa' : 'var(--text)' }}>{b.name}</div>
+                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{b.precio > 0 ? fmt(b.precio) : 'Sin respaldo'}</div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div style={{ padding: '40px 24px', textAlign: 'center', color: C.muted }}>
-            <div style={{ display: 'inline-block', width: 22, height: 22, border: `2px solid ${C.border}`, borderTop: `2px solid ${C.accent}`, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          </div>
-        )}
-
-        {/* Empty */}
-        {!loading && quotes.length === 0 && (
-          <div style={{ padding: '60px 24px', textAlign: 'center', color: C.muted }}>
-            <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.2" viewBox="0 0 24 24" style={{ marginBottom: 12, opacity: 0.4 }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3M9 7V6a2 2 0 012-2h2a2 2 0 012 2v1M9 7h6" />
-            </svg>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>Sin cotizaciones</div>
-            <div style={{ fontSize: 13 }}>Crea la primera cotización con el botón "+ Nueva Cotización"</div>
-          </div>
-        )}
-
-        {/* Rows */}
-        {!loading && quotes.map((q, i) => (
-          <div
-            key={q.id}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '110px 1fr 140px 110px 110px 130px 150px',
-              padding: '0 16px',
-              borderBottom: i < quotes.length - 1 ? `1px solid ${C.border}` : 'none',
-              background: 'transparent',
-              transition: 'background 0.12s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = C.surface2}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          >
-            {/* Número */}
-            <div style={{ padding: '14px 8px', display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>{q.quote_number}</span>
+        {/* ─── DERECHA: Resultados ─── */}
+        <div style={{ position:'sticky', top:0, display:'flex', flexDirection:'column', gap:14 }}>
+          {!calc ? (
+            <div style={{ ...S.card, textAlign:'center', padding:'50px 20px' }}>
+              <div style={{ fontSize:36, marginBottom:14 }}>☀️</div>
+              <div style={{ fontSize:14, color:'var(--muted)', lineHeight:1.6 }}>Ingresa el consumo mensual<br/>para ver la cotización</div>
             </div>
-
-            {/* Lead / Cliente */}
-            <div style={{ padding: '14px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {q.lead_title || q.contact_name || <span style={{ color: C.muted }}>Sin lead</span>}
-              </span>
-              {q.lead_title && q.contact_name && (
-                <span style={{ fontSize: 12, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
-                  {q.contact_name}
-                </span>
-              )}
-            </div>
-
-            {/* Total */}
-            <div style={{ padding: '14px 8px', display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{fmtPrice(q.total)}</span>
-            </div>
-
-            {/* Estado */}
-            <div style={{ padding: '14px 8px', display: 'flex', alignItems: 'center' }}>
-              <div style={{ position: 'relative' }}>
-                <StatusBadge status={q.status} />
+          ) : (<>
+            {/* Sistema */}
+            <div style={S.card}>
+              <div style={S.sec}>Sistema Recomendado</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                {[['Capacidad DC',`${calc.systemKw} kW`],['Paneles',`${calc.panels} uds`],['Producción/año',`${fmtK(calc.annProd)} kWh`],['Cobertura',`${calc.offset}%`]].map(([k,v]) => (
+                  <div key={k} style={S.stat}>
+                    <div style={{ fontSize:9, color:'var(--muted)', fontWeight:600, textTransform:'uppercase' }}>{k}</div>
+                    <div style={{ fontSize:15, fontWeight:800, color:'var(--text)', marginTop:2 }}>{v}</div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Válida hasta */}
-            <div style={{ padding: '14px 8px', display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: C.muted }}>{fmtDate(q.valid_until)}</span>
+            {/* Pagos */}
+            <div style={S.card}>
+              <div style={S.sec}>Comparación Mensual</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:9 }}>
+                <div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:8, padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:'#991b1b' }}>LUMA Actual</div>
+                  <div style={{ fontSize:22, fontWeight:900, color:'#dc2626' }}>{fmt(calc.pagoLuma)}</div>
+                </div>
+                <div style={{ background:'#dbeafe', border:'1px solid #93c5fd', borderRadius:8, padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#1e40af' }}>Solo Placas</div>
+                    <div style={{ fontSize:10, color:'#3b82f6' }}>15 años · 6.5%</div>
+                  </div>
+                  <div style={{ fontSize:22, fontWeight:900, color:'#1d4ed8' }}>{fmt(calc.pagoFV)}</div>
+                </div>
+                {BATERIAS[batIdx].precio > 0 && (
+                  <div style={{ background:'#ede9fe', border:'1px solid #c4b5fd', borderRadius:8, padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div>
+                      <div style={{ fontSize:11, fontWeight:700, color:'#5b21b6' }}>Placas + Batería</div>
+                      <div style={{ fontSize:10, color:'#7c3aed' }}>15 años · 6.5%</div>
+                    </div>
+                    <div style={{ fontSize:22, fontWeight:900, color:'#6d28d9' }}>{fmt(calc.pagoBat)}</div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Fecha creación */}
-            <div style={{ padding: '14px 8px', display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: C.muted }}>{fmtDate(q.created_at)}</span>
+            {/* Precios */}
+            <div style={S.card}>
+              <div style={S.sec}>Desglose</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:7, fontSize:12 }}>
+                {[
+                  ['Sistema FV', fmt(calc.costBase), false],
+                  ...(BATERIAS[batIdx].precio > 0 ? [[BATERIAS[batIdx].name, fmt(BATERIAS[batIdx].precio), false]] : []),
+                  ['Subtotal', fmt(calc.subtotal), false],
+                  ['Crédito Federal 30%', `-${fmt(calc.credit30)}`, 'green'],
+                  ['Precio Neto', fmt(calc.netCost), 'bold'],
+                ].map(([k,v,style]) => (
+                  <div key={k} style={{ display:'flex', justifyContent:'space-between', paddingTop: style==='bold'?8:0, borderTop: style==='bold'?'1px solid var(--border)':undefined }}>
+                    <span style={{ color: style==='green'?'#10b981':'var(--muted)' }}>{k}</span>
+                    <span style={{ fontWeight: style==='bold'?800:500, color: style==='green'?'#10b981':style==='bold'?'var(--text)':'var(--text)' }}>{v}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Acciones */}
-            <div style={{ padding: '14px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
-              {/* Cambiar estado (select rápido) */}
-              <select
-                value={q.status}
-                onChange={e => handleChangeStatus(q.id, e.target.value)}
-                disabled={changingStatus?.quoteId === q.id}
-                title="Cambiar estado"
-                style={{
-                  background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6,
-                  padding: '4px 6px', fontSize: 11, color: C.text, cursor: 'pointer', outline: 'none',
-                  opacity: changingStatus?.quoteId === q.id ? 0.5 : 1,
-                }}
-              >
-                <option value="draft">Borrador</option>
-                <option value="sent">Enviada</option>
-                <option value="accepted">Aceptada</option>
-                <option value="rejected">Rechazada</option>
-                <option value="expired">Vencida</option>
-              </select>
-
-              {/* Descargar PDF */}
-              <button
-                onClick={() => handleDownloadPdf(q)}
-                disabled={downloading === q.id}
-                title="Descargar PDF"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, padding: 5, borderRadius: 6, display: 'flex', opacity: downloading === q.id ? 0.5 : 1 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(248,113,113,0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'none'}
-              >
-                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </button>
-
-              {/* Editar */}
-              <button
-                onClick={() => openEdit(q)}
-                title="Editar"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.accent, padding: 5, borderRadius: 6, display: 'flex' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'none'}
-              >
-                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-              </button>
-
-              {/* Eliminar */}
-              <button
-                onClick={() => setDelConfirm(q)}
-                title="Eliminar"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, padding: 5, borderRadius: 6, display: 'flex' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,91,91,0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'none'}
-              >
-                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              </button>
+            {/* ROI */}
+            <div style={{ background:'#1a3c8f', borderRadius:10, padding:'14px 18px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              {[['Ahorro anual estimado', fmt(calc.annSav)],['Retorno de inversión', `${calc.roi} años`]].map(([k,v]) => (
+                <div key={k} style={{ textAlign:'center' }}>
+                  <div style={{ fontSize:9, color:'rgba(255,255,255,0.6)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.4px' }}>{k}</div>
+                  <div style={{ fontSize:17, fontWeight:900, color:'#fff', marginTop:3 }}>{v}</div>
+                </div>
+              ))}
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Modals ── */}
-      {modalOpen && (
-        <QuoteModal
-          quote={editQuote}
-          leads={leads}
-          catalogProducts={products}
-          onClose={closeModal}
-          onSaved={handleSaved}
-        />
-      )}
-
-      {/* ── Delete confirm ── */}
-      {delConfirm && (
-        <div onClick={() => setDelConfirm(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 380, textAlign: 'center' }}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,91,91,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <svg width="22" height="22" fill="none" stroke={C.danger} strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 8 }}>Eliminar cotización</div>
-            <div style={{ fontSize: 13, color: C.muted, marginBottom: 24 }}>
-              ¿Seguro que deseas eliminar <strong style={{ color: C.text }}>{delConfirm.quote_number}</strong>? Esta acción no se puede deshacer.
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <Btn onClick={() => setDelConfirm(null)} style={{ background: C.surface2, color: C.muted, padding: '9px 20px' }}>Cancelar</Btn>
-              <Btn onClick={doDelete} style={{ background: C.danger, color: '#fff', padding: '9px 20px' }}>Eliminar</Btn>
-            </div>
-          </div>
+          </>)}
         </div>
-      )}
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
     </div>
+  );
+}
+
+export default function CotizacionesPage() {
+  return (
+    <Suspense fallback={<div style={{ padding:60, textAlign:'center', color:'var(--muted)' }}>Cargando…</div>}>
+      <CotizadorInner />
+    </Suspense>
   );
 }
