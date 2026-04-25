@@ -2642,110 +2642,82 @@ function KanbanColumn({ stage, leads, onMove, onEdit, onDelete, onOpen, selectMo
 
 // ─── Desktop Lista View ───────────────────────────────────────────────────────
 
+function LeadRow({ lead, onOpen, onEdit, onDelete, selectMode, selectedIds, onToggleSelect, isLast }) {
+  const isSelected = selectedIds.has(lead.id);
+  const initial    = (lead.contact_name || lead.title || '?')[0].toUpperCase();
+  const avatarColor = lead.stage_color || '#2dd4bf';
+  const createdDate = lead.created_at ? new Date(lead.created_at).toLocaleDateString('es-PR', { month: 'short', day: 'numeric' }) : '';
+  const hasSolar   = lead.solar_data?.meses?.some(v => Number(v) > 0);
+  const hasCalc    = !!lead.solar_data?.calc;
+  return (
+    <div
+      onClick={selectMode ? () => onToggleSelect(lead.id) : () => onOpen(lead.id)}
+      style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 16px', borderBottom: isLast ? 'none' : '1px solid #242a35', cursor:'pointer', background: isSelected ? 'rgba(45,212,191,0.06)' : 'transparent', transition:'background 0.12s' }}
+      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isSelected ? 'rgba(45,212,191,0.06)' : 'transparent'; }}
+    >
+      {selectMode && (
+        <div style={{ width:16, height:16, borderRadius:4, border:`2px solid ${isSelected?'#2dd4bf':'#64748b'}`, background:isSelected?'#2dd4bf':'transparent', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0f1419" strokeWidth="3"><path d="M5 13l4 4L19 7"/></svg>}
+        </div>
+      )}
+      <div style={{ width:36, height:36, borderRadius:'50%', background:`${avatarColor}22`, color:avatarColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700, flexShrink:0, border:`1px solid ${avatarColor}33` }}>
+        {initial}
+      </div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+          <span style={{ fontSize:13, fontWeight:600, color:'#2dd4bf', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:220 }} title={lead.title}>{lead.title}</span>
+          {lead.stage_name && <span style={{ fontSize:10, padding:'1px 7px', borderRadius:10, background:`${lead.stage_color||'#64748b'}22`, color:lead.stage_color||'#94a3b8', border:`1px solid ${lead.stage_color||'#64748b'}33`, whiteSpace:'nowrap' }}>{lead.stage_name}</span>}
+          {lead.value > 0 && <span style={{ fontSize:11, color:'#10b981', fontWeight:600 }}>${Number(lead.value).toLocaleString()}</span>}
+          {hasSolar && !hasCalc && <span style={{ fontSize:10, padding:'1px 7px', borderRadius:10, background:'rgba(251,191,36,0.15)', color:'#fbbf24', border:'1px solid rgba(251,191,36,0.3)', whiteSpace:'nowrap' }}>☀️ Sin cotizar</span>}
+          {hasCalc && <span style={{ fontSize:10, padding:'1px 7px', borderRadius:10, background:'rgba(26,60,143,0.2)', color:'#60a5fa', border:'1px solid rgba(26,60,143,0.4)', whiteSpace:'nowrap' }}>☀️ {lead.solar_data.calc.systemKw}kW</span>}
+        </div>
+        {lead.tags?.length > 0 && (
+          <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginTop:4 }}>
+            {lead.tags.slice(0,4).map((tag,ti) => <span key={ti} style={{ fontSize:10, padding:'1px 6px', borderRadius:3, background:'rgba(100,116,139,0.2)', color:'#94a3b8', border:'1px solid rgba(100,116,139,0.3)' }}>{typeof tag==='string'?tag:tag.tag}</span>)}
+          </div>
+        )}
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:3, flexWrap:'wrap' }}>
+          {createdDate && <span style={{ fontSize:10, color:'#64748b' }}>{createdDate}</span>}
+          {lead.assigned_name && <span style={{ fontSize:10, color:'#2dd4bf', display:'flex', alignItems:'center', gap:4 }}><div style={{ width:14, height:14, borderRadius:'50%', background:'rgba(45,212,191,0.2)', color:'#2dd4bf', display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700 }}>{lead.assigned_name[0].toUpperCase()}</div>{lead.assigned_name}</span>}
+          {lead.contact_phone && <span style={{ fontSize:10, color:'#64748b' }}>📞 {lead.contact_phone}</span>}
+        </div>
+      </div>
+      <div style={{ flexShrink:0, textAlign:'right' }}>
+        <span style={{ fontSize:10, color:'#64748b', whiteSpace:'nowrap' }}>{tiempoRelativo(lead.updated_at)}</span>
+        {!selectMode && (
+          <div style={{ display:'flex', gap:4, justifyContent:'flex-end', marginTop:4 }}>
+            <button onClick={e=>{ e.stopPropagation(); onEdit(lead); }} style={{ fontSize:10, color:'#64748b', background:'none', border:'none', cursor:'pointer', padding:'2px 5px', borderRadius:4 }} onMouseEnter={e=>e.currentTarget.style.color='#fff'} onMouseLeave={e=>e.currentTarget.style.color='#64748b'}>Editar</button>
+            <button onClick={e=>{ e.stopPropagation(); onDelete(lead.id); }} style={{ fontSize:10, color:'#64748b', background:'none', border:'none', cursor:'pointer', padding:'2px 5px', borderRadius:4 }} onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color='#64748b'}>Eliminar</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ListaView({ leads, onOpen, onEdit, onDelete, selectMode, selectedIds, onToggleSelect }) {
   if (leads.length === 0) return <p className="text-muted text-sm text-center py-12">Sin leads</p>;
+
+  const listos    = leads.filter(l => l.solar_data?.meses?.some(v => Number(v) > 0));
+  const sinDatos  = leads.filter(l => !l.solar_data?.meses?.some(v => Number(v) > 0));
+
+  const Section = ({ title, color, bg, items }) => items.length === 0 ? null : (
+    <div style={{ marginBottom:18 }}>
+      <div style={{ padding:'7px 16px', background:bg, borderRadius:'8px 8px 0 0', display:'flex', alignItems:'center', gap:8 }}>
+        <span style={{ fontSize:11, fontWeight:700, color, textTransform:'uppercase', letterSpacing:'0.06em' }}>{title}</span>
+        <span style={{ fontSize:11, color, opacity:0.7 }}>({items.length})</span>
+      </div>
+      <div style={{ background:'#161b24', border:'1px solid #242a35', borderTop:'none', borderRadius:'0 0 8px 8px', overflow:'hidden' }}>
+        {items.map((lead,i) => <LeadRow key={lead.id} lead={lead} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} selectMode={selectMode} selectedIds={selectedIds} onToggleSelect={onToggleSelect} isLast={i===items.length-1} />)}
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', background: '#161b24', borderRadius: 10, border: '1px solid #242a35', overflow: 'hidden' }}>
-      {leads.map((lead, i) => {
-        const isSelected = selectedIds.has(lead.id);
-        const initial = (lead.contact_name || lead.title || '?')[0].toUpperCase();
-        const avatarColor = lead.stage_color || '#2dd4bf';
-        const createdDate = lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-        return (
-          <div key={lead.id}
-            onClick={selectMode ? () => onToggleSelect(lead.id) : () => onOpen(lead.id)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              padding: '10px 16px',
-              borderBottom: i < leads.length - 1 ? '1px solid #242a35' : 'none',
-              cursor: 'pointer',
-              background: isSelected ? 'rgba(45,212,191,0.06)' : 'transparent',
-              transition: 'background 0.12s',
-            }}
-            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
-            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
-          >
-            {/* Checkbox (select mode) */}
-            {selectMode && (
-              <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${isSelected ? '#2dd4bf' : '#64748b'}`, background: isSelected ? '#2dd4bf' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0f1419" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>}
-              </div>
-            )}
-            {/* Avatar */}
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: `${avatarColor}22`, color: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0, border: `1px solid ${avatarColor}33` }}>
-              {initial}
-            </div>
-            {/* Main info */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {/* Name row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#2dd4bf', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}
-                  title={lead.title}>
-                  {lead.title}
-                </span>
-                {lead.stage_name && (
-                  <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 10, background: `${lead.stage_color || '#64748b'}22`, color: lead.stage_color || '#94a3b8', border: `1px solid ${lead.stage_color || '#64748b'}33`, whiteSpace: 'nowrap' }}>
-                    {lead.stage_name}
-                  </span>
-                )}
-                {lead.value > 0 && (
-                  <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    ${Number(lead.value).toLocaleString()}
-                  </span>
-                )}
-              </div>
-              {/* Tags row */}
-              {lead.tags && lead.tags.length > 0 && (
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                  {lead.tags.slice(0, 4).map((tag, ti) => (
-                    <span key={ti} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: 'rgba(100,116,139,0.2)', color: '#94a3b8', border: '1px solid rgba(100,116,139,0.3)' }}>
-                      {typeof tag === 'string' ? tag : tag.tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {/* Date + agent + tasks row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
-                {createdDate && (
-                  <span style={{ fontSize: 10, color: '#64748b' }}>{createdDate}</span>
-                )}
-                {lead.assigned_name && (
-                  <span style={{ fontSize: 10, color: '#2dd4bf', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'rgba(45,212,191,0.2)', color: '#2dd4bf', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700 }}>
-                      {lead.assigned_name[0].toUpperCase()}
-                    </div>
-                    {lead.assigned_name}
-                  </span>
-                )}
-                {/* Tasks indicator */}
-                <span style={{ fontSize: 10, color: '#f97316' }}>
-                  No hay tareas •
-                </span>
-              </div>
-            </div>
-            {/* Updated time */}
-            <div style={{ flexShrink: 0, textAlign: 'right' }}>
-              <span style={{ fontSize: 10, color: '#64748b', whiteSpace: 'nowrap' }}>{tiempoRelativo(lead.updated_at)}</span>
-              {!selectMode && (
-                <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', marginTop: 4 }}>
-                  <button onClick={e => { e.stopPropagation(); onEdit(lead); }}
-                    style={{ fontSize: 10, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 5px', borderRadius: 4 }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                    onMouseLeave={e => e.currentTarget.style.color = '#64748b'}>
-                    Editar
-                  </button>
-                  <button onClick={e => { e.stopPropagation(); onDelete(lead.id); }}
-                    style={{ fontSize: 10, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 5px', borderRadius: 4 }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                    onMouseLeave={e => e.currentTarget.style.color = '#64748b'}>
-                    Eliminar
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+    <div>
+      <Section title="☀️ Listos para cotizar" color="#fbbf24" bg="rgba(251,191,36,0.1)" items={listos} />
+      <Section title="Todos los leads" color="#64748b" bg="rgba(100,116,139,0.07)" items={sinDatos} />
     </div>
   );
 }
