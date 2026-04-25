@@ -7,6 +7,7 @@ import { useAuth } from '../../lib/auth';
 import { api } from '../../lib/api';
 import { useLang } from '../../lib/lang-context';
 import { t } from '../../lib/lang';
+import Logo from '../components/Logo';
 
 function useTheme() {
   const [theme, setTheme] = useState('dark');
@@ -413,9 +414,9 @@ export default function DashboardLayout({ children }) {
   }, [user]);
 
   if (loading || !user) return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, background: 'var(--bg)' }}>
-      <Image src="/logo.webp" alt="Energy Depot PR" width={80} height={80} style={{ borderRadius: 16, objectFit: 'contain' }} priority />
-      <div style={{ width: 28, height: 28, border: '3px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 32, background: 'var(--bg)' }}>
+      <Logo variant="stacked" size={90} theme="dark"/>
+      <div style={{ width: 28, height: 28, border: '3px solid #1a3c8f', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
@@ -430,12 +431,12 @@ export default function DashboardLayout({ children }) {
         display: 'flex', flexDirection: 'column', flexShrink: 0, alignItems: 'center',
         position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
       }}>
-        {/* Logo */}
-        <div style={{ width: 68, height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <div style={{ width: 38, height: 38, borderRadius: '50%', overflow: 'hidden', background: 'var(--sidebar-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Image src="/logo.webp" alt="ED" width={38} height={38} className="object-cover" style={{ width: 38, height: 38 }} priority />
+        {/* Logo — Energy Depot brand mark */}
+        <Link href="/dashboard" style={{ width:68, height:62, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, textDecoration:'none', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ width:42, height:42, borderRadius:10, background:'rgba(255,255,255,0.06)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Logo variant="icon" size={32}/>
           </div>
-        </div>
+        </Link>
 
         {/* Nav items — icon + label below, like Kommo */}
         <nav style={{ flex: 1, width: '100%', overflowY: 'auto', overflowX: 'hidden', paddingTop: 4 }}>
@@ -595,7 +596,7 @@ export default function DashboardLayout({ children }) {
           padding: '10px 16px', background: 'var(--mobile-header-bg)', borderBottom: '1px solid var(--mobile-header-border)',
           position: 'sticky', top: 0, zIndex: 50, flexShrink: 0,
         }}>
-          <Image src="/logo.webp" alt="Energy Depot PR" width={90} height={30} className="object-contain" style={{ maxHeight: 26 }} priority />
+          <Logo variant="horizontal" size={30} theme="auto"/>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {installPrompt && (
               <button onClick={async () => { installPrompt.prompt(); const r = await installPrompt.userChoice; if (r.outcome === 'accepted') setInstallPrompt(null); }}
