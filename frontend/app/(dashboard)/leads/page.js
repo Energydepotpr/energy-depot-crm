@@ -70,6 +70,66 @@ function SidebarField({ label, type = 'text', value, onChange, onBlur, placehold
   );
 }
 
+function SidebarContratoBtn({ leadId }) {
+  const [show, setShow]         = useState(false);
+  const [modalidad, setMod]     = useState('efectivo');
+  const [pronto, setPronto]     = useState('');
+  const [loading, setLoading]   = useState(false);
+
+  const generar = async () => {
+    setLoading(true);
+    try {
+      const data = await api.generarContrato(leadId, { modalidad, prontoDado: Number(pronto)||0 });
+      if (!data.pdf) throw new Error('Sin PDF');
+      const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
+      const blob  = new Blob([bytes], { type:'application/pdf' });
+      const url   = URL.createObjectURL(blob);
+      const a     = document.createElement('a'); a.href=url; a.download=data.filename||`Contrato-${leadId}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      setShow(false);
+    } catch(e) { alert('Error: ' + e.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <>
+      <button onClick={() => setShow(true)}
+        style={{ width:'100%', background:'#10b981', color:'#fff', border:'none', borderRadius:8, padding:'8px 12px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        Generar Contrato
+      </button>
+      {show && (
+        <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }} onClick={() => setShow(false)}>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:28, width:340 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize:15, fontWeight:700, color:'var(--text)', marginBottom:20 }}>📄 Generar Contrato Solar</div>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:8 }}>Modalidad de Pago</label>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                {[['efectivo','💵 Efectivo (50/50)'],['financiamiento','🏦 Financiamiento']].map(([v,l]) => (
+                  <button key={v} onClick={() => setMod(v)} style={{ border: modalidad===v?'2px solid #10b981':'1px solid var(--border)', borderRadius:8, padding:'10px 8px', background: modalidad===v?'rgba(16,185,129,0.12)':'var(--bg)', cursor:'pointer', fontSize:12, fontWeight:600, color: modalidad===v?'#10b981':'var(--text)' }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {modalidad === 'financiamiento' && (
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Pronto Dado ($)</label>
+                <input type="number" value={pronto} onChange={e => setPronto(e.target.value)} placeholder="ej: 5000"
+                  style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
+              </div>
+            )}
+            <div style={{ display:'flex', gap:8, marginTop:20 }}>
+              <button onClick={() => setShow(false)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'9px', fontSize:13, color:'var(--muted)', cursor:'pointer' }}>Cancelar</button>
+              <button onClick={generar} disabled={loading} style={{ flex:2, background:'#10b981', border:'none', borderRadius:8, padding:'9px', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer', opacity:loading?0.6:1 }}>
+                {loading ? 'Generando…' : '✓ Generar y Descargar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── Lead Detail Panel ────────────────────────────────────────────────────────
 
 function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], onNavigate, lang = 'es', isMobile = false }) {
@@ -622,28 +682,27 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                       </div>
                     ))}
                   </div>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const data = await api.leadPropuesta(lead.id);
-                        if (!data.pdf) throw new Error('Sin PDF');
-                        const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
-                        const blob  = new Blob([bytes], { type: 'application/pdf' });
-                        const url   = URL.createObjectURL(blob);
-                        const a     = document.createElement('a');
-                        a.href      = url;
-                        a.download  = data.filename || `Propuesta-${lead.id}.pdf`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      } catch (err) {
-                        alert('Error generando propuesta: ' + err.message);
-                      }
-                    }}
-                    style={{ width: '100%', background: '#1877f2', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                  >
-                    <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    Generar Propuesta PDF
-                  </button>
+                  <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const data = await api.leadPropuesta(lead.id);
+                          if (!data.pdf) throw new Error('Sin PDF');
+                          const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
+                          const blob  = new Blob([bytes], { type: 'application/pdf' });
+                          const url   = URL.createObjectURL(blob);
+                          const a     = document.createElement('a');
+                          a.href = url; a.download = data.filename || `Propuesta-${lead.id}.pdf`; a.click();
+                          URL.revokeObjectURL(url);
+                        } catch (err) { alert('Error: ' + err.message); }
+                      }}
+                      style={{ width:'100%', background:'#1a3c8f', color:'#fff', border:'none', borderRadius:8, padding:'8px 12px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
+                    >
+                      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                      Propuesta PDF
+                    </button>
+                    <SidebarContratoBtn leadId={lead.id} />
+                  </div>
                 </div>
               )}
               {/* Contact */}
