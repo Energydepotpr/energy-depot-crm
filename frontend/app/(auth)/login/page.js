@@ -34,8 +34,8 @@ export default function LoginPage() {
       <div style={{ background:'#ffffff', borderRadius:16, padding:'40px 36px', width:'100%', maxWidth:400, boxShadow:'0 20px 60px rgba(0,0,0,0.4)', position:'relative', zIndex:1 }}>
 
         {/* Logo */}
-        <div style={{ display:'flex', justifyContent:'center', marginBottom:24 }}>
-          <Logo variant="stacked" size={64} theme="dark"/>
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:28 }}>
+          <Logo variant="card" size={36}/>
         </div>
 
         <div style={{ textAlign:'center', marginBottom:30 }}>

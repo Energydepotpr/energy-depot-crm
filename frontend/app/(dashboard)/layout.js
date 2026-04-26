@@ -414,9 +414,9 @@ export default function DashboardLayout({ children }) {
   }, [user]);
 
   if (loading || !user) return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 32, background: 'var(--bg)' }}>
-      <Logo variant="stacked" size={90} theme="dark"/>
-      <div style={{ width: 28, height: 28, border: '3px solid #1a3c8f', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 32, background: 'linear-gradient(135deg,#0f2558 0%,#1a3c8f 100%)' }}>
+      <Logo variant="full" size={70}/>
+      <div style={{ width: 28, height: 28, border: '3px solid #67e8f9', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
@@ -432,10 +432,8 @@ export default function DashboardLayout({ children }) {
         position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
       }}>
         {/* Logo — Energy Depot brand mark */}
-        <Link href="/dashboard" style={{ width:68, height:62, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, textDecoration:'none', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ width:42, height:42, borderRadius:10, background:'rgba(255,255,255,0.06)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Logo variant="icon" size={32}/>
-          </div>
+        <Link href="/dashboard" style={{ width:68, height:62, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, textDecoration:'none', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
+          <Logo variant="icon" size={42}/>
         </Link>
 
         {/* Nav items — icon + label below, like Kommo */}
@@ -596,7 +594,9 @@ export default function DashboardLayout({ children }) {
           padding: '10px 16px', background: 'var(--mobile-header-bg)', borderBottom: '1px solid var(--mobile-header-border)',
           position: 'sticky', top: 0, zIndex: 50, flexShrink: 0,
         }}>
-          <Logo variant="horizontal" size={30} theme="auto"/>
+          {theme === 'dark'
+            ? <Logo variant="full" size={28}/>
+            : <Logo variant="card" size={26}/>}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {installPrompt && (
               <button onClick={async () => { installPrompt.prompt(); const r = await installPrompt.userChoice; if (r.outcome === 'accepted') setInstallPrompt(null); }}
