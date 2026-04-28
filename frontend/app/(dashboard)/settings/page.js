@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../../../lib/api';
 import PermissionsPanel from './PermissionsPanel';
-import { loadBaterias, saveBaterias, DEFAULT_BATERIAS } from '../../../lib/baterias';
+import { loadBaterias, saveBaterias, DEFAULT_BATERIAS, loadPricing, savePricing, DEFAULT_PRICING } from '../../../lib/baterias';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
 
@@ -642,6 +642,78 @@ function AutomationsSection() {
   );
 }
 
+function ParametrosSolaresSection() {
+  const [p, setP] = useState(DEFAULT_PRICING);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [ok, setOk] = useState(false);
+
+  useEffect(() => { loadPricing().then(v => { setP(v); setLoaded(true); }); }, []);
+
+  const guardar = async (next) => {
+    setSaving(true); setOk(false);
+    try {
+      await savePricing(next);
+      setOk(true);
+      setTimeout(() => setOk(false), 2000);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  };
+
+  const onChange = (k, v) => {
+    const n = Number(v);
+    setP(prev => ({ ...prev, [k]: isNaN(n) ? prev[k] : n }));
+  };
+
+  const restaurar = () => {
+    if (!confirm('¿Restaurar parámetros al default de fábrica?')) return;
+    setP(DEFAULT_PRICING);
+    guardar(DEFAULT_PRICING);
+  };
+
+  if (!loaded) return null;
+
+  const fields = [
+    { key: 'kwPrice',          label: 'Precio sistema solar',  unit: '$ / kW DC',  step: 50,    desc: 'Costo del sistema fotovoltaico instalado por kilovatio (DC)' },
+    { key: 'tarifaLuma',       label: 'Tarifa LUMA',           unit: '$ / kWh',    step: 0.01,  desc: 'Tarifa actual de LUMA Energy por kilovatio-hora' },
+    { key: 'factorProduccion', label: 'Factor de producción',  unit: 'kWh / kW año', step: 10,  desc: 'Producción anual estimada por cada kW instalado en PR' },
+    { key: 'pmt15',            label: 'Factor PMT 15 años',    unit: '× monto',    step: 0.0001, desc: 'Factor de pago mensual Vega Coop 6.5% / 15 años' },
+  ];
+
+  return (
+    <SeccionCard title="Parámetros de Cotización" desc="Constantes usadas en todas las cotizaciones solares. Cambios aplican inmediato a leads nuevos y existentes.">
+      <div className="space-y-3">
+        {fields.map(f => (
+          <div key={f.key} className="flex items-center gap-3 px-3 py-2.5 bg-bg rounded-lg border border-border">
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium text-white">{f.label}</div>
+              <div className="text-[10px] text-muted">{f.desc}</div>
+            </div>
+            <input
+              type="number"
+              step={f.step}
+              className="input text-xs"
+              style={{ width: 110, textAlign: 'right' }}
+              value={p[f.key]}
+              onChange={e => onChange(f.key, e.target.value)}
+              onBlur={() => guardar(p)}
+            />
+            <span className="text-[10px] text-muted whitespace-nowrap" style={{ width: 90 }}>{f.unit}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
+        <button onClick={restaurar} className="text-[11px] text-muted hover:text-warning transition-colors">
+          Restaurar default
+        </button>
+        <span className="text-[11px] text-muted">
+          {saving ? 'Guardando…' : ok ? <span className="text-success">✓ Guardado</span> : 'Auto-guarda al salir del campo'}
+        </span>
+      </div>
+    </SeccionCard>
+  );
+}
+
 function BateriasSolaresSection() {
   const [list, setList] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -949,6 +1021,9 @@ export default function SettingsPage() {
 
       {/* Custom fields */}
       <CustomFieldsSection />
+
+      {/* Parámetros de cotización */}
+      <ParametrosSolaresSection />
 
       {/* Baterías solares */}
       <BateriasSolaresSection />

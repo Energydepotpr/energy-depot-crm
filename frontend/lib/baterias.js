@@ -28,3 +28,25 @@ export async function loadBaterias() {
 export async function saveBaterias(list) {
   return api.saveSetting('solar_batteries', JSON.stringify(list));
 }
+
+export const DEFAULT_PRICING = {
+  kwPrice: 2150,
+  tarifaLuma: 0.26,
+  factorProduccion: 1460,
+  pmt15: 0.008711,
+};
+
+export async function loadPricing() {
+  try {
+    const cfg = await api.settings();
+    if (cfg.solar_pricing) {
+      const p = typeof cfg.solar_pricing === 'string' ? JSON.parse(cfg.solar_pricing) : cfg.solar_pricing;
+      return { ...DEFAULT_PRICING, ...p };
+    }
+  } catch {}
+  return DEFAULT_PRICING;
+}
+
+export async function savePricing(pricing) {
+  return api.saveSetting('solar_pricing', JSON.stringify(pricing));
+}

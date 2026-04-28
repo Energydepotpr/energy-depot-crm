@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '../../../lib/api';
-import { loadBaterias, DEFAULT_BATERIAS } from '../../../lib/baterias';
+import { loadBaterias, DEFAULT_BATERIAS, loadPricing, DEFAULT_PRICING } from '../../../lib/baterias';
 import { useAuth } from '../../../lib/auth';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
@@ -590,12 +590,12 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                 <div style={{ width: 32, height: 4, borderRadius: 2, background: 'var(--border)' }} />
               </div>
               {[
+                { key: 'cotizar',   icon: '☀️', label: 'Cotizar',        count: lead.solar_data?.calc ? 1 : 0 },
                 { key: 'notas',     icon: '📝', label: 'Notas',          count: notes.length },
                 { key: 'tareas',    icon: '✅', label: 'Tareas',         count: tasks.filter(tk => !tk.completed).length },
                 { key: 'llamadas',  icon: '📞', label: 'Llamadas',       count: callLogs.length },
                 { key: 'actividad', icon: '📋', label: 'Actividad',      count: 0 },
                 { key: 'factura',   icon: '🧾', label: 'Factura',        count: leadInvoice ? 1 : 0 },
-                { key: 'viaje',     icon: '🌴', label: 'Viaje',          count: 0 },
                 { key: 'contactos', icon: '👥', label: 'Contactos',      count: leadContacts.length },
                 { key: 'notas-int', icon: '🔒', label: 'Notas internas', count: internalNotes.length },
                 { key: 'ai',        icon: '🤖', label: 'Bot IA',         count: 0 },
@@ -2112,21 +2112,23 @@ const MESES_L = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','No
 const cotFmt  = n => `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const cotFmtK = n => Number(n).toLocaleString('en-US');
 
-function cotCalc(meses, batPrecio) {
+function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING) {
+  const { kwPrice, tarifaLuma, factorProduccion, pmt15 } = pricing;
   const filled = meses.map(Number).filter(v=>v>0);
   if (!filled.length) return null;
   const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
-  const panels=Math.round(annCons*1.07/1460*1000/550), kw=parseFloat((panels*550/1000).toFixed(2));
-  const annProd=Math.round(kw*1460), costBase=Math.round(kw*2150), sub=costBase+batPrecio;
-  const pagoLuma=Math.round(avg*0.26);
+  const panels=Math.round(annCons*1.07/factorProduccion*1000/550), kw=parseFloat((panels*550/1000).toFixed(2));
+  const annProd=Math.round(kw*factorProduccion), costBase=Math.round(kw*kwPrice), sub=costBase+batPrecio;
+  const pagoLuma=Math.round(avg*tarifaLuma);
   const offset=annCons>0?Math.min(Math.round(annProd/annCons*100),100):0;
-  return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*0.008711), pagoBat:Math.round(sub*0.008711) };
+  return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
 }
 
 function CotizarTab({ lead, leadId, onLeadUpdate }) {
   const sd = lead?.solar_data || {};
   const [BATERIAS_COT, setBateriasList] = useState(DEFAULT_BATERIAS);
-  useEffect(() => { loadBaterias().then(setBateriasList); }, []);
+  const [pricing, setPricing] = useState(DEFAULT_PRICING);
+  useEffect(() => { loadBaterias().then(setBateriasList); loadPricing().then(setPricing); }, []);
 
   const initMeses = () => { const m=Array(12).fill(''); (sd.meses||[]).slice(0,12).forEach((v,i)=>{ m[i]=v||''; }); return m; };
 
@@ -2148,7 +2150,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
   const [prontoDado, setProntoDado] = useState('');
   const [msg, setMsg]             = useState('');
 
-  useEffect(() => { setCalc(cotCalc(meses, batTotal)); }, [meses, batTotal]);
+  useEffect(() => { setCalc(cotCalc(meses, batTotal, pricing)); }, [meses, batTotal, pricing]);
 
   const showMsg = t => { setMsg(t); setTimeout(()=>setMsg(''),3000); };
 

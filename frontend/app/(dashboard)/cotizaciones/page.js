@@ -2,33 +2,29 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '../../../lib/api';
-import { loadBaterias, DEFAULT_BATERIAS } from '../../../lib/baterias';
-
-const TARIFA  = 0.26;
-const FACTOR  = 1460;
-const KW_PREC = 2150;
-const PMT_15  = 0.008711;
+import { loadBaterias, DEFAULT_BATERIAS, loadPricing, DEFAULT_PRICING } from '../../../lib/baterias';
 
 const SIN_BATERIA = { name: 'Sin batería', precio: 0 };
 
 const MESES_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-function calcular(meses, batPrecio) {
+function calcular(meses, batPrecio, pricing = DEFAULT_PRICING) {
+  const { kwPrice, tarifaLuma, factorProduccion, pmt15 } = pricing;
   const filled = meses.map(Number).filter(v => v > 0);
   if (!filled.length) return null;
   const avgKwh   = filled.reduce((a,b) => a+b, 0) / filled.length;
   const annCons  = Math.round(avgKwh * 12);
-  const panels   = Math.round((annCons * 1.07) / FACTOR * 1000 / 550);
+  const panels   = Math.round((annCons * 1.07) / factorProduccion * 1000 / 550);
   const systemKw = parseFloat(((panels * 550) / 1000).toFixed(2));
-  const annProd  = Math.round(systemKw * FACTOR);
-  const costBase = Math.round(systemKw * KW_PREC);
+  const annProd  = Math.round(systemKw * factorProduccion);
+  const costBase = Math.round(systemKw * kwPrice);
   const subtotal = costBase + batPrecio;
-  const pagoLuma = Math.round(avgKwh * TARIFA);
+  const pagoLuma = Math.round(avgKwh * tarifaLuma);
   const annSav   = pagoLuma * 12;
   const roi      = annSav > 0 ? Math.round(costBase / annSav) : 0;
   const offset   = annCons > 0 ? Math.min(Math.round(annProd / annCons * 100), 100) : 0;
-  const pagoFV   = Math.round(costBase * PMT_15);
-  const pagoBat  = Math.round(subtotal * PMT_15);
+  const pagoFV   = Math.round(costBase * pmt15);
+  const pagoBat  = Math.round(subtotal * pmt15);
   return { avgKwh: Math.round(avgKwh), annCons, panels, systemKw, annProd, costBase, subtotal, pagoLuma, annSav, roi, offset, pagoFV, pagoBat };
 }
 
@@ -49,7 +45,11 @@ function CotizadorInner() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [msg, setMsg]         = useState({ text:'', ok:true });
   const [BATERIAS, setBaterias] = useState([SIN_BATERIA, ...DEFAULT_BATERIAS]);
-  useEffect(() => { loadBaterias().then(list => setBaterias([SIN_BATERIA, ...list])); }, []);
+  const [pricing, setPricing] = useState(DEFAULT_PRICING);
+  useEffect(() => {
+    loadBaterias().then(list => setBaterias([SIN_BATERIA, ...list]));
+    loadPricing().then(setPricing);
+  }, []);
 
   useEffect(() => {
     if (!leadIdUrl) return;
@@ -79,8 +79,8 @@ function CotizadorInner() {
   }, [leadIdUrl]);
 
   useEffect(() => {
-    setCalc(calcular(meses, BATERIAS[batIdx].precio));
-  }, [meses, batIdx]);
+    setCalc(calcular(meses, BATERIAS[batIdx]?.precio || 0, pricing));
+  }, [meses, batIdx, pricing, BATERIAS]);
 
   const showMsg = (text, ok = true) => { setMsg({ text, ok }); setTimeout(() => setMsg({ text:'', ok:true }), 3000); };
 
