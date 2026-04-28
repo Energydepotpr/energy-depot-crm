@@ -92,7 +92,8 @@ async function obtener(req, res) {
 
 async function crear(req, res) {
   try {
-    const { title, contact_id, pipeline_id, stage_id, value = 0, assigned_to } = req.body;
+    const { title, contact_id, pipeline_id, stage_id, value = 0, assigned_to,
+            contact_name, contact_email, contact_phone, solar_data } = req.body;
     if (!title) return res.status(400).json({ error: 'title requerido' });
 
     let pid = pipeline_id ? Number(pipeline_id) : null;
@@ -107,10 +108,29 @@ async function crear(req, res) {
       sid = st.rows[0]?.id || null;
     }
 
+    // Upsert contact if name/email/phone provided without contact_id
+    let cid = contact_id ? Number(contact_id) : null;
+    if (!cid && (contact_name || contact_email || contact_phone)) {
+      const existing = await pool.query(
+        `SELECT id FROM contacts WHERE (email=$1 AND email IS NOT NULL AND email<>'') OR (phone=$2 AND phone IS NOT NULL AND phone<>'') LIMIT 1`,
+        [contact_email||null, contact_phone||null]
+      );
+      if (existing.rows[0]) {
+        cid = existing.rows[0].id;
+      } else {
+        const cr = await pool.query(
+          `INSERT INTO contacts (name, email, phone) VALUES ($1,$2,$3) RETURNING id`,
+          [contact_name||title, contact_email||null, contact_phone||null]
+        );
+        cid = cr.rows[0].id;
+      }
+    }
+
     const result = await pool.query(
-      `INSERT INTO leads (title, contact_id, pipeline_id, stage_id, value, assigned_to)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [title, contact_id ? Number(contact_id) : null, pid, sid, value || 0, assigned_to ? Number(assigned_to) : null]
+      `INSERT INTO leads (title, contact_id, pipeline_id, stage_id, value, assigned_to, solar_data)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [title, cid, pid, sid, value || 0, assigned_to ? Number(assigned_to) : null,
+       solar_data ? JSON.stringify(solar_data) : null]
     );
     const lead = result.rows[0];
     res.json(lead);

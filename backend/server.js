@@ -29,6 +29,7 @@ const integrations  = require('./controllers/integrationsController');
 const automations   = require('./controllers/automationsController');
 const agentReport   = require('./controllers/agentReportController');
 const contracts     = require('./controllers/contractsController');
+const { generarContratoSolar } = require('./controllers/contratoSolarController');
 const email         = require('./controllers/emailController');
 const menuLinks     = require('./controllers/menuLinksController');
 const translate     = require('./controllers/translateController');
@@ -173,6 +174,10 @@ app.post('/api/public/sign/:token',  publicTokenLimiter, signatures.firmar);
 
 // Public audio proxy (browser <audio> can't send JWT headers)
 app.get('/api/recordings/:sid/audio', callRecording.proxyAudio);
+
+// Public: website cotizacion form → create lead (no auth)
+const { createPublicLead, generarPropuestaPDF, verPropuestaHTML } = require('./controllers/publicLeadController');
+app.post('/api/public/leads', publicTokenLimiter, createPublicLead);
 
 // Protected
 app.use('/api', authMiddleware);
@@ -626,10 +631,24 @@ const finReports = require('./controllers/financialReportController');
 app.get('/api/reports/financial',        finReports.resumenFinanciero);
 app.get('/api/reports/financial/excel',  finReports.exportarExcel);
 
-// Public: website cotizacion form → create lead with solar data (no auth)
-const { createPublicLead, generarPropuestaPDF } = require('./controllers/publicLeadController');
-app.post('/api/public/leads', publicTokenLimiter, createPublicLead);
 app.get('/api/leads/:id/propuesta', authMiddleware, generarPropuestaPDF);
+app.get('/api/leads/:id/propuesta/html', authMiddleware, verPropuestaHTML);
+app.post('/api/leads/:id/contrato-solar', authMiddleware, generarContratoSolar);
+app.patch('/api/leads/:id/solar', authMiddleware, async (req, res) => {
+  try {
+    const { pool } = require('./services/db');
+    const { solar_data, value } = req.body;
+    const sets = ['updated_at = NOW()'];
+    const vals = [];
+    let idx = 1;
+    if (solar_data !== undefined) { sets.push(`solar_data = $${idx++}`); vals.push(JSON.stringify(solar_data)); }
+    if (value     !== undefined) { sets.push(`value = $${idx++}`);       vals.push(value); }
+    vals.push(req.params.id);
+    const r = await pool.query(`UPDATE leads SET ${sets.join(',')} WHERE id = $${idx} RETURNING *`, vals);
+    if (!r.rows[0]) return res.status(404).json({ error: 'Lead no encontrado' });
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Global error handler — never expose internal error details to clients
 app.use((err, req, res, next) => {

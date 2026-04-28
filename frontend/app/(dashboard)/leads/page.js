@@ -2108,7 +2108,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
 
 // ─── Cotizar Tab ──────────────────────────────────────────────────────────────
 const BATERIAS_COT = [
-  { name:'Sin batería',          precio:0 },
   { name:'SolaX ESS 10.24 kWh', precio:9900 },
   { name:'SolaX ESS 15.36 kWh', precio:12950 },
   { name:'SolaX ESS 20.48 kWh', precio:15900 },
@@ -2133,11 +2132,13 @@ function cotCalc(meses, batPrecio) {
 function CotizarTab({ lead, leadId, onLeadUpdate }) {
   const sd = lead?.solar_data || {};
   const initMeses = () => { const m=Array(12).fill(''); (sd.meses||[]).slice(0,12).forEach((v,i)=>{ m[i]=v||''; }); return m; };
-  const initBat   = () => { if (!sd.batteries?.length) return 0; const i=BATERIAS_COT.findIndex(b=>b.name===sd.batteries[0]?.name); return i>=0?i:0; };
+  const initQty   = () => { const q=Array(BATERIAS_COT.length).fill(0); (sd.batteries||[]).forEach(b=>{ const i=BATERIAS_COT.findIndex(x=>x.name===b.name); if(i>=0) q[i]=b.qty||1; }); return q; };
 
   const [meses, setMeses]   = useState(initMeses);
-  const [batIdx, setBatIdx] = useState(initBat);
+  const [batQty, setBatQty] = useState(initQty);
   const [calc, setCalc]     = useState(null);
+  const batTotal = batQty.reduce((s,q,i)=>s+q*BATERIAS_COT[i].precio,0);
+  const setQ = (i,delta) => setBatQty(prev => { const n=[...prev]; n[i]=Math.max(0,n[i]+delta); return n; });
   const [saving, setSaving]       = useState(false);
   const [pdfLoad, setPdfLoad]     = useState(false);
   const [contratoLoad, setContratoLoad] = useState(false);
@@ -2146,7 +2147,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
   const [prontoDado, setProntoDado] = useState('');
   const [msg, setMsg]             = useState('');
 
-  useEffect(() => { setCalc(cotCalc(meses, BATERIAS_COT[batIdx].precio)); }, [meses, batIdx]);
+  useEffect(() => { setCalc(cotCalc(meses, batTotal)); }, [meses, batTotal]);
 
   const showMsg = t => { setMsg(t); setTimeout(()=>setMsg(''),3000); };
 
@@ -2154,9 +2155,9 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
     if (!calc) return;
     setSaving(true);
     try {
-      const bat = BATERIAS_COT[batIdx];
+      const batteries = BATERIAS_COT.map((b,i)=>({name:b.name,qty:batQty[i],unitPrice:b.precio})).filter(b=>b.qty>0);
       await api.saveSolarData(leadId, {
-        solar_data: { ...sd, meses, calc: { avg:calc.avg, systemKw:calc.kw, panels:calc.panels, costBase:calc.costBase, annualSavings:calc.annSav, roi:calc.roi, annProd:calc.annProd, annCons:calc.annCons }, batteries: bat.precio>0?[{name:bat.name,qty:1,unitPrice:bat.precio}]:[], pagoLuz:calc.pagoLuma },
+        solar_data: { ...sd, meses, calc: { avg:calc.avg, systemKw:calc.kw, panels:calc.panels, costBase:calc.costBase, annualSavings:calc.annSav, roi:calc.roi, annProd:calc.annProd, annCons:calc.annCons }, batteries, pagoLuz:calc.pagoLuma },
         value: calc.costBase,
       });
       showMsg('✓ Guardado');
@@ -2269,14 +2270,25 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
 
       {/* Batería */}
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
-        <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Batería</div>
+        <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Baterías</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
-          {BATERIAS_COT.map((b,i) => (
-            <button key={i} onClick={()=>setBatIdx(i)} style={{ border:batIdx===i?'2px solid #1a3c8f':'1px solid var(--border)', borderRadius:7, padding:'8px 12px', textAlign:'left', cursor:'pointer', background:batIdx===i?'rgba(26,60,143,0.12)':'var(--bg)' }}>
-              <div style={{ fontSize:11, fontWeight:700, color:batIdx===i?'#60a5fa':'var(--text)' }}>{b.name}</div>
-              {b.precio>0 && <div style={{ fontSize:10, color:'var(--muted)', marginTop:1 }}>{cotFmt(b.precio)}</div>}
-            </button>
-          ))}
+          {BATERIAS_COT.map((b,i) => {
+            const active = batQty[i]>0;
+            const qbtn = { width:26, height:26, borderRadius:6, border:'1px solid var(--border)', background:'var(--bg)', color:'var(--text)', fontSize:14, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 };
+            return (
+              <div key={i} style={{ border:active?'2px solid #1a3c8f':'1px solid var(--border)', borderRadius:7, padding:'8px 10px', background:active?'rgba(26,60,143,0.10)':'var(--bg)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                <div style={{ minWidth:0, flex:1 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:active?'#60a5fa':'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{b.name}</div>
+                  <div style={{ fontSize:10, color:'var(--muted)', marginTop:1 }}>{cotFmt(b.precio)}</div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  <button onClick={()=>setQ(i,-1)} disabled={batQty[i]===0} style={{ ...qbtn, opacity:batQty[i]===0?0.4:1 }}>−</button>
+                  <div style={{ minWidth:22, textAlign:'center', fontSize:13, fontWeight:800, color:active?'#1a3c8f':'var(--muted)' }}>{batQty[i]}</div>
+                  <button onClick={()=>setQ(i,+1)} style={qbtn}>+</button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -2305,7 +2317,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
               <div style={{ fontSize:10, fontWeight:600, color:'#1e40af' }}>Solo Placas · 15a</div>
               <div style={{ fontSize:20, fontWeight:900, color:'#1d4ed8' }}>{cotFmt(calc.pagoFV)}</div>
             </div>
-            {BATERIAS_COT[batIdx].precio>0 && (
+            {batTotal>0 && (
               <div style={{ background:'#ede9fe', border:'1px solid #c4b5fd', borderRadius:8, padding:'10px 14px', gridColumn:'1/-1' }}>
                 <div style={{ fontSize:10, fontWeight:600, color:'#5b21b6' }}>Placas + Batería · 15a</div>
                 <div style={{ fontSize:20, fontWeight:900, color:'#6d28d9' }}>{cotFmt(calc.pagoBat)}</div>
@@ -2315,7 +2327,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
           {/* Precios */}
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'12px 16px', fontSize:12 }}>
             {[['Sistema FV',cotFmt(calc.costBase),''],
-              ...(BATERIAS_COT[batIdx].precio>0?[[BATERIAS_COT[batIdx].name,cotFmt(BATERIAS_COT[batIdx].precio),'']]:[] ),
+              ...BATERIAS_COT.map((b,i)=>batQty[i]>0?[`${b.name} ×${batQty[i]}`,cotFmt(b.precio*batQty[i]),'']:null).filter(Boolean),
               ['Total',cotFmt(calc.sub),'bold'],
             ].map(([k,v,st])=>(
               <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderTop:st==='bold'?'1px solid var(--border)':undefined, marginTop:st==='bold'?4:0 }}>
