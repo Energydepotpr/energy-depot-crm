@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../../../lib/api';
 import PermissionsPanel from './PermissionsPanel';
+import { loadBaterias, saveBaterias, DEFAULT_BATERIAS } from '../../../lib/baterias';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
 
@@ -641,6 +642,128 @@ function AutomationsSection() {
   );
 }
 
+function BateriasSolaresSection() {
+  const [list, setList] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [ok, setOk] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevoPrecio, setNuevoPrecio] = useState('');
+
+  useEffect(() => {
+    loadBaterias().then(b => { setList(b); setLoaded(true); });
+  }, []);
+
+  const guardar = async (next) => {
+    setSaving(true); setOk(false);
+    try {
+      await saveBaterias(next);
+      setList(next);
+      setOk(true);
+      setTimeout(() => setOk(false), 2000);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  };
+
+  const editar = (i, campo, valor) => {
+    const next = list.map((b, idx) => idx === i ? { ...b, [campo]: campo === 'precio' ? Number(valor) || 0 : valor } : b);
+    setList(next);
+  };
+
+  const eliminar = (i) => {
+    if (!confirm('¿Eliminar esta batería?')) return;
+    guardar(list.filter((_, idx) => idx !== i));
+  };
+
+  const agregar = () => {
+    const name = nuevoNombre.trim();
+    const precio = Number(nuevoPrecio) || 0;
+    if (!name) return alert('Nombre requerido');
+    guardar([...list, { name, precio }]);
+    setNuevoNombre(''); setNuevoPrecio('');
+  };
+
+  const restaurar = () => {
+    if (!confirm('¿Restaurar lista de baterías al default de fábrica?')) return;
+    guardar(DEFAULT_BATERIAS);
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <SeccionCard title="Baterías solares" desc="Catálogo de baterías que aparecen en cotizaciones. Cambios se reflejan en todos los leads.">
+      <div className="space-y-2 mb-4">
+        {list.length === 0 && <p className="text-xs text-muted text-center py-3">No hay baterías. Agrega una abajo.</p>}
+        {list.map((b, i) => (
+          <div key={i} className="flex items-center gap-2 px-3 py-2 bg-bg rounded-lg border border-border">
+            <input
+              className="input text-xs flex-1"
+              value={b.name}
+              onChange={e => editar(i, 'name', e.target.value)}
+              onBlur={() => guardar(list)}
+              placeholder="Nombre"
+            />
+            <div className="flex items-center gap-1">
+              <span className="text-muted text-xs">$</span>
+              <input
+                className="input text-xs"
+                style={{ width: 100, textAlign: 'right' }}
+                type="number"
+                value={b.precio}
+                onChange={e => editar(i, 'precio', e.target.value)}
+                onBlur={() => guardar(list)}
+                placeholder="0"
+              />
+            </div>
+            <button
+              onClick={() => eliminar(i)}
+              className="text-xs text-muted hover:text-danger transition-colors flex-shrink-0 px-2"
+              title="Eliminar"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <div className="text-xs text-muted mb-2">Agregar nueva batería</div>
+        <div className="flex items-center gap-2">
+          <input
+            className="input text-xs flex-1"
+            placeholder="Ej: EG4 LifePower 14.3 kWh"
+            value={nuevoNombre}
+            onChange={e => setNuevoNombre(e.target.value)}
+          />
+          <div className="flex items-center gap-1">
+            <span className="text-muted text-xs">$</span>
+            <input
+              className="input text-xs"
+              style={{ width: 100, textAlign: 'right' }}
+              type="number"
+              placeholder="Precio"
+              value={nuevoPrecio}
+              onChange={e => setNuevoPrecio(e.target.value)}
+            />
+          </div>
+          <button onClick={agregar} className="btn-primary text-xs px-4 py-2 flex-shrink-0">
+            + Agregar
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
+        <button onClick={restaurar} className="text-[11px] text-muted hover:text-warning transition-colors">
+          Restaurar default
+        </button>
+        <span className="text-[11px] text-muted">
+          {saving ? 'Guardando…' : ok ? <span className="text-success">✓ Guardado</span> : `${list.length} baterías`}
+        </span>
+      </div>
+    </SeccionCard>
+  );
+}
+
 export default function SettingsPage() {
   const { lang } = useLang();
   const [config, setConfig] = useState({});
@@ -826,6 +949,9 @@ export default function SettingsPage() {
 
       {/* Custom fields */}
       <CustomFieldsSection />
+
+      {/* Baterías solares */}
+      <BateriasSolaresSection />
 
       {/* Test bot */}
       <TestBotSection />

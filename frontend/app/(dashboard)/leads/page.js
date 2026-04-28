@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '../../../lib/api';
+import { loadBaterias, DEFAULT_BATERIAS } from '../../../lib/baterias';
 import { useAuth } from '../../../lib/auth';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
@@ -2107,13 +2108,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
 }
 
 // ─── Cotizar Tab ──────────────────────────────────────────────────────────────
-const BATERIAS_COT = [
-  { name:'SolaX ESS 10.24 kWh', precio:9900 },
-  { name:'SolaX ESS 15.36 kWh', precio:12950 },
-  { name:'SolaX ESS 20.48 kWh', precio:15900 },
-  { name:'FranklinWH G2',       precio:13539 },
-  { name:'Tesla PowerWall 3',   precio:11992 },
-];
 const MESES_L = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const cotFmt  = n => `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const cotFmtK = n => Number(n).toLocaleString('en-US');
@@ -2131,14 +2125,21 @@ function cotCalc(meses, batPrecio) {
 
 function CotizarTab({ lead, leadId, onLeadUpdate }) {
   const sd = lead?.solar_data || {};
+  const [BATERIAS_COT, setBateriasList] = useState(DEFAULT_BATERIAS);
+  useEffect(() => { loadBaterias().then(setBateriasList); }, []);
+
   const initMeses = () => { const m=Array(12).fill(''); (sd.meses||[]).slice(0,12).forEach((v,i)=>{ m[i]=v||''; }); return m; };
-  const initQty   = () => { const q=Array(BATERIAS_COT.length).fill(0); (sd.batteries||[]).forEach(b=>{ const i=BATERIAS_COT.findIndex(x=>x.name===b.name); if(i>=0) q[i]=b.qty||1; }); return q; };
 
   const [meses, setMeses]   = useState(initMeses);
-  const [batQty, setBatQty] = useState(initQty);
+  const [batQty, setBatQty] = useState([]);
+  useEffect(() => {
+    const q = Array(BATERIAS_COT.length).fill(0);
+    (sd.batteries||[]).forEach(b => { const i = BATERIAS_COT.findIndex(x => x.name === b.name); if (i>=0) q[i] = b.qty||1; });
+    setBatQty(q);
+  }, [BATERIAS_COT, lead?.id]);
   const [calc, setCalc]     = useState(null);
-  const batTotal = batQty.reduce((s,q,i)=>s+q*BATERIAS_COT[i].precio,0);
-  const setQ = (i,delta) => setBatQty(prev => { const n=[...prev]; n[i]=Math.max(0,n[i]+delta); return n; });
+  const batTotal = batQty.reduce((s,q,i)=>s+q*(BATERIAS_COT[i]?.precio||0),0);
+  const setQ = (i,delta) => setBatQty(prev => { const n=[...prev]; n[i]=Math.max(0,(n[i]||0)+delta); return n; });
   const [saving, setSaving]       = useState(false);
   const [pdfLoad, setPdfLoad]     = useState(false);
   const [contratoLoad, setContratoLoad] = useState(false);

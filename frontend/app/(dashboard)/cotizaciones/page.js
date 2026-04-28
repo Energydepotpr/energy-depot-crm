@@ -2,20 +2,14 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '../../../lib/api';
+import { loadBaterias, DEFAULT_BATERIAS } from '../../../lib/baterias';
 
 const TARIFA  = 0.26;
 const FACTOR  = 1460;
 const KW_PREC = 2150;
 const PMT_15  = 0.008711;
 
-const BATERIAS = [
-  { name: 'Sin batería',          precio: 0 },
-  { name: 'SolaX ESS 10.24 kWh', precio: 9900 },
-  { name: 'SolaX ESS 15.36 kWh', precio: 12950 },
-  { name: 'SolaX ESS 20.48 kWh', precio: 15900 },
-  { name: 'FranklinWH G2',       precio: 13539 },
-  { name: 'Tesla PowerWall 3',   precio: 11992 },
-];
+const SIN_BATERIA = { name: 'Sin batería', precio: 0 };
 
 const MESES_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
@@ -54,6 +48,8 @@ function CotizadorInner() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [msg, setMsg]         = useState({ text:'', ok:true });
+  const [BATERIAS, setBaterias] = useState([SIN_BATERIA, ...DEFAULT_BATERIAS]);
+  useEffect(() => { loadBaterias().then(list => setBaterias([SIN_BATERIA, ...list])); }, []);
 
   useEffect(() => {
     if (!leadIdUrl) return;
