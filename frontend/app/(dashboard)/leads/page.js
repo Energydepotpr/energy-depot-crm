@@ -2112,15 +2112,22 @@ const MESES_L = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','No
 const cotFmt  = n => `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const cotFmtK = n => Number(n).toLocaleString('en-US');
 
+const EVEN = n => { const c = Math.ceil(n); return c % 2 === 0 ? c : c + 1; };
+
 function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING) {
-  const { panelPrice, panelWatts, tarifaLuma, factorProduccion, pmt15 } = pricing;
+  const { panelPrice, panelWatts, panelKwhDay, tarifaLuma, pmt15 } = pricing;
   const filled = meses.map(Number).filter(v=>v>0);
   if (!filled.length) return null;
-  const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
-  const panels=Math.round(annCons*1.07/factorProduccion*1000/panelWatts), kw=parseFloat((panels*panelWatts/1000).toFixed(2));
-  const annProd=Math.round(kw*factorProduccion), costBase=Math.round(panels*panelPrice), sub=costBase+batPrecio;
-  const pagoLuma=Math.round(avg*tarifaLuma);
-  const offset=annCons>0?Math.min(Math.round(annProd/annCons*100),100):0;
+  const avg = filled.reduce((a,b)=>a+b,0)/filled.length;
+  const annCons = Math.round(avg*12);
+  const daily = avg/30;
+  const panels = EVEN(daily/panelKwhDay);
+  const kw = parseFloat((panels*panelWatts/1000).toFixed(2));
+  const annProd = Math.round(panels*panelKwhDay*365);
+  const costBase = Math.round(panels*panelPrice);
+  const sub = costBase+batPrecio;
+  const pagoLuma = Math.round(avg*tarifaLuma);
+  const offset = annCons>0?Math.min(Math.round(annProd/annCons*100),100):0;
   return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
 }
 
