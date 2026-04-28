@@ -8,18 +8,15 @@ const SIN_BATERIA = { name: 'Sin batería', precio: 0 };
 
 const MESES_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-const EVEN = n => { const c = Math.ceil(n); return c % 2 === 0 ? c : c + 1; };
-
 function calcular(meses, batPrecio, pricing = DEFAULT_PRICING) {
-  const { panelPrice, panelWatts, panelKwhDay, tarifaLuma, pmt15 } = pricing;
+  const { panelPrice, panelWatts, tarifaLuma, factorProduccion, pmt15 } = pricing;
   const filled = meses.map(Number).filter(v => v > 0);
   if (!filled.length) return null;
   const avgKwh   = filled.reduce((a,b) => a+b, 0) / filled.length;
   const annCons  = Math.round(avgKwh * 12);
-  const daily    = avgKwh / 30;
-  const panels   = EVEN(daily / panelKwhDay);
+  const panels   = Math.round((annCons * 1.07) / factorProduccion * 1000 / panelWatts);
   const systemKw = parseFloat(((panels * panelWatts) / 1000).toFixed(2));
-  const annProd  = Math.round(panels * panelKwhDay * 365);
+  const annProd  = Math.round(systemKw * factorProduccion);
   const costBase = Math.round(panels * panelPrice);
   const subtotal = costBase + batPrecio;
   const pagoLuma = Math.round(avgKwh * tarifaLuma);

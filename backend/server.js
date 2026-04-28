@@ -650,6 +650,57 @@ app.patch('/api/leads/:id/solar', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Recálculo masivo de cotizaciones solares con la nueva fórmula
+app.post('/api/admin/recalc-solar', authMiddleware, async (req, res) => {
+  try {
+    const { pool } = require('./services/db');
+    const cfgRes = await pool.query(`SELECT value FROM config WHERE key='solar_pricing'`);
+    const cfg = cfgRes.rows[0]?.value ? (typeof cfgRes.rows[0].value === 'string' ? JSON.parse(cfgRes.rows[0].value) : cfgRes.rows[0].value) : {};
+    const pricing = {
+      panelPrice:  Number(cfg.panelPrice)  || 1182.50,
+      panelWatts:  Number(cfg.panelWatts)  || 550,
+      panelKwhDay: Number(cfg.panelKwhDay) || 2.6,
+      tarifaLuma:  Number(cfg.tarifaLuma)  || 0.26,
+      pmt15:       Number(cfg.pmt15)       || 0.008711,
+    };
+    const EVEN = n => { const c = Math.ceil(n); return c % 2 === 0 ? c : c + 1; };
+
+    const r = await pool.query(`SELECT id, solar_data FROM leads WHERE solar_data IS NOT NULL AND solar_data->'meses' IS NOT NULL`);
+    let actualizados = 0, sinCambio = 0;
+    const detalles = [];
+
+    for (const row of r.rows) {
+      const sd = row.solar_data || {};
+      const meses = (sd.meses || []).map(Number).filter(v => v > 0);
+      if (!meses.length) { sinCambio++; continue; }
+      const avg = meses.reduce((a,b)=>a+b,0) / meses.length;
+      const annCons = Math.round(avg*12);
+      const daily = avg / 30;
+      const panels = EVEN(daily / pricing.panelKwhDay);
+      const kw = parseFloat((panels * pricing.panelWatts / 1000).toFixed(2));
+      const annProd = Math.round(panels * pricing.panelKwhDay * 365);
+      const costBase = Math.round(panels * pricing.panelPrice);
+      const batTotal = (sd.batteries || []).reduce((s,b) => s + (b.qty||0)*(b.unitPrice||0), 0);
+      const sub = costBase + batTotal;
+      const pagoLuma = Math.round(avg * pricing.tarifaLuma);
+      const annSav = pagoLuma * 12;
+      const newCalc = {
+        avg: Math.round(avg), annCons, panels, systemKw: kw, kw,
+        annProd, costBase, sub, pagoLuma, annSav,
+        roi: annSav > 0 ? Math.round(costBase/annSav) : 0,
+        annualSavings: annSav,
+      };
+      const oldCalc = sd.calc || {};
+      const next = { ...sd, calc: { ...oldCalc, ...newCalc, panels, systemKw: kw, costBase, annProd, annCons, annualSavings: annSav } };
+      await pool.query(`UPDATE leads SET solar_data=$1, value=$2, updated_at=NOW() WHERE id=$3`, [JSON.stringify(next), costBase, row.id]);
+      actualizados++;
+      detalles.push({ id: row.id, oldPanels: oldCalc.panels, newPanels: panels, oldCost: oldCalc.costBase, newCost: costBase });
+    }
+
+    res.json({ actualizados, sinCambio, total: r.rows.length, pricing, detalles });
+  } catch (e) { console.error('[RECALC]', e); res.status(500).json({ error: e.message }); }
+});
+
 // Global error handler — never expose internal error details to clients
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.message);

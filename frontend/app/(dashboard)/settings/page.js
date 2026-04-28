@@ -674,11 +674,11 @@ function ParametrosSolaresSection() {
   if (!loaded) return null;
 
   const fields = [
-    { key: 'panelPrice',  label: 'Precio por panel solar',  unit: '$ / panel',     step: 0.5,    desc: 'Costo unitario instalado de cada panel fotovoltaico' },
-    { key: 'panelWatts',  label: 'Vatios por panel',        unit: 'W',             step: 5,      desc: 'Potencia nominal de cada panel (típicamente 550W)' },
-    { key: 'panelKwhDay', label: 'Producción por panel',    unit: 'kWh / día',     step: 0.05,   desc: 'kWh promedio que genera un panel al día en PR (Excel ED usa 2.6)' },
-    { key: 'tarifaLuma',  label: 'Tarifa LUMA',             unit: '$ / kWh',       step: 0.001,  desc: 'Tarifa actual de LUMA Energy por kilovatio-hora' },
-    { key: 'pmt15',       label: 'Factor PMT 15 años',      unit: '× monto',       step: 0.0001, desc: 'Factor de pago mensual Vega Coop 6.5% / 15 años' },
+    { key: 'panelPrice',       label: 'Precio por panel solar', unit: '$ / panel',  step: 0.5,   desc: 'Costo unitario instalado de cada panel fotovoltaico' },
+    { key: 'panelWatts',       label: 'Vatios por panel',       unit: 'W',          step: 5,     desc: 'Potencia nominal de cada panel (típicamente 550W)' },
+    { key: 'tarifaLuma',       label: 'Tarifa LUMA',            unit: '$ / kWh',    step: 0.01,  desc: 'Tarifa actual de LUMA Energy por kilovatio-hora' },
+    { key: 'factorProduccion', label: 'Factor de producción',   unit: 'kWh / kW año', step: 10,  desc: 'Producción anual estimada por cada kW instalado en PR' },
+    { key: 'pmt15',            label: 'Factor PMT 15 años',     unit: '× monto',    step: 0.0001, desc: 'Factor de pago mensual Vega Coop 6.5% / 15 años' },
   ];
 
   return (
