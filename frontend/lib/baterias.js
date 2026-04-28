@@ -30,7 +30,8 @@ export async function saveBaterias(list) {
 }
 
 export const DEFAULT_PRICING = {
-  kwPrice: 2150,
+  panelPrice: 1182.50,
+  panelWatts: 550,
   tarifaLuma: 0.26,
   factorProduccion: 1460,
   pmt15: 0.008711,
@@ -41,6 +42,10 @@ export async function loadPricing() {
     const cfg = await api.settings();
     if (cfg.solar_pricing) {
       const p = typeof cfg.solar_pricing === 'string' ? JSON.parse(cfg.solar_pricing) : cfg.solar_pricing;
+      // Backwards compat: convert old kwPrice to panelPrice
+      if (p.kwPrice && !p.panelPrice) {
+        p.panelPrice = +(p.kwPrice * (p.panelWatts || 550) / 1000).toFixed(2);
+      }
       return { ...DEFAULT_PRICING, ...p };
     }
   } catch {}

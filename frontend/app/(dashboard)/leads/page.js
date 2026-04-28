@@ -2113,12 +2113,12 @@ const cotFmt  = n => `$${Number(n).toLocaleString('en-US',{minimumFractionDigits
 const cotFmtK = n => Number(n).toLocaleString('en-US');
 
 function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING) {
-  const { kwPrice, tarifaLuma, factorProduccion, pmt15 } = pricing;
+  const { panelPrice, panelWatts, tarifaLuma, factorProduccion, pmt15 } = pricing;
   const filled = meses.map(Number).filter(v=>v>0);
   if (!filled.length) return null;
   const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
-  const panels=Math.round(annCons*1.07/factorProduccion*1000/550), kw=parseFloat((panels*550/1000).toFixed(2));
-  const annProd=Math.round(kw*factorProduccion), costBase=Math.round(kw*kwPrice), sub=costBase+batPrecio;
+  const panels=Math.round(annCons*1.07/factorProduccion*1000/panelWatts), kw=parseFloat((panels*panelWatts/1000).toFixed(2));
+  const annProd=Math.round(kw*factorProduccion), costBase=Math.round(panels*panelPrice), sub=costBase+batPrecio;
   const pagoLuma=Math.round(avg*tarifaLuma);
   const offset=annCons>0?Math.min(Math.round(annProd/annCons*100),100):0;
   return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
