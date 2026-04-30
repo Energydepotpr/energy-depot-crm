@@ -2368,6 +2368,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
         {calc && (
           <div style={{ marginTop:10, fontSize:11, color:'var(--muted)', display:'flex', gap:14, flexWrap:'wrap' }}>
             <span>Prom: <strong style={{color:'var(--text)'}}>{cotFmtK(calc.avg)} kWh/mes</strong></span>
+            <span>Anual: <strong style={{color:'#1a3c8f'}}>{cotFmtK(calc.annCons)} kWh/año</strong></span>
             <span>LUMA est.: <strong style={{color:'#ef4444'}}>{cotFmt(calc.pagoLuma)}/mes</strong></span>
           </div>
         )}
