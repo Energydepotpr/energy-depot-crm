@@ -748,6 +748,14 @@ function BateriasSolaresSection() {
     guardar(list.filter((_, idx) => idx !== i));
   };
 
+  const mover = (i, delta) => {
+    const j = i + delta;
+    if (j < 0 || j >= list.length) return;
+    const next = [...list];
+    [next[i], next[j]] = [next[j], next[i]];
+    guardar(next);
+  };
+
   const agregar = () => {
     const name = nuevoNombre.trim();
     const precio = Number(nuevoPrecio) || 0;
@@ -769,6 +777,22 @@ function BateriasSolaresSection() {
         {list.length === 0 && <p className="text-xs text-muted text-center py-3">No hay baterías. Agrega una abajo.</p>}
         {list.map((b, i) => (
           <div key={i} className="flex items-center gap-2 px-3 py-2 bg-bg rounded-lg border border-border">
+            <div className="flex flex-col flex-shrink-0">
+              <button
+                onClick={() => mover(i, -1)}
+                disabled={i === 0}
+                className="text-xs text-muted hover:text-white transition-colors disabled:opacity-30"
+                style={{ lineHeight: 1, padding: '0 4px' }}
+                title="Subir"
+              >▲</button>
+              <button
+                onClick={() => mover(i, +1)}
+                disabled={i === list.length - 1}
+                className="text-xs text-muted hover:text-white transition-colors disabled:opacity-30"
+                style={{ lineHeight: 1, padding: '0 4px' }}
+                title="Bajar"
+              >▼</button>
+            </div>
             <input
               className="input text-xs flex-1"
               value={b.name}
