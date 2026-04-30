@@ -2130,18 +2130,78 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
   useEffect(() => { loadBaterias().then(setBateriasList); loadPricing().then(setPricing); }, []);
 
-  const initMeses = () => { const m=Array(12).fill(''); (sd.meses||[]).slice(0,12).forEach((v,i)=>{ m[i]=v||''; }); return m; };
+  // ── Multi-cotizaciones ──────────────────────────────────────────────────────
+  const initQuotations = () => {
+    if (Array.isArray(sd.quotations) && sd.quotations.length > 0) {
+      return sd.quotations.map(q => ({
+        id: q.id || ('q'+Math.random().toString(36).slice(2,9)),
+        name: q.name || 'Cotización',
+        createdAt: q.createdAt || new Date().toISOString(),
+        meses: Array.isArray(q.meses) ? Array(12).fill('').map((_,i)=>q.meses[i]||'') : Array(12).fill(''),
+        batteries: Array.isArray(q.batteries) ? q.batteries : [],
+      }));
+    }
+    // Migración: legacy fields → 1 cotización
+    if (sd.meses || sd.batteries || sd.calc) {
+      return [{
+        id: 'q'+Math.random().toString(36).slice(2,9),
+        name: 'Cotización 1',
+        createdAt: new Date().toISOString(),
+        meses: Array(12).fill('').map((_,i)=>(sd.meses||[])[i]||''),
+        batteries: Array.isArray(sd.batteries) ? sd.batteries : [],
+      }];
+    }
+    return [{
+      id: 'q'+Math.random().toString(36).slice(2,9),
+      name: 'Cotización 1',
+      createdAt: new Date().toISOString(),
+      meses: Array(12).fill(''),
+      batteries: [],
+    }];
+  };
+  const [quotations, setQuotations] = useState(initQuotations);
+  const [activeId, setActiveId] = useState(() => {
+    const qs = initQuotations();
+    return (sd.activeQuotationId && qs.find(q=>q.id===sd.activeQuotationId)) ? sd.activeQuotationId : qs[0]?.id;
+  });
+  const active = quotations.find(q => q.id === activeId) || quotations[0];
+  const meses = active?.meses || Array(12).fill('');
+  const batQty = (() => {
+    const arr = Array(BATERIAS_COT.length).fill(0);
+    (active?.batteries||[]).forEach(b => { const i = BATERIAS_COT.findIndex(x => x.name === b.name); if (i>=0) arr[i] = b.qty || 0; });
+    return arr;
+  })();
+  const batTotal = (active?.batteries||[]).reduce((s,b)=>s+(b.qty||0)*(b.unitPrice||0),0);
 
-  const [meses, setMeses]   = useState(initMeses);
-  const [batQty, setBatQty] = useState([]);
-  useEffect(() => {
-    const q = Array(BATERIAS_COT.length).fill(0);
-    (sd.batteries||[]).forEach(b => { const i = BATERIAS_COT.findIndex(x => x.name === b.name); if (i>=0) q[i] = b.qty||1; });
-    setBatQty(q);
-  }, [BATERIAS_COT, lead?.id]);
-  const [calc, setCalc]     = useState(null);
-  const batTotal = batQty.reduce((s,q,i)=>s+q*(BATERIAS_COT[i]?.precio||0),0);
-  const setQ = (i,delta) => setBatQty(prev => { const n=[...prev]; n[i]=Math.max(0,(n[i]||0)+delta); return n; });
+  const updateActive = (patch) => setQuotations(prev => prev.map(q => q.id === activeId ? { ...q, ...patch } : q));
+  const setMeses = (newM) => updateActive({ meses: typeof newM === 'function' ? newM(meses) : newM });
+  const setQ = (i, delta) => {
+    const battName = BATERIAS_COT[i].name;
+    const battPrice = BATERIAS_COT[i].precio;
+    const cur = active?.batteries || [];
+    const found = cur.find(b => b.name === battName);
+    const newQty = Math.max(0, (found?.qty || 0) + delta);
+    let newBatts;
+    if (newQty === 0) newBatts = cur.filter(b => b.name !== battName);
+    else if (found) newBatts = cur.map(b => b.name === battName ? { ...b, qty: newQty } : b);
+    else newBatts = [...cur, { name: battName, qty: newQty, unitPrice: battPrice }];
+    updateActive({ batteries: newBatts });
+  };
+  const newQuotation = () => {
+    const id = 'q'+Math.random().toString(36).slice(2,9);
+    setQuotations(prev => [...prev, { id, name: `Cotización ${prev.length+1}`, createdAt: new Date().toISOString(), meses: Array(12).fill(''), batteries: [] }]);
+    setActiveId(id);
+  };
+  const deleteQuotation = (id) => {
+    if (quotations.length <= 1) { showMsg('Debe quedar al menos una'); return; }
+    if (!confirm('¿Eliminar esta cotización?')) return;
+    const next = quotations.filter(q => q.id !== id);
+    setQuotations(next);
+    if (activeId === id) setActiveId(next[0].id);
+  };
+  const renameActive = (newName) => updateActive({ name: newName });
+
+  const [calc, setCalc] = useState(null);
   const [saving, setSaving]       = useState(false);
   const [pdfLoad, setPdfLoad]     = useState(false);
   const [contratoLoad, setContratoLoad] = useState(false);
@@ -2158,9 +2218,17 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
     if (!calc) return;
     setSaving(true);
     try {
-      const batteries = BATERIAS_COT.map((b,i)=>({name:b.name,qty:batQty[i],unitPrice:b.precio})).filter(b=>b.qty>0);
+      const battActive = active?.batteries || [];
+      // Mirror active al solar_data legacy para que el PDF (publicLeadController) siga funcionando
       await api.saveSolarData(leadId, {
-        solar_data: { ...sd, meses, calc: { avg:calc.avg, systemKw:calc.kw, panels:calc.panels, costBase:calc.costBase, annualSavings:calc.annSav, roi:calc.roi, annProd:calc.annProd, annCons:calc.annCons }, batteries, pagoLuz:calc.pagoLuma },
+        solar_data: { ...sd,
+          meses,
+          batteries: battActive,
+          calc: { avg:calc.avg, systemKw:calc.kw, panels:calc.panels, costBase:calc.costBase, annualSavings:calc.annSav, roi:calc.roi, annProd:calc.annProd, annCons:calc.annCons },
+          pagoLuz: calc.pagoLuma,
+          quotations,
+          activeQuotationId: activeId,
+        },
         value: calc.costBase,
       });
       showMsg('✓ Guardado');
@@ -2205,6 +2273,40 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
 
   return (
     <div style={{ padding:16, display:'flex', flexDirection:'column', gap:14 }}>
+      {/* Tabs de cotizaciones */}
+      <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', borderBottom:'1px solid var(--border)', paddingBottom:10 }}>
+        {quotations.map(q => (
+          <button key={q.id} onClick={()=>setActiveId(q.id)} style={{
+            background: q.id===activeId ? '#1a3c8f' : 'var(--bg)',
+            color: q.id===activeId ? '#fff' : 'var(--muted)',
+            border: q.id===activeId ? '1px solid #1a3c8f' : '1px solid var(--border)',
+            borderRadius:16, padding:'5px 12px', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap',
+          }}>{q.name}{q.id===activeId && quotations.length>1 ? ' ✓' : ''}</button>
+        ))}
+        <button onClick={newQuotation} style={{
+          background:'var(--bg)', color:'#1a3c8f', border:'1px dashed #1a3c8f',
+          borderRadius:16, padding:'5px 12px', fontSize:12, fontWeight:700, cursor:'pointer',
+        }}>+ Nueva</button>
+      </div>
+
+      {/* Header de la cotización activa */}
+      {active && (
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <input
+            value={active.name}
+            onChange={e=>renameActive(e.target.value)}
+            style={{ flex:1, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, padding:'6px 10px', fontSize:13, fontWeight:600, color:'var(--text)', outline:'none' }}
+            placeholder="Nombre de la cotización"
+          />
+          {quotations.length>1 && (
+            <button onClick={()=>deleteQuotation(active.id)} title="Eliminar esta cotización" style={{
+              background:'transparent', border:'1px solid var(--border)', borderRadius:6, padding:'5px 10px',
+              fontSize:13, color:'#ef4444', cursor:'pointer',
+            }}>🗑</button>
+          )}
+        </div>
+      )}
+
       {/* Actions */}
       <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
         {msg && <span style={{ fontSize:12, color: msg.startsWith('✓')?'#10b981':'#ef4444', fontWeight:600 }}>{msg}</span>}
