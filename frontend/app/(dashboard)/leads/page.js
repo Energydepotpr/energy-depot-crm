@@ -2120,7 +2120,7 @@ function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING) {
   const panels=Math.round(annCons*1.07/factorProduccion*1000/panelWatts), kw=parseFloat((panels*panelWatts/1000).toFixed(2));
   const annProd=Math.round(kw*factorProduccion), costBase=Math.round(panels*panelPrice), sub=costBase+batPrecio;
   const pagoLuma=Math.round(avg*tarifaLuma);
-  const offset=annCons>0?Math.min(Math.round(annProd/annCons*100),100):0;
+  const offset=annCons>0?Math.round(annProd/annCons*100):0;
   return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
 }
 
@@ -2224,7 +2224,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
         {/* Modal contrato */}
         {showContrato && (
           <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }} onClick={()=>setShowContrato(false)}>
-            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:28, width:360 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:24, width:'calc(100vw - 32px)', maxWidth:360 }} onClick={e=>e.stopPropagation()}>
               <div style={{ fontSize:15, fontWeight:700, color:'var(--text)', marginBottom:20 }}>📄 Generar Contrato Solar</div>
               <div style={{ marginBottom:14 }}>
                 <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Modalidad de Pago</label>
@@ -2254,9 +2254,9 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
       {/* kWh inputs */}
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
         <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Consumo Mensual (kWh)</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:7 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(56px, 1fr))', gap:7 }}>
           {MESES_L.map((m,i) => (
-            <div key={i}>
+            <div key={i} style={{ minWidth:0 }}>
               <div style={{ fontSize:9, color:'var(--muted)', fontWeight:600, textAlign:'center', marginBottom:3 }}>{m}</div>
               <input type="number" min="0" value={meses[i]} onChange={e=>{ const n=[...meses]; n[i]=e.target.value; setMeses(n); }}
                 style={{ ...inp, color:Number(meses[i])>0?'#3b82f6':'var(--text)', fontWeight:Number(meses[i])>0?700:400 }} />
@@ -2274,7 +2274,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
       {/* Batería */}
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
         <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Baterías</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(190px, 1fr))', gap:7 }}>
           {BATERIAS_COT.map((b,i) => {
             const active = batQty[i]>0;
             const qbtn = { width:26, height:26, borderRadius:6, border:'1px solid var(--border)', background:'var(--bg)', color:'var(--text)', fontSize:14, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 };
@@ -2301,7 +2301,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
           {/* Sistema */}
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
             <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Sistema Recomendado</div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(80px, 1fr))', gap:8 }}>
               {[['kW DC',calc.kw],['Paneles',calc.panels+' uds'],['Prod/año',cotFmtK(calc.annProd)+' kWh'],['Cobertura',calc.offset+'%']].map(([k,v])=>(
                 <div key={k} style={{ background:'var(--bg)', borderRadius:6, padding:'8px', textAlign:'center' }}>
                   <div style={{ fontSize:9, color:'var(--muted)', fontWeight:600 }}>{k}</div>

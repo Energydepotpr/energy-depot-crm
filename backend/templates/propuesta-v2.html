@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Propuesta Energy Depot - {{cliente_nombre}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ============= BASE / PRINT ============= */
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body {
+    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
+    color: #0F2A5C;
+    background: #E5E7EB;
+  }
+  body { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 18px 0; }
+
+  .page {
+    width: 210mm; height: 297mm;
+    background: #ffffff;
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+    box-shadow: 0 4px 18px rgba(0,0,0,.12);
+  }
+  .page:last-child { page-break-after: auto; }
+
+  :root {
+    --blue-deep:  #0E2C8A;
+    --blue:       #1E3FB8;
+    --blue-mid:   #2E5DD6;
+    --blue-soft:  #BFD4FF;
+    --blue-100:   #DEE9FE;
+    --blue-50:    #EEF3FE;
+    --ink:        #0F2A5C;
+    --gray:       #475569;
+    --green:      #22C55E;
+  }
+
+  /* ============= IMAGE FILLS ============= */
+  .imgfill {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+  }
+  .imgfill::after {
+    content:""; position:absolute; inset:0;
+    background: linear-gradient(180deg, rgba(15,42,92,.30), rgba(15,42,92,.55));
+  }
+  .imgfill.dark::after {
+    background: linear-gradient(180deg, rgba(15,42,92,.45), rgba(15,42,92,.7));
+  }
+  .imgfill.softFade::after {
+    background: linear-gradient(180deg, rgba(255,255,255,0) 35%, rgba(255,255,255,.85) 95%);
+  }
+  .imgfill.cover::after {
+    background: linear-gradient(120deg, rgba(15,42,92,0) 35%, rgba(15,42,92,.45) 100%);
+  }
+
+  /* ============= HEADER ============= */
+  .hdr {
+    position: absolute; top: 14mm; left: 18mm; right: 18mm;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 9pt; letter-spacing: 1.5px; color: var(--blue);
+    font-weight: 700; z-index: 10;
+  }
+  .hdr .right { color: #475569; }
+
+  /* ============= LOGO ============= */
+  .logo-img { height: 22mm; width: auto; display: block; }
+  .logo-banner {
+    background: linear-gradient(135deg, #2A2D31 0%, #4A4D52 100%);
+    padding: 8mm 10mm;
+    margin: -10mm -12mm 6mm -12mm;
+    border-radius: 2mm 2mm 0 0;
+    display: flex; align-items: center; justify-content: flex-start;
+  }
+  .logo-banner .logo-img { height: 18mm; }
+
+  /* ============= TYPOGRAPHY ============= */
+  h1 { font-size: 32pt; font-weight: 800; color: var(--blue); line-height: 1.05; letter-spacing: -.5px; }
+  h2 { font-size: 24pt; font-weight: 800; color: var(--blue); line-height: 1.15; }
+  h3 { font-size: 17pt; font-weight: 800; color: var(--blue); line-height: 1.2; }
+  p  { font-size: 10.5pt; line-height: 1.55; color: #334155; }
+
+  .arrow {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--blue);
+    color: var(--blue); font-weight: 800; font-size: 11px;
+    margin-right: 6px; flex-shrink: 0;
+  }
+
+  /* ===========================================================
+     PAGE 1 — COVER
+     =========================================================== */
+  .cover-photo {
+    position: absolute; top: 0; right: 0;
+    width: 78%; height: 100%;
+    clip-path: polygon(35% 0, 100% 0, 100% 100%, 0 100%);
+  }
+  .cover-card {
+    position: absolute; top: 18mm; left: 14mm;
+    width: 130mm; padding: 10mm 12mm 14mm;
+    background: #fff; z-index: 5;
+    box-shadow: 0 8px 30px rgba(15,42,92,.15);
+    border-radius: 2mm;
+  }
+  .cover-card .greet {
+    font-size: 30pt; font-weight: 800; color: var(--blue-deep);
+    margin-top: 2mm; line-height: 1.05; letter-spacing: -.5px;
+  }
+  .cover-card .greet-accent {
+    height: 1.5mm; width: 24mm; background: var(--blue);
+    margin-top: 5mm; border-radius: 1mm;
+  }
+  .cover-card .meta {
+    margin-top: 7mm;
+    font-size: 12pt; color: #334155;
+    line-height: 2.1; font-weight: 500;
+  }
+  .cover-card .meta .row {
+    display: flex; align-items: center; gap: 4mm;
+  }
+  .cover-card .meta .row .ico {
+    width: 7mm; height: 7mm; border-radius: 50%;
+    background: var(--blue-100); color: var(--blue);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .cover-card .meta .row .ico svg { width: 4mm; height: 4mm; fill: var(--blue); }
+  .cover-card .meta .row .val { font-size: 12pt; color: var(--blue-deep); font-weight: 600; }
+  .cover-card .meta .date {
+    margin-top: 4mm; padding-top: 4mm;
+    border-top: 1px solid #E2E8F0;
+    font-size: 11pt; color: var(--gray); font-weight: 600; letter-spacing: .5px;
+  }
+  .cover-band {
+    position: absolute; left: 0; right: 0;
+    top: 156mm; height: 14mm;
+    background: var(--blue);
+    transform: skewY(-7deg);
+    transform-origin: left;
+    z-index: 4;
+  }
+
+  .cover-tagline {
+    position: absolute; top: 168mm; left: 18mm; right: 18mm;
+    z-index: 6; color: #fff;
+    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
+    background: rgba(15,42,92,.65);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 4mm;
+    padding: 8mm 10mm 9mm;
+    box-shadow: 0 18px 40px rgba(0,0,0,.40);
+    overflow: hidden;
+  }
+  .cover-tagline::before {
+    content:""; position: absolute;
+    top: 0; left: 0; right: 0; height: 1.2mm;
+    background: linear-gradient(90deg, transparent, var(--blue-soft), transparent);
+  }
+  .cover-tagline .small1 {
+    font-size: 12pt; font-weight: 500; line-height: 1.35;
+    color: rgba(255,255,255,.92);
+    letter-spacing: .2px;
+    max-width: 160mm;
+  }
+  .cover-tagline .big {
+    font-size: 44pt; font-weight: 900; line-height: .95; margin-top: 3mm;
+    letter-spacing: -2px;
+    background: none;
+     
+    
+  }
+  .cover-tagline .mid {
+    margin-top: 4mm; font-size: 11.5pt; line-height: 1.5;
+    color: rgba(255,255,255,.92);
+    max-width: 160mm; font-weight: 500;
+  }
+  .cover-tagline .accent {
+    display: inline-block; margin-top: 4mm; font-size: 14pt; font-weight: 700;
+    color: #fff; letter-spacing: .5px;
+    border-bottom: 2px solid rgba(191,212,255,.7);
+    padding-bottom: 1.5mm;
+  }
+  .cover-addr {
+    position: absolute; bottom: 16mm; right: 18mm;
+    color: #fff; z-index: 7;
+    background: rgba(15,42,92,.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 3mm;
+    padding: 6mm 8mm;
+    box-shadow: 0 12px 28px rgba(0,0,0,.35);
+    font-size: 10pt; font-weight: 700; letter-spacing: .5px;
+    line-height: 1.6;
+  }
+  .cover-addr .group {
+    text-align: right;
+  }
+  .cover-addr .group + .group {
+    margin-top: 4mm; padding-top: 4mm;
+    border-top: 1px solid rgba(255,255,255,.25);
+  }
+  .cover-addr .group .row {
+    display: flex; align-items: center; justify-content: flex-end; gap: 3mm;
+  }
+  .cover-addr .group .row + .row { margin-top: 1.5mm; }
+  .cover-addr .group .row .ic {
+    width: 5mm; height: 5mm; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    opacity: .9;
+  }
+  .cover-addr .group .row .ic svg { width: 3.5mm; height: 3.5mm; fill: #fff; }
+  .cover-addr .group .row .val { font-size: 9.5pt; font-weight: 600; letter-spacing: 0; }
+
+  /* ===========================================================
+     PAGE 2 — Modern glass on light Apple/Tesla gray
+     =========================================================== */
+  .p2 {
+    background:
+      radial-gradient(circle at 95% 25%, rgba(46,93,214,.10) 0%, transparent 40%),
+      radial-gradient(circle at 5% 95%, rgba(14,44,138,.08) 0%, transparent 45%),
+      linear-gradient(135deg, #FBFBFD 0%, #F2F2F4 100%);
+    overflow: hidden;
+  }
+  .p2 .hdr { color: var(--blue); }
+  .p2 .hdr .right { color: #6B7280; }
+
+  .p2 .orb {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(46,93,214,.18), rgba(46,93,214,0));
+    pointer-events: none;
+    filter: blur(8px);
+    z-index: 1;
+  }
+  .p2 .orb-1 { width: 65mm; height: 65mm; bottom: 40mm; left: -20mm; }
+  .p2 .orb-2 { width: 40mm; height: 40mm; bottom: 80mm; right: -10mm; opacity: .5; }
+
+  .p2::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      linear-gradient(90deg, rgba(15,42,92,.04) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(15,42,92,.04) 1px, transparent 1px);
+    background-size: 30mm 30mm;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .p2 .title {
+    position: absolute; top: 26mm; left: 18mm; right: 18mm;
+    z-index: 6;
+  }
+  .p2 .title h1 {
+    font-size: 24pt; font-weight: 800; color: var(--blue-deep);
+    line-height: 1.15; letter-spacing: -.5px;
+  }
+  .p2 .title h1 .accent {
+    background: none;
+     
+    
+  }
+  .p2 .title .lead-line {
+    height: 1mm; width: 28mm;
+    background: linear-gradient(90deg, var(--blue), transparent);
+    margin-top: 5mm; border-radius: 1mm;
+  }
+
+  .p2 .photo-zone {
+    position: absolute; top: 60mm; left: 0; right: 0; height: 110mm;
+    clip-path: polygon(0 0, 100% 0, 100% 92%, 0 100%);
+    z-index: 2;
+  }
+  .p2 .photo-zone .imgfill::after {
+    background: linear-gradient(180deg, rgba(15,42,92,.30) 0%, rgba(15,42,92,.55) 100%);
+  }
+
+  .p2 .photo-overlay {
+    position: absolute; top: 75mm; left: 18mm; right: 18mm;
+    z-index: 5; text-align: center;
+  }
+  .p2 .photo-overlay h2 {
+    color: #fff; font-size: 26pt; line-height: 1.15;
+    font-weight: 800; letter-spacing: -.5px;
+    text-shadow:
+      -1.5px -1.5px 0 rgba(0,0,0,.9),
+       1.5px -1.5px 0 rgba(0,0,0,.9),
+      -1.5px  1.5px 0 rgba(0,0,0,.9),
+       1.5px  1.5px 0 rgba(0,0,0,.9),
+       0 3px 12px rgba(0,0,0,.75);
+  }
+  .p2 .photo-overlay h2 .accent {
+    background: none;
+     
+    
+    text-shadow: none;
+    filter: drop-shadow(0 3px 12px rgba(0,0,0,.75));
+  }
+
+  .p2 .benefits {
+    position: absolute; top: 175mm; left: 18mm; right: 18mm;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;
+    z-index: 5;
+  }
+  .p2 .benefit {
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(255,255,255,.95);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 5mm 6mm;
+    box-shadow: 0 8px 24px rgba(15,42,92,.10), inset 0 1px 0 rgba(255,255,255,.95);
+    display: flex; align-items: center; gap: 4mm;
+    position: relative; overflow: hidden;
+  }
+  .p2 .benefit::before {
+    content: ""; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 1.2mm;
+    background: linear-gradient(180deg, var(--blue), var(--blue-mid));
+  }
+  .p2 .benefit .ic {
+    width: 10mm; height: 10mm; flex-shrink: 0; border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px rgba(30,63,184,.3);
+  }
+  .p2 .benefit .ic svg { width: 5.5mm; height: 5.5mm; fill: #fff; }
+  .p2 .benefit .text {
+    font-size: 11pt; line-height: 1.35; font-weight: 700;
+    color: var(--blue-deep);
+  }
+
+  .p2 .cta-bar {
+    position: absolute; bottom: 14mm; left: 18mm; right: 18mm;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+    color: #fff;
+    padding: 7mm 10mm; text-align: center;
+    font-size: 14pt; font-weight: 800;
+    border-radius: 3mm;
+    box-shadow: 0 12px 32px rgba(30,63,184,.35), inset 0 1px 0 rgba(255,255,255,.2);
+    z-index: 6;
+    display: flex; align-items: center; justify-content: center; gap: 4mm;
+    letter-spacing: -.3px;
+  }
+  .p2 .cta-bar .ic {
+    width: 11mm; height: 11mm; flex-shrink: 0; border-radius: 50%;
+    background: rgba(255,255,255,.2);
+    border: 1.5px solid rgba(255,255,255,.5);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .p2 .cta-bar .ic svg { width: 6mm; height: 6mm; fill: #fff; }
+
+  /* ===========================================================
+     PAGE 3 — Modern glassmorphism on light Apple/Tesla gray
+     =========================================================== */
+  .p3 {
+    background:
+      radial-gradient(circle at 10% 20%, rgba(46,93,214,.10) 0%, transparent 40%),
+      radial-gradient(circle at 90% 85%, rgba(14,44,138,.08) 0%, transparent 45%),
+      linear-gradient(135deg, #FBFBFD 0%, #F2F2F4 100%);
+    color: var(--blue-deep);
+    overflow: hidden;
+  }
+  .p3 .hdr { color: var(--blue); }
+  .p3 .hdr .right { color: #6B7280; }
+
+  /* Floating decorative orbs (light blue tinted) */
+  .p3 .orb {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(46,93,214,.18), rgba(46,93,214,0));
+    pointer-events: none;
+    filter: blur(8px);
+  }
+  .p3 .orb-1 { width: 80mm; height: 80mm; top: -30mm; right: -25mm; }
+  .p3 .orb-2 { width: 50mm; height: 50mm; bottom: 60mm; left: -15mm; }
+  .p3 .orb-3 { width: 30mm; height: 30mm; top: 90mm; right: 30mm; opacity: .6; }
+
+  /* Subtle grid pattern */
+  .p3::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      linear-gradient(90deg, rgba(15,42,92,.04) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(15,42,92,.04) 1px, transparent 1px);
+    background-size: 30mm 30mm;
+    pointer-events: none;
+  }
+
+  .p3 .body { position: absolute; top: 30mm; left: 18mm; right: 18mm; z-index: 5; }
+  .p3 h1 {
+    color: var(--blue-deep); font-size: 30pt; line-height: 1.15; max-width: 170mm;
+    font-weight: 800; letter-spacing: -.5px;
+  }
+  .p3 h1 .accent {
+    background: none;
+    
+    
+    
+  }
+  .p3 .lead-line {
+    height: 1mm; width: 30mm;
+    background: linear-gradient(90deg, var(--blue), transparent);
+    margin-top: 6mm; border-radius: 1mm;
+  }
+
+  .p3 .timeline {
+    margin-top: 14mm; display: grid; gap: 5mm;
+    position: relative;
+  }
+
+  .p3 .step {
+    display: grid; grid-template-columns: 26mm 1fr;
+    gap: 6mm; align-items: stretch;
+    position: relative;
+  }
+
+  .p3 .step-num {
+    width: 26mm; height: 26mm; border-radius: 50%;
+    background: linear-gradient(135deg, #ffffff 0%, #F0F4FB 100%);
+    border: 1.5px solid rgba(46,93,214,.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--blue-deep);
+    box-shadow:
+      0 10px 28px rgba(15,42,92,.15),
+      inset 0 1px 1px rgba(255,255,255,.8);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .p3 .step-num .step-label {
+    font-size: 6.5pt; font-weight: 800; color: var(--blue); opacity: .8; letter-spacing: 2px;
+  }
+  .p3 .step-num .step-digit {
+    font-size: 22pt; font-weight: 900; line-height: 1; margin-top: 1mm;
+    background: none;
+     
+    
+  }
+  .p3 .step:not(:last-child) .step-num::after {
+    content: "";
+    position: absolute; top: calc(100% + 2mm); left: 50%;
+    width: 2px; height: 5mm;
+    background: linear-gradient(180deg, rgba(46,93,214,.6), rgba(46,93,214,.1));
+    transform: translateX(-50%);
+  }
+
+  .p3 .step-card {
+    background: rgba(255,255,255,.7);
+    border: 1px solid rgba(255,255,255,.9);
+    border-radius: 3mm;
+    padding: 6mm 8mm;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow:
+      0 10px 30px rgba(15,42,92,.10),
+      0 1px 0 rgba(255,255,255,.9) inset;
+    display: flex; align-items: center; gap: 6mm;
+    position: relative; overflow: hidden;
+  }
+  .p3 .step-card::before {
+    content: "";
+    position: absolute; left: 0; top: 0; bottom: 0; width: 1.5mm;
+    background: linear-gradient(180deg, var(--blue), var(--blue-mid));
+  }
+  .p3 .step-icon {
+    width: 12mm; height: 12mm; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+    border-radius: 2.5mm;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(30,63,184,.3);
+  }
+  .p3 .step-icon svg { width: 7mm; height: 7mm; fill: #fff; }
+  .p3 .step-title {
+    font-size: 15pt; font-weight: 700; color: var(--blue-deep); line-height: 1.25;
+    flex: 1;
+  }
+
+  .p3 .footer-card {
+    margin-top: 12mm;
+    background: linear-gradient(135deg, rgba(255,255,255,.85) 0%, rgba(255,255,255,.65) 100%);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 7mm 9mm;
+    box-shadow: 0 10px 30px rgba(15,42,92,.10);
+    position: relative;
+  }
+  .p3 .footer-card::before {
+    content: "";
+    position: absolute; top: -3mm; left: 8mm;
+    width: 8mm; height: 6mm;
+    background: var(--blue);
+    clip-path: polygon(0 100%, 50% 0, 100% 100%);
+    opacity: .8;
+  }
+  .p3 .footer-card .label {
+    font-size: 8.5pt; font-weight: 800; letter-spacing: 2px;
+    color: var(--blue); text-transform: uppercase;
+  }
+  .p3 .footer-card .text {
+    margin-top: 3mm; font-size: 12pt; font-weight: 600;
+    line-height: 1.5; color: var(--blue-deep);
+  }
+
+  /* ===========================================================
+     PAGE 4 — Modern glassmorphism on light Apple/Tesla gray
+     =========================================================== */
+  .p4 {
+    background:
+      radial-gradient(circle at 90% 15%, rgba(46,93,214,.10) 0%, transparent 40%),
+      radial-gradient(circle at 5% 85%, rgba(14,44,138,.08) 0%, transparent 50%),
+      linear-gradient(135deg, #FBFBFD 0%, #F2F2F4 100%);
+    color: var(--blue-deep);
+    overflow: hidden;
+  }
+  .p4 .hdr { color: var(--blue); }
+  .p4 .hdr .right { color: #6B7280; }
+
+  .p4 .orb {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(46,93,214,.18), rgba(46,93,214,0));
+    pointer-events: none;
+    filter: blur(8px);
+  }
+  .p4 .orb-1 { width: 75mm; height: 75mm; top: -25mm; left: -20mm; }
+  .p4 .orb-2 { width: 55mm; height: 55mm; bottom: 30mm; right: -15mm; }
+  .p4 .orb-3 { width: 25mm; height: 25mm; top: 100mm; left: 35mm; opacity: .5; }
+
+  .p4::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      linear-gradient(90deg, rgba(15,42,92,.04) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(15,42,92,.04) 1px, transparent 1px);
+    background-size: 30mm 30mm;
+    pointer-events: none;
+  }
+
+  .p4 .body { position: absolute; top: 28mm; left: 16mm; right: 16mm; z-index: 5; }
+
+  .p4 h2 {
+    color: var(--blue-deep); font-size: 26pt; font-weight: 800;
+    line-height: 1.15; letter-spacing: -.5px;
+  }
+  .p4 h2 .accent {
+    background: none;
+     
+    
+  }
+  .p4 .lead-line {
+    height: 1mm; width: 30mm;
+    background: linear-gradient(90deg, var(--blue), transparent);
+    margin-top: 5mm; border-radius: 1mm;
+  }
+  .p4 .intro {
+    margin-top: 6mm; font-size: 10.5pt; line-height: 1.55;
+    color: #475569; max-width: 160mm;
+  }
+
+  /* === Pricing glass cards === */
+  .p4 .pricing { margin-top: 8mm; display: grid; gap: 4mm; }
+
+  .p4 .pcard {
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 6mm 8mm;
+    box-shadow: 0 10px 30px rgba(15,42,92,.10), inset 0 1px 0 rgba(255,255,255,.9);
+    display: grid; grid-template-columns: 1fr auto; gap: 8mm; align-items: center;
+    position: relative; overflow: hidden;
+  }
+  .p4 .pcard::before {
+    content: ""; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 1.5mm;
+    background: linear-gradient(180deg, var(--blue), var(--blue-mid));
+  }
+  .p4 .pcard.alert::before {
+    background: linear-gradient(180deg, #F87171, #DC2626);
+  }
+  .p4 .pcard .l .label {
+    font-size: 8pt; font-weight: 800; letter-spacing: 2px;
+    color: var(--blue); text-transform: uppercase;
+  }
+  .p4 .pcard.alert .l .label { color: #DC2626; }
+  .p4 .pcard .l .name {
+    font-size: 17pt; font-weight: 800; color: var(--blue-deep);
+    line-height: 1.15; margin-top: 2mm;
+    display: flex; align-items: center; gap: 3mm;
+  }
+  .p4 .pcard .l .name .ic {
+    width: 8mm; height: 8mm; flex-shrink: 0; border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 8px rgba(30,63,184,.3);
+  }
+  .p4 .pcard.alert .l .name .ic {
+    background: linear-gradient(135deg, #F87171 0%, #DC2626 100%);
+    box-shadow: 0 3px 8px rgba(220,38,38,.3);
+  }
+  .p4 .pcard .l .name .ic svg { width: 5mm; height: 5mm; fill: #fff; }
+  .p4 .pcard .l .desc {
+    margin-top: 3mm; font-size: 9.5pt; line-height: 1.45;
+    color: #475569; max-width: 90mm;
+  }
+
+  .p4 .pcard .pricebox { text-align: center; min-width: 50mm; }
+  .p4 .pcard .pricebox .pill {
+    display: inline-block;
+    background: var(--blue-100); color: var(--blue);
+    padding: 1.2mm 4mm; border-radius: 4mm;
+    font-size: 8.5pt; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .8px;
+  }
+  .p4 .pcard.alert .pricebox .pill {
+    background: #DC2626; color: #fff;
+  }
+  .p4 .pcard .pricebox .v {
+    font-size: 30pt; font-weight: 900; margin-top: 2mm;
+    color: var(--blue-deep);
+  }
+  .p4 .pcard.alert .pricebox .v {
+    color: #DC2626;
+  }
+
+  /* === Stats === */
+  .p4 .stats-title {
+    margin-top: 8mm; display: flex; align-items: center; gap: 3mm;
+    font-size: 12pt; font-weight: 700; color: var(--blue-deep); line-height: 1.3;
+  }
+  .p4 .stats-title .ic {
+    width: 9mm; height: 9mm; flex-shrink: 0; border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue), var(--blue-deep));
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 8px rgba(30,63,184,.3);
+  }
+  .p4 .stats-title .ic svg { width: 5mm; height: 5mm; fill: #fff; }
+  .p4 .stats { margin-top: 4mm; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+  .p4 .stat {
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 5mm 3mm 6mm;
+    text-align: center;
+    box-shadow: 0 10px 28px rgba(15,42,92,.10);
+    position: relative; overflow: hidden;
+  }
+  .p4 .stat::before {
+    content: ""; position: absolute;
+    top: 0; left: 0; right: 0; height: 1.2mm;
+    background: linear-gradient(90deg, transparent, var(--blue), transparent);
+  }
+  .p4 .stat .lbl {
+    font-size: 7.5pt; font-weight: 800; color: var(--blue);
+    letter-spacing: 1.2px; text-transform: uppercase;
+    background: var(--blue-100);
+    padding: 1.5mm 3mm; border-radius: 4mm; display: inline-block;
+  }
+  .p4 .stat .val {
+    font-size: 26pt; font-weight: 900; color: var(--blue-deep);
+    margin-top: 4mm;
+    background: none;
+     
+    
+  }
+  .p4 .stat .unit {
+    font-size: 9pt; font-weight: 600; color: #6B7280;
+    margin-top: 1mm; letter-spacing: 1px;
+  }
+
+  /* ===========================================================
+     PAGE 5 — Modern glassmorphism on light Apple/Tesla gray
+     (with solar panel photo strip at bottom)
+     =========================================================== */
+  .p5 {
+    background:
+      radial-gradient(circle at 15% 25%, rgba(46,93,214,.10) 0%, transparent 40%),
+      radial-gradient(circle at 90% 60%, rgba(14,44,138,.08) 0%, transparent 45%),
+      linear-gradient(135deg, #FBFBFD 0%, #F2F2F4 100%);
+    overflow: hidden;
+  }
+  .p5 .hdr { color: var(--blue); }
+  .p5 .hdr .right { color: #6B7280; }
+
+  .p5 .orb {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(46,93,214,.18), rgba(46,93,214,0));
+    pointer-events: none;
+    filter: blur(8px);
+  }
+  .p5 .orb-1 { width: 70mm; height: 70mm; top: -25mm; right: -20mm; z-index: 1; }
+  .p5 .orb-2 { width: 40mm; height: 40mm; top: 90mm; left: -10mm; opacity: .6; z-index: 1; }
+
+  .p5::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 220mm;
+    background:
+      linear-gradient(90deg, rgba(15,42,92,.04) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(15,42,92,.04) 1px, transparent 1px);
+    background-size: 30mm 30mm;
+    pointer-events: none;
+  }
+
+  .p5 .body {
+    position: absolute; top: 26mm; left: 18mm; right: 18mm; bottom: 80mm;
+    z-index: 5;
+  }
+
+  .p5 h2 {
+    text-align: center; font-size: 22pt; line-height: 1.15;
+    color: var(--blue-deep); font-weight: 800; letter-spacing: -.5px;
+    text-transform: none;
+  }
+  .p5 h2 .accent {
+    background: none;
+     
+    
+  }
+  .p5 .lead-line {
+    height: 1mm; width: 30mm;
+    background: linear-gradient(90deg, var(--blue), transparent);
+    margin: 5mm auto 0; border-radius: 1mm;
+  }
+
+  .p5 .cols { margin-top: 9mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+
+  .p5 .col {
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 6mm 7mm;
+    box-shadow: 0 10px 30px rgba(15,42,92,.10), inset 0 1px 0 rgba(255,255,255,.9);
+    position: relative; overflow: hidden;
+  }
+  .p5 .col::before {
+    content: ""; position: absolute;
+    top: 0; left: 0; right: 0; height: 1.2mm;
+    background: linear-gradient(90deg, var(--blue), var(--blue-mid), var(--blue));
+  }
+  .p5 .col h3 {
+    display: flex; align-items: center; gap: 3mm; font-size: 16pt;
+    color: var(--blue-deep); line-height: 1.2;
+  }
+  .p5 .col h3 .ic {
+    width: 9mm; height: 9mm; flex-shrink: 0; border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px rgba(30,63,184,.3);
+  }
+  .p5 .col h3 .ic svg { width: 5mm; height: 5mm; fill: #fff; }
+  .p5 .col p { margin-top: 4mm; font-size: 10pt; color: #475569; line-height: 1.55; }
+
+  .p5 .specs { margin-top: 4mm; list-style: none; padding: 0; }
+  .p5 .specs li {
+    margin-top: 3mm; font-size: 10pt; color: #334155; line-height: 1.5;
+    padding-left: 7mm; position: relative;
+  }
+  .p5 .specs li::before {
+    content: ""; position: absolute; left: 0; top: 1.8mm;
+    width: 4mm; height: 4mm; border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue), var(--blue-deep));
+    box-shadow: 0 0 0 2px rgba(46,93,214,.15);
+  }
+  .p5 .specs li strong { color: var(--blue-deep); font-weight: 700; }
+
+  .p5 .results { margin-top: 4mm; list-style: none; padding: 0; }
+  .p5 .results li {
+    margin-top: 3mm; font-size: 10pt; color: #334155; line-height: 1.5;
+    padding-left: 7mm; position: relative;
+  }
+  .p5 .results li::before {
+    content: "✓"; position: absolute; left: 0; top: 0;
+    width: 5mm; height: 5mm; border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue), var(--blue-deep));
+    color: #fff; font-size: 8pt; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(30,63,184,.3);
+  }
+  .p5 .results li strong { color: var(--blue-deep); font-weight: 700; }
+
+  .p5 .battery-note {
+    margin-top: 6mm; padding: 5mm 6mm;
+    background: linear-gradient(135deg, rgba(255,255,255,.85) 0%, rgba(238,243,254,.7) 100%);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 2.5mm;
+    font-size: 10pt; color: #334155; line-height: 1.55;
+    box-shadow: 0 6px 18px rgba(15,42,92,.08);
+    position: relative; overflow: hidden;
+  }
+  .p5 .battery-note::before {
+    content: ""; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 1.5mm;
+    background: linear-gradient(180deg, var(--blue), var(--blue-mid));
+  }
+  .p5 .battery-note strong { color: var(--blue-deep); font-weight: 700; }
+
+  .p5 .photo-strip {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 75mm;
+    clip-path: polygon(0 25%, 100% 0, 100% 100%, 0 100%);
+    z-index: 3;
+  }
+
+  /* ===========================================================
+     PAGE 6 — Modern glass on light gray (with solar panel photo top)
+     =========================================================== */
+  .p6 {
+    background:
+      radial-gradient(circle at 90% 70%, rgba(46,93,214,.10) 0%, transparent 40%),
+      radial-gradient(circle at 5% 95%, rgba(14,44,138,.08) 0%, transparent 45%),
+      linear-gradient(135deg, #FBFBFD 0%, #F2F2F4 100%);
+    overflow: hidden;
+  }
+
+  .p6 .top-photo {
+    position: absolute; top: 0; left: 0; right: 0; height: 100mm;
+    clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);
+    z-index: 2;
+  }
+
+  .p6 .orb {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(46,93,214,.18), rgba(46,93,214,0));
+    pointer-events: none;
+    filter: blur(8px);
+    z-index: 1;
+  }
+  .p6 .orb-1 { width: 60mm; height: 60mm; bottom: 60mm; right: -15mm; }
+  .p6 .orb-2 { width: 40mm; height: 40mm; bottom: 20mm; left: -10mm; opacity: .5; }
+
+  .p6::before {
+    content: ""; position: absolute; top: 100mm; left: 0; right: 0; bottom: 0;
+    background:
+      linear-gradient(90deg, rgba(15,42,92,.04) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(15,42,92,.04) 1px, transparent 1px);
+    background-size: 30mm 30mm;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .p6 .body {
+    position: absolute; top: 110mm; left: 18mm; right: 18mm; bottom: 14mm;
+    z-index: 5;
+  }
+
+  .p6 .vs-row {
+    display: grid; grid-template-columns: 1fr 26mm 1fr; align-items: center;
+    margin-bottom: 2mm;
+  }
+  .p6 .vs-col h2 {
+    font-size: 30pt; font-weight: 800; line-height: 1; letter-spacing: -.5px;
+  }
+  .p6 .vs-col.left h2  { color: #94A3B8; }
+  .p6 .vs-col.right h2 {
+    background: none;
+     
+    
+  }
+  .p6 .vs-mid {
+    text-align: center;
+    font-size: 14pt; font-weight: 800; color: #fff;
+    width: 18mm; height: 18mm; border-radius: 50%; margin: 0 auto;
+    background: linear-gradient(135deg, var(--blue), var(--blue-deep));
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 20px rgba(30,63,184,.3);
+  }
+
+  .p6 .stack { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-top: 6mm; }
+  .p6 .col-stack { display: grid; gap: 4mm; }
+
+  .p6 .pcard {
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 5mm 6mm;
+    box-shadow: 0 8px 24px rgba(15,42,92,.10), inset 0 1px 0 rgba(255,255,255,.9);
+    position: relative; overflow: hidden;
+  }
+  .p6 .pcard::before {
+    content: ""; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 1.2mm;
+    background: linear-gradient(180deg, var(--blue), var(--blue-mid));
+  }
+  .p6 .pcard.green::before {
+    background: linear-gradient(180deg, #4ADE80, #16A34A);
+  }
+  .p6 .pcard.proj::before {
+    background: linear-gradient(180deg, #F87171, #DC2626);
+  }
+
+  .p6 .pcard .pill {
+    font-size: 8pt; font-weight: 800; color: var(--blue);
+    background: var(--blue-100);
+    padding: 1.2mm 3.5mm; border-radius: 4mm; display: inline-block;
+    text-transform: uppercase; letter-spacing: .8px;
+  }
+  .p6 .pcard.green .pill {
+    color: #fff;
+    background: linear-gradient(135deg, #4ADE80, #16A34A);
+  }
+  .p6 .pcard.proj .pill {
+    color: #fff;
+    background: linear-gradient(135deg, #F87171, #DC2626);
+  }
+  .p6 .pcard .lbl { font-size: 9pt; color: #6B7280; margin-top: 2mm; font-weight: 500; }
+  .p6 .pcard .val {
+    font-size: 24pt; font-weight: 900; margin-top: 1mm;
+    background: none;
+     
+    
+  }
+  .p6 .pcard.green .val {
+    background: none;
+     
+    
+  }
+  .p6 .pcard.proj .val  {
+    background: none;
+     
+    
+  }
+
+  .p6 .footer-line {
+    margin-top: 6mm; padding: 5mm 7mm;
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    box-shadow: 0 8px 24px rgba(15,42,92,.08);
+    font-size: 11pt; color: var(--blue-deep); line-height: 1.55;
+    font-style: italic; text-align: center; font-weight: 600;
+    position: relative;
+  }
+  .p6 .footer-line::before {
+    content: ""; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 1.5mm;
+    background: linear-gradient(180deg, var(--blue), var(--blue-mid));
+  }
+
+  /* ===========================================================
+     PAGE 7 — Modern glass on light gray (with solar photo top)
+     =========================================================== */
+  .p7 {
+    background:
+      radial-gradient(circle at 90% 60%, rgba(46,93,214,.10) 0%, transparent 40%),
+      radial-gradient(circle at 5% 95%, rgba(14,44,138,.08) 0%, transparent 45%),
+      linear-gradient(135deg, #FBFBFD 0%, #F2F2F4 100%);
+    overflow: hidden;
+  }
+  .p7 .top-photo {
+    position: absolute; top: 0; left: 0; right: 0; height: 115mm;
+    z-index: 2;
+  }
+  .p7 .clip-bottom {
+    position: absolute; top: 95mm; left: 0; right: 0; height: 25mm;
+    background: linear-gradient(135deg, #FBFBFD 0%, #F2F2F4 100%);
+    clip-path: polygon(0 100%, 100% 0, 100% 100%);
+    z-index: 3;
+  }
+
+  .p7 .orb {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(46,93,214,.18), rgba(46,93,214,0));
+    pointer-events: none;
+    filter: blur(8px);
+    z-index: 1;
+  }
+  .p7 .orb-1 { width: 60mm; height: 60mm; bottom: 50mm; right: -15mm; }
+  .p7 .orb-2 { width: 40mm; height: 40mm; bottom: 10mm; left: -10mm; opacity: .5; }
+
+  .p7::before {
+    content: ""; position: absolute; top: 115mm; left: 0; right: 0; bottom: 0;
+    background:
+      linear-gradient(90deg, rgba(15,42,92,.04) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(15,42,92,.04) 1px, transparent 1px);
+    background-size: 30mm 30mm;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .p7 .title-overlay {
+    position: absolute; top: 30mm; left: 18mm; z-index: 5;
+    color: #fff; font-size: 38pt; font-weight: 800; line-height: 1.05;
+    letter-spacing: -.5px;
+    text-shadow:
+      -2px -2px 0 rgba(0,0,0,.9),
+       2px -2px 0 rgba(0,0,0,.9),
+      -2px  2px 0 rgba(0,0,0,.9),
+       2px  2px 0 rgba(0,0,0,.9),
+       0 4px 14px rgba(0,0,0,.75);
+  }
+  .p7 .title-overlay .accent {
+    background: none;
+     
+    
+    text-shadow: none;
+    filter: drop-shadow(0 4px 14px rgba(0,0,0,.75));
+  }
+
+  .p7 .reasons {
+    position: absolute; top: 122mm; left: 18mm; right: 18mm;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;
+    z-index: 5;
+  }
+  .p7 .reason {
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 6mm 7mm;
+    box-shadow: 0 8px 24px rgba(15,42,92,.10), inset 0 1px 0 rgba(255,255,255,.9);
+    display: flex; align-items: center; gap: 4mm;
+    position: relative; overflow: hidden;
+  }
+  .p7 .reason::before {
+    content: ""; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 1.2mm;
+    background: linear-gradient(180deg, var(--blue), var(--blue-mid));
+  }
+  .p7 .reason .ic {
+    width: 11mm; height: 11mm; flex-shrink: 0; border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(30,63,184,.3);
+  }
+  .p7 .reason .ic svg { width: 6mm; height: 6mm; fill: #fff; }
+  .p7 .reason .name {
+    font-size: 13pt; font-weight: 800; color: var(--blue-deep);
+    line-height: 1.2;
+  }
+
+  /* ===========================================================
+     PAGE 8 — Modern glass on light gray (with rooftop photo bottom)
+     =========================================================== */
+  .p8 {
+    background:
+      radial-gradient(circle at 90% 15%, rgba(46,93,214,.10) 0%, transparent 40%),
+      radial-gradient(circle at 5% 60%, rgba(14,44,138,.08) 0%, transparent 45%),
+      linear-gradient(135deg, #FBFBFD 0%, #F2F2F4 100%);
+    overflow: hidden;
+  }
+  .p8 .hdr { color: var(--blue); }
+  .p8 .hdr .right { color: #6B7280; }
+
+  .p8 .orb {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(46,93,214,.18), rgba(46,93,214,0));
+    pointer-events: none;
+    filter: blur(8px);
+    z-index: 1;
+  }
+  .p8 .orb-1 { width: 70mm; height: 70mm; top: -25mm; right: -20mm; }
+  .p8 .orb-2 { width: 40mm; height: 40mm; top: 100mm; left: -10mm; opacity: .5; }
+
+  .p8::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 200mm;
+    background:
+      linear-gradient(90deg, rgba(15,42,92,.04) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(15,42,92,.04) 1px, transparent 1px);
+    background-size: 30mm 30mm;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .p8 .body {
+    position: absolute; top: 26mm; left: 18mm; right: 18mm;
+    display: grid; grid-template-columns: 1.4fr 1fr; gap: 8mm;
+    z-index: 5;
+  }
+
+  .p8 .info-card {
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 8mm 9mm;
+    box-shadow: 0 10px 30px rgba(15,42,92,.10), inset 0 1px 0 rgba(255,255,255,.9);
+    position: relative; overflow: hidden;
+  }
+  .p8 .info-card::before {
+    content: ""; position: absolute;
+    top: 0; left: 0; right: 0; height: 1.2mm;
+    background: linear-gradient(90deg, var(--blue), var(--blue-mid), var(--blue));
+  }
+
+  .p8 h2 {
+    font-size: 24pt; line-height: 1.15;
+    color: var(--blue-deep); font-weight: 800; letter-spacing: -.5px;
+  }
+  .p8 h2 .accent {
+    background: none;
+     
+    
+  }
+  .p8 .lead-line {
+    height: 1mm; width: 24mm;
+    background: linear-gradient(90deg, var(--blue), transparent);
+    margin-top: 4mm; border-radius: 1mm;
+  }
+  .p8 .info-card p {
+    margin-top: 4mm; text-align: justify; line-height: 1.6;
+    font-size: 10pt; color: #334155;
+  }
+  .p8 .info-card p strong { color: var(--blue-deep); font-weight: 700; }
+
+  .p8 .ceo-card {
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 8mm 6mm;
+    box-shadow: 0 10px 30px rgba(15,42,92,.10), inset 0 1px 0 rgba(255,255,255,.9);
+    text-align: center;
+    position: relative; overflow: hidden;
+    align-self: start;
+  }
+  .p8 .ceo-card::before {
+    content: ""; position: absolute;
+    top: 0; left: 0; right: 0; height: 1.2mm;
+    background: linear-gradient(90deg, var(--blue), var(--blue-mid), var(--blue));
+  }
+  .p8 .ceo-label {
+    font-size: 7.5pt; font-weight: 800; letter-spacing: 2px;
+    color: var(--blue); text-transform: uppercase;
+  }
+  .p8 .ceo-circle {
+    width: 50mm; height: 50mm; border-radius: 50%; margin: 4mm auto 0;
+    background: radial-gradient(circle at 50% 35%, #4FB3F0, var(--blue) 75%, var(--blue-deep) 100%);
+    border: 4px solid #fff;
+    box-shadow:
+      0 12px 32px rgba(15,42,92,.25),
+      0 0 0 3px var(--blue),
+      0 0 0 6px rgba(46,93,214,.15);
+    color: #fff;
+    display: flex; align-items: flex-end; justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .p8 .ceo-circle svg { width: 100%; height: 100%; display: block; }
+  .p8 .ceo-circle img {
+    width: 100%; height: 100%; display: block;
+    object-fit: cover; object-position: center top;
+  }
+  .p8 .ceo-name {
+    font-size: 14pt; font-weight: 800; color: var(--blue-deep); margin-top: 5mm;
+    letter-spacing: -.3px;
+  }
+  .p8 .ceo-title {
+    font-size: 9.5pt; color: #6B7280; margin-top: 1mm;
+    font-weight: 600; letter-spacing: .5px;
+  }
+  .p8 .ceo-divider {
+    height: .5mm; width: 14mm; margin: 3mm auto 0;
+    background: linear-gradient(90deg, transparent, var(--blue), transparent);
+  }
+
+  .p8 .photo-band {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 90mm;
+    clip-path: polygon(0 35%, 100% 0, 100% 100%, 0 100%);
+    z-index: 3;
+  }
+
+  /* ===========================================================
+     PAGE 9 — Modern glass on light gray (with photo band bottom)
+     =========================================================== */
+  .p9 {
+    background:
+      radial-gradient(circle at 95% 20%, rgba(46,93,214,.10) 0%, transparent 40%),
+      radial-gradient(circle at 5% 70%, rgba(14,44,138,.08) 0%, transparent 45%),
+      linear-gradient(135deg, #FBFBFD 0%, #F2F2F4 100%);
+    overflow: hidden;
+  }
+  .p9 .hdr { color: var(--blue); }
+  .p9 .hdr .right { color: #6B7280; }
+
+  .p9 .orb {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(46,93,214,.18), rgba(46,93,214,0));
+    pointer-events: none;
+    filter: blur(8px);
+    z-index: 1;
+  }
+  .p9 .orb-1 { width: 60mm; height: 60mm; top: -20mm; right: -15mm; }
+  .p9 .orb-2 { width: 40mm; height: 40mm; top: 100mm; left: -10mm; opacity: .5; }
+
+  .p9::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 220mm;
+    background:
+      linear-gradient(90deg, rgba(15,42,92,.04) 1px, transparent 1px),
+      linear-gradient(0deg,  rgba(15,42,92,.04) 1px, transparent 1px);
+    background-size: 30mm 30mm;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .p9 .body {
+    position: absolute; top: 26mm; left: 18mm; right: 18mm; bottom: 80mm;
+    z-index: 5;
+  }
+
+  .p9 .title-block { text-align: left; }
+  .p9 h2 {
+    font-size: 28pt; line-height: 1.1; color: var(--blue-deep);
+    font-weight: 800; letter-spacing: -.5px;
+  }
+  .p9 h2 .accent {
+    background: none;
+     
+    
+  }
+  .p9 .sub {
+    font-size: 13pt; color: #475569; font-weight: 600;
+    margin-top: 2mm;
+  }
+  .p9 .lead-line {
+    height: 1mm; width: 28mm;
+    background: linear-gradient(90deg, var(--blue), transparent);
+    margin-top: 5mm; border-radius: 1mm;
+  }
+
+  .p9 .grid2 {
+    display: grid; grid-template-columns: 1.3fr 1fr; gap: 6mm;
+    margin-top: 8mm;
+  }
+
+  /* Left column - detailed cards */
+  .p9 .left .item {
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 5mm 6mm;
+    margin-bottom: 4mm;
+    box-shadow: 0 8px 24px rgba(15,42,92,.10), inset 0 1px 0 rgba(255,255,255,.9);
+    position: relative; overflow: hidden;
+  }
+  .p9 .left .item::before {
+    content: ""; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 1.2mm;
+    background: linear-gradient(180deg, var(--blue), var(--blue-mid));
+  }
+  .p9 .left h3 {
+    display: flex; align-items: center; gap: 3mm;
+    font-size: 13pt; line-height: 1.2; color: var(--blue-deep);
+    font-weight: 800;
+  }
+  .p9 .left h3 .ic {
+    width: 9mm; height: 9mm; flex-shrink: 0; border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 8px rgba(30,63,184,.3);
+  }
+  .p9 .left h3 .ic svg { width: 5mm; height: 5mm; fill: #fff; }
+  .p9 .left p {
+    margin-top: 3mm; padding-left: 12mm;
+    font-size: 9.5pt; line-height: 1.55; color: #475569;
+  }
+
+  /* Right column - simple bullet cards */
+  .p9 .right { display: grid; gap: 3.5mm; align-content: start; }
+  .p9 .right .item {
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(255,255,255,.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 3mm;
+    padding: 4mm 5mm;
+    box-shadow: 0 6px 18px rgba(15,42,92,.08);
+    display: flex; gap: 3mm; align-items: center;
+    position: relative; overflow: hidden;
+    margin-bottom: 0;
+  }
+  .p9 .right .item::before {
+    content: ""; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 1.2mm;
+    background: linear-gradient(180deg, var(--blue), var(--blue-mid));
+  }
+  .p9 .right .item .ic {
+    width: 8mm; height: 8mm; flex-shrink: 0; border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 8px rgba(30,63,184,.3);
+  }
+  .p9 .right .item .ic svg { width: 4.5mm; height: 4.5mm; fill: #fff; }
+  .p9 .right .item .name {
+    font-size: 11pt; font-weight: 700; color: var(--blue-deep);
+    line-height: 1.25;
+  }
+
+  .p9 .photo-band {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 75mm;
+    clip-path: polygon(0 25%, 100% 0, 100% 100%, 0 100%);
+    z-index: 3;
+  }
+  .p9 .closing-text {
+    position: absolute; bottom: 14mm; left: 18mm; right: 18mm;
+    color: #fff; text-align: center;
+    font-size: 16pt; font-weight: 800; line-height: 1.35;
+    text-shadow:
+      -1.5px -1.5px 0 rgba(0,0,0,.9),
+       1.5px -1.5px 0 rgba(0,0,0,.9),
+      -1.5px  1.5px 0 rgba(0,0,0,.9),
+       1.5px  1.5px 0 rgba(0,0,0,.9),
+       0 3px 12px rgba(0,0,0,.75);
+    z-index: 5;
+  }
+
+  /* ===========================================================
+     PAGE 10
+     =========================================================== */
+  .p10 .top-photo {
+    position: absolute; top: 0; left: 0; right: 0; height: 100mm;
+  }
+  .p10 .top-photo .corner-tl {
+    position: absolute; top: 0; left: 0; width: 80mm; height: 30mm;
+    background: var(--blue);
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    z-index: 4;
+  }
+  .p10 .hero-title {
+    position: absolute; top: 24mm; left: 18mm; right: 18mm; z-index: 5;
+    text-align: center; color: #fff;
+    font-size: 30pt; font-weight: 800; text-transform: uppercase; line-height: 1.1;
+    text-shadow:
+      -2px -2px 0 rgba(0,0,0,.9),
+       2px -2px 0 rgba(0,0,0,.9),
+      -2px  2px 0 rgba(0,0,0,.9),
+       2px  2px 0 rgba(0,0,0,.9),
+       0 4px 14px rgba(0,0,0,.75);
+  }
+  .p10 .messages { position: absolute; top: 56mm; left: 18mm; right: 18mm; z-index: 5; display: grid; gap: 3mm; }
+  .p10 .msg {
+    background: rgba(255,255,255,.94);
+    padding: 4mm 6mm; border-radius: 3mm;
+    font-size: 10.5pt; line-height: 1.5; color: #334155;
+    text-align: center;
+  }
+  .p10 .msg strong { color: var(--blue-deep); }
+  .p10 .contact {
+    position: absolute; top: 128mm; left: 18mm; right: 18mm;
+  }
+  .p10 .contact h2 { color: var(--blue); text-align: center; font-size: 24pt; }
+  .p10 .contact-list {
+    margin-top: 7mm; display: grid; gap: 5mm;
+    max-width: 130mm; margin-left: auto; margin-right: auto;
+  }
+  .p10 .ct {
+    display: flex; align-items: center; gap: 6mm;
+    padding: 2mm 0;
+  }
+  .p10 .ct .ic {
+    width: 11mm; height: 11mm; border-radius: 50%; background: var(--blue);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .p10 .ct .ic svg { width: 6mm; height: 6mm; fill: #fff; }
+  .p10 .ct .v {
+    font-size: 12.5pt; font-weight: 600; color: var(--blue-deep);
+    line-height: 1.2; white-space: nowrap;
+  }
+  .p10 .legal {
+    position: absolute; bottom: 6mm; left: 14mm; right: 14mm;
+    font-size: 5.5pt; color: #64748B; line-height: 1.4; text-align: justify;
+    max-height: 32mm; overflow: hidden;
+  }
+
+  /* ============= PRINT ============= */
+  @media print {
+    body { background: #fff; padding: 0; gap: 0; }
+    .page { box-shadow: none; margin: 0; }
+  }
+  /* PDF FIX: quitar fondos oscuros y todas las sombras para no causar conflictos visuales en mobile/PDF */
+  .logo-banner {
+    background: #ffffff !important;
+    border-bottom: 1px solid #e6ecf7 !important;
+  }
+  *, *::before, *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+  .p2 .photo-overlay h2,
+  .p7 .title-overlay h2,
+  .p7 .title-overlay {
+    text-shadow: none !important;
+  }
+
+  /* PDF FIX: gradient-text-clip no funciona en Puppeteer y deja el gradient como rectangulo solido tapando el texto. Forzamos color solido en todos los .accent y similares. */
+  .accent, .big, .cover-tagline .big, .cover-tagline .accent,
+  .p2 .title h1 .accent, .p2 .photo-overlay h2 .accent,
+  .p3 h1 .accent, .p4 h2 .accent, .p5 h2 .accent,
+  .p7 .title-overlay .accent, .p8 h2 .accent, .p9 h2 .accent,
+  h1 .accent, h2 .accent {
+    background: none !important;
+    background-image: none !important;
+    -webkit-background-clip: initial !important;
+    background-clip: initial !important;
+    -webkit-text-fill-color: currentColor !important;
+    filter: none !important;
+  }
+  .p2 .photo-overlay h2 .accent { color: #fff !important; }
+  .cover-tagline .big, .cover-tagline .accent { color: #fff !important; }
+</style>
+</head>
+<body>
+
+<!-- =================== PAGE 1 — COVER =================== -->
+<section class="page">
+  <div class="cover-photo">
+    <div class="imgfill cover" style="background-image:url('https://energy-depot-web.vercel.app/proj/proj-3.png');"></div>
+  </div>
+
+  <div class="cover-card">
+    <div class="logo-banner">
+      <img class="logo-img" src="https://energy-depot-web.vercel.app/logo.png" alt="Energy Depot LLC">
+    </div>
+    <div class="greet">¡Hola {{cliente_nombre}}!</div>
+    <div class="greet-accent"></div>
+    <div class="meta">
+      <div class="row">
+        <span class="ico">
+          <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.28-.28.67-.36 1.02-.25 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+        </span>
+        <span class="val">{{cliente_telefono}}</span>
+      </div>
+      <div class="row">
+        <span class="ico">
+          <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        </span>
+        <span class="val">{{cliente_email}}</span>
+      </div>
+      <div class="date">{{fecha_mayus}}</div>
+    </div>
+  </div>
+
+  <div class="cover-band"></div>
+
+  <div class="cover-tagline">
+    <div class="small1">Esta es la propuesta que puede cambiar la forma en que tu hogar</div>
+    <div class="big">VIVE LA ENERGÍA.</div>
+    <div class="mid">Una inversión diseñada según tu consumo real, hogar y tu necesidad para darte Energía</div>
+    <span class="accent">Estable, Control y Tranquilidad.</span>
+  </div>
+
+  <div class="cover-addr">
+    <div class="group">
+      <div class="row">
+        <span class="val">Global Plaza 322</span>
+        <span class="ic">
+          <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+        </span>
+      </div>
+      <div class="row"><span class="val">Suite 204 Cll John A. Ernot</span><span class="ic"></span></div>
+      <div class="row"><span class="val">San Juan, PR 00920</span><span class="ic"></span></div>
+    </div>
+    <div class="group">
+      <div class="row">
+        <span class="val">+1 (787) 627–8585</span>
+        <span class="ic">
+          <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.28-.28.67-.36 1.02-.25 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+        </span>
+      </div>
+      <div class="row">
+        <span class="val">www.energydepotpr.com</span>
+        <span class="ic">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        </span>
+      </div>
+      <div class="row">
+        <span class="val">info@energydepotpr.com</span>
+        <span class="ic">
+          <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== PAGE 2 =================== -->
+<section class="page p2">
+  <div class="hdr"><span>REV. ENERO 2025</span><span class="right">ENERGY DEPOT LLC | PAGE 2</span></div>
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="title">
+    <h1>Antes de hablar de números, <span class="accent">imagina cómo cambia tu vida.</span></h1>
+    <div class="lead-line"></div>
+  </div>
+
+  <div class="photo-zone">
+    <div class="imgfill" style="background-image:url('https://energy-depot-web.vercel.app/proj/proj-7.png');"></div>
+  </div>
+
+  <div class="photo-overlay">
+    <h2>¡Ahora imagina esto para<br><span class="accent">tu familia y hogar!</span></h2>
+  </div>
+
+  <div class="benefits">
+    <div class="benefit">
+      <div class="ic">
+        <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+      </div>
+      <div class="text">Energía estable sin sobresaltos ni aumentos inesperados</div>
+    </div>
+    <div class="benefit">
+      <div class="ic">
+        <svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+      </div>
+      <div class="text">Luces y equipos encendidos cuando se va la luz</div>
+    </div>
+    <div class="benefit">
+      <div class="ic">
+        <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+      </div>
+      <div class="text">Un pago predecible que reemplaza una factura que nunca termina</div>
+    </div>
+    <div class="benefit">
+      <div class="ic">
+        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+      </div>
+      <div class="text">Tranquilidad real ante apagones y huracanes</div>
+    </div>
+  </div>
+
+  <div class="cta-bar">
+    <span class="ic">
+      <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+    </span>
+    <span>¡Ahora, arreglemos juntos esta situación!</span>
+  </div>
+</section>
+
+<!-- =================== PAGE 3 =================== -->
+<section class="page p3">
+  <div class="hdr"><span>REV. ENERO 2025</span><span class="right">ENERGY DEPOT LLC | PAGE 3</span></div>
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="body">
+    <h1>Te guiaremos <span class="accent">paso a paso</span> para que tomes una decisión segura.</h1>
+    <div class="lead-line"></div>
+
+    <div class="timeline">
+      <div class="step">
+        <div class="step-num">
+          <span class="step-label">PASO</span>
+          <span class="step-digit">01</span>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          </div>
+          <div class="step-title">Tu situación actual</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">
+          <span class="step-label">PASO</span>
+          <span class="step-digit">02</span>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
+          </div>
+          <div class="step-title">La solución diseñada para ti</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">
+          <span class="step-label">PASO</span>
+          <span class="step-digit">03</span>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          </div>
+          <div class="step-title">El impacto real en tu hogar</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">
+          <span class="step-label">PASO</span>
+          <span class="step-digit">04</span>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          </div>
+          <div class="step-title">Cómo avanzar sin complicaciones</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-card">
+      <div class="label">PROPUESTA PERSONALIZADA</div>
+      <div class="text">
+        Esta propuesta fue creada a partir de tu consumo real de energía y tu selección de respaldo,
+        para ayudarte a tomar una decisión clara, informada y sin presión.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== PAGE 4 =================== -->
+<section class="page p4">
+  <div class="hdr"><span>REV. ENERO 2025</span><span class="right">ENERGY DEPOT LLC | PAGE 4</span></div>
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="body">
+    <h2>Compara tu servicio actual <span class="accent">vs nuestra oferta</span></h2>
+    <div class="lead-line"></div>
+    <p class="intro">
+      Esta propuesta fue creada considerando tu historial de consumo y tu selección de respaldo
+      energético, para ofrecerte una solución alineada a tus necesidades reales.
+    </p>
+
+    <div class="pricing">
+      <div class="pcard alert">
+        <div class="l">
+          <div class="label">Lo que pagas hoy</div>
+          <div class="name">
+            <span class="ic">
+              <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+            </span>
+            Pago promedio actual
+          </div>
+          <div class="desc">Lo que pagas hoy por una factura de energía que cambia cada mes y nunca termina.</div>
+        </div>
+        <div class="pricebox">
+          <div class="pill">Factura LUMA</div>
+          <div class="v">{{factura_actual}}</div>
+        </div>
+      </div>
+
+      <div class="pcard">
+        <div class="l">
+          <div class="label">Opción 1 · Solar</div>
+          <div class="name">
+            <span class="ic">
+              <svg viewBox="0 0 24 24"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
+            </span>
+            Placas Solares
+          </div>
+          <div class="desc">Transforma tu factura variable en un pago fijo y controlado. Sin más sorpresas.</div>
+        </div>
+        <div class="pricebox">
+          <div class="pill">Pago mensual fijo</div>
+          <div class="v">{{precio_solar}}</div>
+        </div>
+      </div>
+
+      <div class="pcard">
+        <div class="l">
+          <div class="label">Opción 2 · Solar + Batería</div>
+          <div class="name">
+            <span class="ic">
+              <svg viewBox="0 0 24 24"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 18v-3h-2v-2h2v-3h-2V8h2V5h2v13h-2z"/></svg>
+            </span>
+            Placas Solares + Batería
+          </div>
+          <div class="desc">Eliminas tu factura y los apagones. Sistema eléctrico consistente y confiable para tu familia.</div>
+        </div>
+        <div class="pricebox">
+          <div class="pill">Pago mensual fijo</div>
+          <div class="v">{{precio_solar_bateria}}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-title">
+      <span class="ic">
+        <svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+      </span>
+      <span>Tu consumo anual, producción promedio y % de cobertura del sistema:</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="lbl">Consumo Anual</div>
+        <div class="val">{{consumo_anual}}</div>
+        <div class="unit">kWh</div>
+      </div>
+      <div class="stat">
+        <div class="lbl">Producción Anual</div>
+        <div class="val">{{produccion_anual}}</div>
+        <div class="unit">kWh</div>
+      </div>
+      <div class="stat">
+        <div class="lbl">Cobertura</div>
+        <div class="val">{{cobertura}}%</div>
+        <div class="unit">DE TU CONSUMO</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== PAGE 5 =================== -->
+<section class="page p5">
+  <div class="hdr"><span>REV. ENERO 2025</span><span class="right">ENERGY DEPOT LLC | PAGE 5</span></div>
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="body">
+    <h2>¿Qué sistema te estamos <span class="accent">recomendando y porqué?</span></h2>
+    <div class="lead-line"></div>
+
+    <div class="cols">
+      <div class="col">
+        <h3>
+          <span class="ic">
+            <svg viewBox="0 0 24 24"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
+          </span>
+          ¡Adiós a tu factura de luz!
+        </h3>
+        <p>El sistema fue diseñado según tu consumo real para cubrir tus necesidades energéticas de forma eficiente y segura.</p>
+        <p style="margin-top:3mm;">Características del sistema solar:</p>
+        <ul class="specs">
+          <li><strong>{{cantidad_paneles}} paneles solares</strong> Tier 1 de {{watts_panel}}W Duo Bifacial.</li>
+          <li>Capacidad de DC de <strong>{{capacidad_dc}} kW</strong>.</li>
+          <li>Producción anual promedio de <strong>{{produccion_anual}} kWh</strong>.</li>
+        </ul>
+        <div class="battery-note">
+          El sistema de almacenamiento de energía que elegiste fue <strong>{{bateria}}</strong>.
+          Con tu batería continúas con el servicio eléctrico en medio de un apagón, brindándote
+          tranquilidad y calidad de vida.
+        </div>
+      </div>
+
+      <div class="col">
+        <h3>
+          <span class="ic">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          </span>
+          Y el Resultado
+        </h3>
+        <ul class="results">
+          <li>Un hogar con <strong>energía estable</strong> y sin sorpresas en la factura.</li>
+          <li>Luces, nevera y equipos esenciales encendidos aún cuando se va la luz.</li>
+          <li>Pagos mensuales estables que sustituyen un gasto por una <strong>inversión inteligente</strong>.</li>
+          <li>Mayor tranquilidad para tu familia ante un huracán y apagones.</li>
+          <li>Un hogar con valor adicional de entre <strong>4% a 6%</strong> sobre su tasación de mercado (en caso de compra del sistema).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="photo-strip">
+    <div class="imgfill" style="background-image:url('https://energy-depot-web.vercel.app/proj/proj-32.jpg');"></div>
+  </div>
+</section>
+
+<!-- =================== PAGE 6 =================== -->
+<section class="page p6">
+  <div class="hdr" style="color:#fff; z-index:20;"><span>REV. ENERO 2025</span><span class="right" style="color:rgba(255,255,255,.85);">ENERGY DEPOT LLC | PAGE 6</span></div>
+
+  <div class="top-photo">
+    <div class="imgfill" style="background-image:url('https://energy-depot-web.vercel.app/proj/proj-21.jpg');"></div>
+  </div>
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="body">
+    <div class="vs-row">
+      <div class="vs-col left"><h2>Tu hoy</h2></div>
+      <div class="vs-mid">VS</div>
+      <div class="vs-col right"><h2>Tu mañana</h2></div>
+    </div>
+
+    <div class="stack">
+      <div class="col-stack">
+        <div class="pcard green">
+          <div class="pill">Pago promedio actual</div>
+          <div class="lbl">Tu factura hoy</div>
+          <div class="val">{{factura_actual}}</div>
+        </div>
+        <div class="pcard proj">
+          <div class="pill">Proyección a futuro</div>
+          <div class="lbl">Si LUMA aumenta como en años anteriores</div>
+          <div class="val">{{factura_proyeccion}}</div>
+        </div>
+      </div>
+
+      <div class="col-stack">
+        <div class="pcard">
+          <div class="pill">Pago Fijo de Placas Solares</div>
+          <div class="lbl">Opción 1</div>
+          <div class="val">{{precio_solar}}</div>
+        </div>
+        <div class="pcard">
+          <div class="pill">Pago Fijo de Placas y Batería</div>
+          <div class="lbl">Opción 2</div>
+          <div class="val">{{precio_solar_bateria}}</div>
+        </div>
+        <div class="pcard">
+          <div class="pill">Pago Fijo de Placas y Batería</div>
+          <div class="lbl">Opción extendida</div>
+          <div class="val">{{precio_solar_bateria_ext}}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-line">
+      En lugar de pagar energía que desaparece cada mes, empiezas a pagar algo que se queda contigo.
+    </div>
+  </div>
+</section>
+
+<!-- =================== PAGE 7 =================== -->
+<section class="page p7">
+  <div class="hdr" style="color:#fff; z-index:20;"><span>REV. ENERO 2025</span><span class="right" style="color:rgba(255,255,255,.85);">ENERGY DEPOT LLC | PAGE 7</span></div>
+
+  <div class="top-photo">
+    <div class="imgfill" style="background-image:url('https://energy-depot-web.vercel.app/proj/proj-1.png');"></div>
+  </div>
+  <div class="clip-bottom"></div>
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="title-overlay">¿Por qué esto<br><span class="accent">tiene sentido?</span></div>
+
+  <div class="reasons">
+    <div class="reason">
+      <div class="ic">
+        <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+      </div>
+      <div class="name">Respaldo en Apagones</div>
+    </div>
+    <div class="reason">
+      <div class="ic">
+        <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+      </div>
+      <div class="name">Ahorro Económico</div>
+    </div>
+    <div class="reason">
+      <div class="ic">
+        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+      </div>
+      <div class="name">Protección ante aumentos</div>
+    </div>
+    <div class="reason">
+      <div class="ic">
+        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      </div>
+      <div class="name">Valor de propiedad</div>
+    </div>
+    <div class="reason">
+      <div class="ic">
+        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+      </div>
+      <div class="name">Garantías</div>
+    </div>
+    <div class="reason">
+      <div class="ic">
+        <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
+      </div>
+      <div class="name">Energía Limpia</div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== PAGE 8 =================== -->
+<section class="page p8">
+  <div class="hdr"><span>REV. ENERO 2025</span><span class="right">ENERGY DEPOT LLC | PAGE 8</span></div>
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="body">
+    <div class="info-card">
+      <h2>¿Quién está <span class="accent">detrás de tu sistema?</span></h2>
+      <div class="lead-line"></div>
+      <p>En <strong>Energy Depot</strong> ayudamos a hogares en Puerto Rico a tomar control real de su energía.</p>
+      <p>Diseñamos soluciones solares personalizadas basadas en el consumo real de cada cliente, con un solo objetivo: brindarte <strong>estabilidad, tranquilidad y ahorro a largo plazo</strong>.</p>
+      <p>Nos encargamos de todo el proceso, desde la selección del sistema adecuado hasta el diseño, permisos, instalación y respaldo del proyecto. Trabajamos con equipos confiables y garantías reales, para que tú solo te enfoques en disfrutar los beneficios de tu sistema.</p>
+      <p>Nuestro compromiso es simple: ayudarte a vivir con menos preocupaciones, más control y una verdadera <strong>autonomía energética</strong>.</p>
+    </div>
+
+    <div class="ceo-card">
+      <div class="ceo-label">FUNDADOR &amp; CEO</div>
+      <div class="ceo-circle">
+        <img src="https://www.image2url.com/r2/default/images/1777433613969-ec7ac2ac-8589-472d-a301-39f03859e3c8.png" alt="Gilberto Díaz - CEO Energy Depot LLC">
+      </div>
+      <div class="ceo-name">Gilberto Díaz</div>
+      <div class="ceo-divider"></div>
+      <div class="ceo-title">Energy Depot LLC</div>
+    </div>
+  </div>
+
+  <div class="photo-band">
+    <div class="imgfill" style="background-image:url('https://energy-depot-web.vercel.app/proj/proj-24.jpg');"></div>
+  </div>
+</section>
+
+<!-- =================== PAGE 9 — Cotización (factura) =================== -->
+<section class="page p-factura" style="padding: 0;">
+  <div class="hdr"><span>REV. ENERO 2025</span><span class="right">ENERGY DEPOT LLC | COTIZACIÓN</span></div>
+
+  <div style="padding: 22mm 18mm 18mm; font-family: Arial, Helvetica, sans-serif; color: #1a3c8f;">
+    <h2 style="font-size: 22pt; font-weight: 800; color: #1a3c8f; margin: 0 0 6mm; letter-spacing: -.5px;">
+      Detalle de tu cotización
+    </h2>
+
+    <p style="font-size: 8pt; color: #555; line-height: 1.5; text-align: justify; margin: 0 0 8mm;">
+      El historial de consumo debe ser obtenido de su factura provista por la compañía del servicio de energía
+      para que el sistema realice la propuesta correcta. *El cálculo de generación de kWh mensual promedio es
+      basada en la información provista por el cliente. Ofertas válidas desde un 5.99% a 10 años, mas detalles
+      con Energy Depot LLC. La instalación del sistema propuesto incluye la instalación del sistema de
+      almacenamiento hasta un máximo de 10' distantes del medidor de la propiedad, el excedente tiene un costo
+      adicional de $3.33 por pie lineal que debe incluir en la cotización realizada. El diseño de ingeniería y
+      los equipos a instalarse pueden variar sujeto a la disponibilidad de espacio en la propiedad y
+      disponibilidad de equipos por el distribuidor o manufacturero, siempre siendo de la más alta calidad. La
+      garantía mencionada es otorgada por cada fabricante y/o manufacturero y no incluye labor; el cliente
+      releva a Energy Depot LLC a honrar la misma sin el aval del fabricante y/o manufacturero. El Precio de
+      Compraventa no incluye los costos o gastos asociados con la remoción o re-localización de sistemas de
+      aires acondicionado, cisternas, plantas eléctricas, antenas, calentadores solares y/o cualquier otro
+      equipo u obstrucción; estructuras necesarias o deseadas por el cliente para la instalación de los módulos
+      fotovoltaicos, los cuales serán responsabilidad exclusiva del Comprador. •Cotización válida por 10 días
+      a partir de la fecha de esta cotización.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 10pt; margin-top: 4mm;">
+      <thead>
+        <tr style="background: #1a3c8f; color: #fff;">
+          <th style="padding: 9px 10px; text-align: left; font-weight: 600; font-size: 9pt; width: 8%;">#</th>
+          <th style="padding: 9px 10px; text-align: left; font-weight: 600; font-size: 9pt;">Item</th>
+          <th style="padding: 9px 10px; text-align: right; font-weight: 600; font-size: 9pt; width: 10%;">Qty</th>
+          <th style="padding: 9px 10px; text-align: right; font-weight: 600; font-size: 9pt; width: 14%;">Rate</th>
+          <th style="padding: 9px 10px; text-align: right; font-weight: 600; font-size: 9pt; width: 9%;">Tax</th>
+          <th style="padding: 9px 10px; text-align: right; font-weight: 600; font-size: 9pt; width: 17%;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{factura_rows_html}}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5" style="padding: 12px 10px; text-align: right; font-weight: 700; color: #1a3c8f; font-size: 10pt; border-top: 1px solid #e6ecf7;">Sub Total</td>
+          <td style="padding: 12px 10px; text-align: right; font-weight: 700; color: #1a3c8f; font-size: 10pt; border-top: 1px solid #e6ecf7;">{{factura_subtotal}}</td>
+        </tr>
+        <tr style="background: #f4f6fb;">
+          <td colspan="5" style="padding: 14px 10px; text-align: right; font-weight: 800; color: #1a3c8f; font-size: 11pt;">Total</td>
+          <td style="padding: 14px 10px; text-align: right; font-weight: 800; color: #1a3c8f; font-size: 11pt;">{{factura_total}}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div style="margin-top: 12mm; padding: 10px 14px; background: #f0f5ff; border-left: 3px solid #1a3c8f; font-size: 9pt; color: #334; line-height: 1.5;">
+      Cotización generada para <strong>{{cliente_nombre}}</strong> el <strong>{{fecha_mayus}}</strong>.
+      Para cualquier pregunta sobre esta cotización, contacta a Energy Depot LLC al
+      <strong>(787) 627-8585</strong> o por correo a <strong>info@energydepotpr.com</strong>.
+    </div>
+  </div>
+</section>
+
+<!-- =================== PAGE 10 (antes era 9) =================== -->
+<section class="page p9">
+  <div class="hdr"><span>REV. ENERO 2025</span><span class="right">ENERGY DEPOT LLC | PAGE 9</span></div>
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="body">
+    <div class="title-block">
+      <h2>¡Nos encargamos <span class="accent">de todo!</span></h2>
+      <div class="sub">Nosotros hacemos el trabajo. Tú disfrutas el resultado.</div>
+      <div class="lead-line"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="left">
+        <div class="item">
+          <h3>
+            <span class="ic">
+              <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            </span>
+            Analizamos tu consumo y estilo de vida
+          </h3>
+          <p>Todo comienza escuchándote. Analizamos cómo consumes energía, cómo vives tu día a día y qué necesitas realmente para sentir tranquilidad hoy y en el futuro.</p>
+        </div>
+        <div class="item">
+          <h3>
+            <span class="ic">
+              <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+            </span>
+            Financiamiento
+          </h3>
+          <p>Te ayudamos a encontrar la opción de financiamiento que mejor se ajuste a ti. Te acompañamos paso a paso para que el proceso sea claro, simple y sin estrés.</p>
+        </div>
+        <div class="item">
+          <h3>
+            <span class="ic">
+              <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            </span>
+            Garantías y Servicio
+          </h3>
+          <p>Trabajamos con equipos de alta calidad y fabricantes confiables. Si algo pasa, no estás solo: tienes respaldo real, servicio local y un equipo que responde.</p>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="item">
+          <div class="ic">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          </div>
+          <div class="name">Proyectos que eliminan tu factura de "Luz"</div>
+        </div>
+        <div class="item">
+          <div class="ic">
+            <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+          </div>
+          <div class="name">Opciones reales para eliminar el "Apagón"</div>
+        </div>
+        <div class="item">
+          <div class="ic">
+            <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65A.488.488 0 0 0 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+          </div>
+          <div class="name">Optimización de sistemas existentes</div>
+        </div>
+        <div class="item">
+          <div class="ic">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          </div>
+          <div class="name">Atención rápida y trato humano</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="photo-band">
+    <div class="imgfill dark" style="background-image:url('https://energy-depot-web.vercel.app/proj/proj-15.png');"></div>
+  </div>
+
+  <div class="closing-text">
+    No solo instalamos sistemas.<br>Construimos tranquilidad a largo plazo.
+  </div>
+</section>
+
+<!-- =================== PAGE 10 =================== -->
+<section class="page p10">
+  <div class="hdr" style="color:#fff; z-index:20;"><span>REV. ENERO 2025</span><span class="right" style="color:rgba(255,255,255,.85);">ENERGY DEPOT LLC | PAGE 10</span></div>
+
+  <div class="top-photo">
+    <div class="imgfill dark" style="background-image:url('https://energy-depot-web.vercel.app/proj/proj-22.jpg');"></div>
+    <div class="corner-tl"></div>
+  </div>
+
+  <div class="hero-title">TU DECISIÓN INTELIGENTE<br>COMIENZA HOY</div>
+
+  <div class="messages">
+    <div class="msg"><strong>No se trata solo de energía.</strong> Se trata de proteger tu hogar, tu familia y tu tranquilidad.</div>
+    <div class="msg">Hoy tienes la oportunidad de dejar atrás la incertidumbre y tomar el control. <strong>El próximo paso es simple. Nosotros te acompañamos.</strong></div>
+    <div class="msg"><strong>Agenda una llamada o visita corta</strong> para confirmar detalles y avanzar con tu proyecto con total tranquilidad.</div>
+  </div>
+
+  <div class="contact">
+    <h2>Contáctanos</h2>
+    <div class="contact-list">
+      <div class="ct">
+        <div class="ic">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        </div>
+        <div class="v">www.energydepotpr.com</div>
+      </div>
+      <div class="ct">
+        <div class="ic">
+          <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        </div>
+        <div class="v">info@energydepotpr.com</div>
+      </div>
+      <div class="ct">
+        <div class="ic">
+          <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.28-.28.67-.36 1.02-.25 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+        </div>
+        <div class="v">(787) 627–8585</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legal">
+    El historial de consumo debe ser obtenido de su factura provista por la compañía del servicio de energía para que el sistema realice la propuesta correcta. *El cálculo de generación de kWh mensual promedio es basado en la información provista por el cliente. La instalación del sistema propuesto incluye la instalación del sistema de almacenamiento hasta un máximo de 12' distantes del medidor de la propiedad; el excedente tiene un costo adicional de $3.33 por pie lineal que debe incluir en la cotización realizada. El diseño de ingeniería y los equipos a instalarse pueden variar sujeto a la disponibilidad del espacio en la propiedad y disponibilidad de equipos por el distribuidor o manufacturero, siempre siendo de la más alta calidad. La garantía mencionada es otorgada por cada fabricante y/o manufacturero y no incluye labor; el cliente releva a Energy Depot LLC a honrar la misma sin el aval del fabricante y/o manufacturero. El Precio de Compraventa no incluye los costos o gastos asociados con la remoción o re-localización de sistemas de aires acondicionados, cisternas, plantas eléctricas, antenas, calentadores solares y/o cualquier otro equipo u obstrucción; estructuras necesarias o deseadas por el cliente para la instalación de los módulos fotovoltaicos, los cuales serán responsabilidad exclusiva del Comprador. *Cotización válida por 10 días a partir de la fecha de esta cotización. **El cálculo de generación de kWh mensual promedio es basado en la información provista por el cliente. ***Ejemplo de pago por Vega Coop al 6.50%, oferta válida con un término de 15 años, sujeto a aprobación de crédito y al cumplimiento de las normas prestamistas de la institución financiera. Otras ofertas adicionales disponibles desde un 4.90% a 10 años, mas detalles con Energy Depot LLC. *** El sistema propuesto incluye la instalación.
+  </div>
+</section>
+
+</body>
+</html>

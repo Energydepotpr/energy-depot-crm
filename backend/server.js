@@ -657,13 +657,12 @@ app.post('/api/admin/recalc-solar', authMiddleware, async (req, res) => {
     const cfgRes = await pool.query(`SELECT value FROM config WHERE key='solar_pricing'`);
     const cfg = cfgRes.rows[0]?.value ? (typeof cfgRes.rows[0].value === 'string' ? JSON.parse(cfgRes.rows[0].value) : cfgRes.rows[0].value) : {};
     const pricing = {
-      panelPrice:  Number(cfg.panelPrice)  || 1182.50,
-      panelWatts:  Number(cfg.panelWatts)  || 550,
-      panelKwhDay: Number(cfg.panelKwhDay) || 2.6,
-      tarifaLuma:  Number(cfg.tarifaLuma)  || 0.26,
-      pmt15:       Number(cfg.pmt15)       || 0.008711,
+      panelPrice:       Number(cfg.panelPrice)       || 1182.50,
+      panelWatts:       Number(cfg.panelWatts)       || 550,
+      tarifaLuma:       Number(cfg.tarifaLuma)       || 0.26,
+      factorProduccion: Number(cfg.factorProduccion) || 1460,
+      pmt15:            Number(cfg.pmt15)            || 0.008711,
     };
-    const EVEN = n => { const c = Math.ceil(n); return c % 2 === 0 ? c : c + 1; };
 
     const r = await pool.query(`SELECT id, solar_data FROM leads WHERE solar_data IS NOT NULL AND solar_data->'meses' IS NOT NULL`);
     let actualizados = 0, sinCambio = 0;
@@ -675,10 +674,9 @@ app.post('/api/admin/recalc-solar', authMiddleware, async (req, res) => {
       if (!meses.length) { sinCambio++; continue; }
       const avg = meses.reduce((a,b)=>a+b,0) / meses.length;
       const annCons = Math.round(avg*12);
-      const daily = avg / 30;
-      const panels = EVEN(daily / pricing.panelKwhDay);
+      const panels = Math.round(annCons * 1.07 / pricing.factorProduccion * 1000 / pricing.panelWatts);
       const kw = parseFloat((panels * pricing.panelWatts / 1000).toFixed(2));
-      const annProd = Math.round(panels * pricing.panelKwhDay * 365);
+      const annProd = Math.round(kw * pricing.factorProduccion);
       const costBase = Math.round(panels * pricing.panelPrice);
       const batTotal = (sd.batteries || []).reduce((s,b) => s + (b.qty||0)*(b.unitPrice||0), 0);
       const sub = costBase + batTotal;

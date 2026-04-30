@@ -156,15 +156,18 @@ async function loadProposalData(leadId) {
   const roi        = calc.roi || 0;
   const annProd    = calc.annProd || Math.round(systemKw * 1460);
   const annCons    = calc.annCons || (calc.avg || 0) * 12;
-  const offset     = annCons > 0 ? Math.min(Math.round(annProd / annCons * 100), 100) : 0;
+  const offset     = annCons > 0 ? Math.round(annProd / annCons * 100) : 0;
   const pagoFV     = costBase > 0 ? pagoMensual(costBase, 15, 6.5) : 0;
   const pagoConBat = subtotal > 0 ? pagoMensual(subtotal, 15, 6.5) : 0;
   const today      = new Date().toLocaleDateString('es-PR', { year: 'numeric', month: 'long', day: 'numeric' });
   const validUntil = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toLocaleDateString('es-PR', { year: 'numeric', month: 'long', day: 'numeric' }); })();
   const quoteNum   = `${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-${lead.id.toString().padStart(4,'0')}`;
 
+  const panelPrice = panels > 0 ? +(costBase / panels).toFixed(2) : 1184;
+  const panelWatts = panels > 0 && systemKw > 0 ? Math.round((systemKw * 1000) / panels) : 550;
   return { nombre, email, tel, ciudad, zip, pagoLuma, batteries, BATT_PRICES,
-           systemKw, panels, calc, meses, costBase, subtotal, credit30, netCost,
+           systemKw, panels, panelPrice, panelWatts,
+           calc, meses, costBase, subtotal, credit30, netCost,
            annSav, roi, annProd, annCons, offset, pagoFV, pagoConBat,
            today, validUntil, quoteNum };
 }

@@ -22,7 +22,7 @@ function calcular(meses, batPrecio, pricing = DEFAULT_PRICING) {
   const pagoLuma = Math.round(avgKwh * tarifaLuma);
   const annSav   = pagoLuma * 12;
   const roi      = annSav > 0 ? Math.round(costBase / annSav) : 0;
-  const offset   = annCons > 0 ? Math.min(Math.round(annProd / annCons * 100), 100) : 0;
+  const offset   = annCons > 0 ? Math.round(annProd / annCons * 100) : 0;
   const pagoFV   = Math.round(costBase * pmt15);
   const pagoBat  = Math.round(subtotal * pmt15);
   return { avgKwh: Math.round(avgKwh), annCons, panels, systemKw, annProd, costBase, subtotal, pagoLuma, annSav, roi, offset, pagoFV, pagoBat };
