@@ -347,13 +347,6 @@ export default function EmailPage() {
 
         {/* Right side controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Account selector */}
-          <select value={account} onChange={e => setAccount(e.target.value)}
-            style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 12, color: C.text, outline: 'none', cursor: 'pointer' }}>
-            <option value="operations">operations@</option>
-            <option value="bookings">bookings@</option>
-          </select>
-
           {/* Sync button */}
           <button onClick={() => syncAndLoad(account)} disabled={syncing}
             style={{ background: syncing ? C.surface2 : `${C.accent}15`, border: `1px solid ${syncing ? C.border : C.accent}`, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, color: syncing ? C.muted : C.accent, cursor: syncing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
