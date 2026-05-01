@@ -53,6 +53,14 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
 // ─── Sidebar Field Helper ─────────────────────────────────────────────────────
 
 function SidebarField({ label, type = 'text', value, onChange, onBlur, placeholder }) {
+  const saveTimer = useRef(null);
+  const handleChange = (v) => {
+    onChange?.(v);
+    if (onBlur) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => onBlur(v), 800);
+    }
+  };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <label style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1 }}>{label}</label>
@@ -60,8 +68,8 @@ function SidebarField({ label, type = 'text', value, onChange, onBlur, placehold
         type={type}
         value={value ?? ''}
         placeholder={placeholder}
-        onChange={e => onChange?.(e.target.value)}
-        onBlur={e => onBlur?.(e.target.value)}
+        onChange={e => handleChange(e.target.value)}
+        onBlur={e => { clearTimeout(saveTimer.current); onBlur?.(e.target.value); }}
         style={{
           background: 'var(--surface)', border: '1px solid var(--border)',
           borderRadius: 5, padding: '5px 7px', fontSize: 12, color: 'var(--text)',
@@ -147,15 +155,19 @@ function SidebarEmailBtn({ leadId, lead }) {
   useEffect(() => {
     if (show) {
       const email = lead?.contact_email || lead?.email || '';
+      // Extract name from title if contact_name is missing (titles often "LG-XXXX — Name" or "Name — City")
+      const rawTitle = lead?.title || '';
+      const titleName = rawTitle.replace(/^[A-Z]{2,3}-\d+\s*[—–-]\s*/, '').split(/\s*[—–]\s*/)[0].trim();
+      const name = lead?.contact_name || titleName || '';
       setTo(email);
       setCc('');
       setTpl('custom');
-      setSubject(`Propuesta Solar — ${lead?.contact_name || 'Energy Depot'}`);
-      setBody(`Hola ${lead?.contact_name || ''},\n\nAdjunto la propuesta de tu sistema solar.\n\nCualquier duda, estoy a tus órdenes.\n\n— Energy Depot LLC\n(787) 627-8585\ninfo@energydepotpr.com`);
+      setSubject(`Propuesta Solar — ${name || 'Energy Depot'}`);
+      setBody(`Hola ${name},\n\nAdjunto la propuesta de tu sistema solar.\n\nCualquier duda, estoy a tus órdenes.\n\n— Energy Depot LLC\n(787) 627-8585\ninfo@energydepotpr.com`);
       setBodyHtml('');
       setFiles([]);
     }
-  }, [show, lead?.contact_email, lead?.email]);
+  }, [show, lead?.contact_email, lead?.email, lead?.contact_name, lead?.title]);
 
   const aplicarTemplate = (key) => {
     setTpl(key);
@@ -165,9 +177,12 @@ function SidebarEmailBtn({ leadId, lead }) {
     }
     const t = EMAIL_TEMPLATES[key];
     if (!t) return;
-    setSubject(t.subject(lead));
-    setBody(t.text(lead));
-    setBodyHtml(t.html(lead));
+    const rawTitle = lead?.title || '';
+    const titleName = rawTitle.replace(/^[A-Z]{2,3}-\d+\s*[—–-]\s*/, '').split(/\s*[—–]\s*/)[0].trim();
+    const enriched = { ...lead, contact_name: lead?.contact_name || titleName };
+    setSubject(t.subject(enriched));
+    setBody(t.text(enriched));
+    setBodyHtml(t.html(enriched));
   };
 
   const onPickFiles = async (e) => {
