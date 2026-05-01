@@ -122,7 +122,7 @@ function ComposeModal({ onClose, onSent, defaultAccount = 'operations', lang }) 
 export default function EmailPage() {
   const { lang } = useLang();
   const [tab, setTab]           = useState('recibidos');
-  const [account, setAccount]   = useState('operations');
+  const [account, setAccount]   = useState('');
   const [emails, setEmails]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [syncing, setSyncing]   = useState(false);
