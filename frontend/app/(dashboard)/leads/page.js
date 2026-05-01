@@ -146,7 +146,8 @@ function SidebarEmailBtn({ leadId, lead }) {
 
   useEffect(() => {
     if (show) {
-      setTo(lead?.contact_email || '');
+      const email = lead?.contact_email || lead?.email || '';
+      setTo(email);
       setCc('');
       setTpl('custom');
       setSubject(`Propuesta Solar — ${lead?.contact_name || 'Energy Depot'}`);
@@ -154,7 +155,7 @@ function SidebarEmailBtn({ leadId, lead }) {
       setBodyHtml('');
       setFiles([]);
     }
-  }, [show]);
+  }, [show, lead?.contact_email, lead?.email]);
 
   const aplicarTemplate = (key) => {
     setTpl(key);
