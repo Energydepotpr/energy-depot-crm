@@ -1454,18 +1454,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     {/* ── Fila 2: De ── */}
                     <div style={{ borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '7px 12px', gap: 8 }}>
                       <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0, width: 52 }}>De:</span>
-                      <div style={{ display: 'flex', gap: 5 }}>
-                        {['operations', 'bookings'].map(acc => (
-                          <button key={acc} onClick={() => setEmailDraft(p => ({ ...p, account: acc }))}
-                            style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, cursor: 'pointer',
-                              border: `1px solid ${emailDraft.account === acc ? 'var(--accent)' : 'var(--border)'}`,
-                              background: emailDraft.account === acc ? 'rgba(45,212,191,0.12)' : 'transparent',
-                              color: emailDraft.account === acc ? 'var(--accent)' : 'var(--muted)',
-                              fontWeight: emailDraft.account === acc ? 600 : 400 }}>
-                            {acc}@energydepotpr.com
-                          </button>
-                        ))}
-                      </div>
+                      <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600 }}>info@energydepotpr.com</span>
                     </div>
 
                     {/* ── Fila 3: Para ── */}
