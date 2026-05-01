@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '../../../lib/api';
 import { loadBaterias, DEFAULT_BATERIAS, loadPricing, DEFAULT_PRICING } from '../../../lib/baterias';
+import { EMAIL_TEMPLATES } from '../../../lib/email-templates';
 import { useAuth } from '../../../lib/auth';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
@@ -137,6 +138,8 @@ function SidebarEmailBtn({ leadId, lead }) {
   const [cc, setCc] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [bodyHtml, setBodyHtml] = useState('');  // when a template is selected
+  const [tpl, setTpl] = useState('custom');
   const [files, setFiles] = useState([]); // { name, mime, base64 }
   const [loading, setLoading] = useState(false);
   const [attaching, setAttaching] = useState(false);
@@ -145,11 +148,26 @@ function SidebarEmailBtn({ leadId, lead }) {
     if (show) {
       setTo(lead?.contact_email || '');
       setCc('');
+      setTpl('custom');
       setSubject(`Propuesta Solar — ${lead?.contact_name || 'Energy Depot'}`);
       setBody(`Hola ${lead?.contact_name || ''},\n\nAdjunto la propuesta de tu sistema solar.\n\nCualquier duda, estoy a tus órdenes.\n\n— Energy Depot LLC\n(787) 627-8585\ninfo@energydepotpr.com`);
+      setBodyHtml('');
       setFiles([]);
     }
   }, [show]);
+
+  const aplicarTemplate = (key) => {
+    setTpl(key);
+    if (key === 'custom') {
+      setBodyHtml('');
+      return;
+    }
+    const t = EMAIL_TEMPLATES[key];
+    if (!t) return;
+    setSubject(t.subject(lead));
+    setBody(t.text(lead));
+    setBodyHtml(t.html(lead));
+  };
 
   const onPickFiles = async (e) => {
     const list = Array.from(e.target.files || []);
@@ -183,7 +201,7 @@ function SidebarEmailBtn({ leadId, lead }) {
     if (!body.trim()) { alert('Falta mensaje'); return; }
     setLoading(true);
     try {
-      const html = body.replace(/\n/g, '<br>');
+      const html = bodyHtml || body.replace(/\n/g, '<br>');
       const r = await api.sendEmail({
         to_email: to.trim(),
         cc: cc.trim() || undefined,
@@ -214,13 +232,31 @@ function SidebarEmailBtn({ leadId, lead }) {
             <div style={{ fontSize:15, fontWeight:700, color:'var(--text)', marginBottom:4 }}>✉️ Enviar Email</div>
             <div style={{ fontSize:11, color:'var(--muted)', marginBottom:18 }}>De: <strong>info@energydepotpr.com</strong></div>
 
+            <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Plantilla</label>
+            <select value={tpl} onChange={e => aplicarTemplate(e.target.value)}
+              style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'9px 12px', fontSize:13, color:'var(--text)', outline:'none', marginBottom:10 }}>
+              <option value="custom">Personalizado (texto plano)</option>
+              {Object.entries(EMAIL_TEMPLATES).map(([k, t]) => <option key={k} value={k}>{t.name}</option>)}
+            </select>
+
             <Field label="Para" value={to} onChange={setTo} placeholder="cliente@correo.com" />
             <Field label="CC (opcional)" value={cc} onChange={setCc} placeholder="otra@correo.com" />
             <Field label="Asunto" value={subject} onChange={setSubject} />
 
-            <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6, marginTop:12 }}>Mensaje</label>
-            <textarea value={body} onChange={e => setBody(e.target.value)} rows={9}
+            <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6, marginTop:12 }}>
+              Mensaje {tpl !== 'custom' && <span style={{ color:'#7c3aed', textTransform:'none', letterSpacing:0 }}>(usando plantilla — el texto plano es para fallback)</span>}
+            </label>
+            <textarea value={body} onChange={e => setBody(e.target.value)} rows={tpl !== 'custom' ? 4 : 9}
               style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'10px 12px', fontSize:13, color:'var(--text)', outline:'none', resize:'vertical', fontFamily:'inherit', lineHeight:1.5 }} />
+
+            {tpl !== 'custom' && bodyHtml && (
+              <div style={{ marginTop:10 }}>
+                <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Vista previa</label>
+                <div style={{ border:'1px solid var(--border)', borderRadius:6, maxHeight:280, overflowY:'auto', background:'#fff' }}>
+                  <iframe srcDoc={bodyHtml} style={{ width:'100%', minHeight:280, border:'none' }} title="preview" />
+                </div>
+              </div>
+            )}
 
             <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6, marginTop:14 }}>Adjuntos</label>
             <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:8 }}>
