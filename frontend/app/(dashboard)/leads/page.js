@@ -131,6 +131,142 @@ function SidebarContratoBtn({ leadId }) {
   );
 }
 
+function SidebarEmailBtn({ leadId, lead }) {
+  const [show, setShow] = useState(false);
+  const [to, setTo] = useState('');
+  const [cc, setCc] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [files, setFiles] = useState([]); // { name, mime, base64 }
+  const [loading, setLoading] = useState(false);
+  const [attaching, setAttaching] = useState(false);
+
+  useEffect(() => {
+    if (show) {
+      setTo(lead?.contact_email || '');
+      setCc('');
+      setSubject(`Propuesta Solar — ${lead?.contact_name || 'Energy Depot'}`);
+      setBody(`Hola ${lead?.contact_name || ''},\n\nAdjunto la propuesta de tu sistema solar.\n\nCualquier duda, estoy a tus órdenes.\n\n— Energy Depot LLC\n(787) 627-8585\ninfo@energydepotpr.com`);
+      setFiles([]);
+    }
+  }, [show]);
+
+  const onPickFiles = async (e) => {
+    const list = Array.from(e.target.files || []);
+    const next = [];
+    for (const f of list) {
+      const buf = await f.arrayBuffer();
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      next.push({ name: f.name, mime: f.type || 'application/octet-stream', base64: b64 });
+    }
+    setFiles(prev => [...prev, ...next]);
+    e.target.value = '';
+  };
+
+  const adjuntarPropuesta = async () => {
+    setAttaching(true);
+    try {
+      const data = await api.leadPropuesta(leadId);
+      if (!data?.pdf) throw new Error('Sin PDF');
+      setFiles(prev => [...prev, {
+        name: data.filename || `Propuesta-${leadId}.pdf`,
+        mime: 'application/pdf',
+        base64: data.pdf,
+      }]);
+    } catch (e) { alert('Error generando propuesta: ' + e.message); }
+    finally { setAttaching(false); }
+  };
+
+  const enviar = async () => {
+    if (!to.trim()) { alert('Falta destinatario'); return; }
+    if (!subject.trim()) { alert('Falta asunto'); return; }
+    if (!body.trim()) { alert('Falta mensaje'); return; }
+    setLoading(true);
+    try {
+      const html = body.replace(/\n/g, '<br>');
+      const r = await api.sendEmail({
+        to_email: to.trim(),
+        cc: cc.trim() || undefined,
+        subject: subject.trim(),
+        body,
+        body_html: html,
+        lead_id: leadId,
+        contact_id: lead?.contact_id,
+        attachments: files.map(f => ({ filename: f.name, mimeType: f.mime, content: f.base64 })),
+      });
+      if (!r.ok) throw new Error(r.error || 'Error desconocido');
+      setShow(false);
+      alert('✓ Correo enviado');
+    } catch (e) { alert('Error enviando: ' + e.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <>
+      <button onClick={() => setShow(true)}
+        style={{ width:'100%', background:'#7c3aed', color:'#fff', border:'none', borderRadius:8, padding:'8px 12px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        Enviar Email
+      </button>
+      {show && (
+        <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={() => setShow(false)}>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:24, width:560, maxWidth:'100%', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize:15, fontWeight:700, color:'var(--text)', marginBottom:4 }}>✉️ Enviar Email</div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:18 }}>De: <strong>info@energydepotpr.com</strong></div>
+
+            <Field label="Para" value={to} onChange={setTo} placeholder="cliente@correo.com" />
+            <Field label="CC (opcional)" value={cc} onChange={setCc} placeholder="otra@correo.com" />
+            <Field label="Asunto" value={subject} onChange={setSubject} />
+
+            <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6, marginTop:12 }}>Mensaje</label>
+            <textarea value={body} onChange={e => setBody(e.target.value)} rows={9}
+              style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'10px 12px', fontSize:13, color:'var(--text)', outline:'none', resize:'vertical', fontFamily:'inherit', lineHeight:1.5 }} />
+
+            <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6, marginTop:14 }}>Adjuntos</label>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:8 }}>
+              <label style={{ background:'var(--bg)', border:'1px dashed var(--border)', borderRadius:6, padding:'8px 12px', fontSize:12, color:'var(--text)', cursor:'pointer' }}>
+                📎 Subir archivo
+                <input type="file" multiple onChange={onPickFiles} style={{ display:'none' }} />
+              </label>
+              <button onClick={adjuntarPropuesta} disabled={attaching}
+                style={{ background:'#1a3c8f', color:'#fff', border:'none', borderRadius:6, padding:'8px 12px', fontSize:12, fontWeight:600, cursor:'pointer', opacity:attaching?0.6:1 }}>
+                {attaching ? 'Generando…' : '☀️ Adjuntar Propuesta'}
+              </button>
+            </div>
+            {files.length > 0 && (
+              <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:6 }}>
+                {files.map((f, i) => (
+                  <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'7px 10px', fontSize:12 }}>
+                    <span style={{ color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>📄 {f.name} <span style={{ color:'var(--muted)', fontSize:11 }}>({Math.round(f.base64.length*0.75/1024)} KB)</span></span>
+                    <button onClick={() => setFiles(files.filter((_,j) => j!==i))} style={{ background:'none', border:'none', color:'#ef4444', cursor:'pointer', fontSize:14 }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display:'flex', gap:8, marginTop:20 }}>
+              <button onClick={() => setShow(false)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'9px', fontSize:13, color:'var(--muted)', cursor:'pointer' }}>Cancelar</button>
+              <button onClick={enviar} disabled={loading} style={{ flex:2, background:'#7c3aed', border:'none', borderRadius:8, padding:'9px', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer', opacity:loading?0.6:1 }}>
+                {loading ? 'Enviando…' : '✉️ Enviar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Field({ label, value, onChange, placeholder }) {
+  return (
+    <div style={{ marginBottom:10 }}>
+      <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>{label}</label>
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'9px 12px', fontSize:13, color:'var(--text)', outline:'none' }} />
+    </div>
+  );
+}
+
 // ─── Lead Detail Panel ────────────────────────────────────────────────────────
 
 function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], onNavigate, lang = 'es', isMobile = false }) {
@@ -703,6 +839,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                       Propuesta PDF
                     </button>
                     <SidebarContratoBtn leadId={lead.id} />
+                    <SidebarEmailBtn leadId={lead.id} lead={lead} />
                   </div>
                 </div>
               )}
