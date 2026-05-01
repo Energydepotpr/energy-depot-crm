@@ -35,16 +35,37 @@ function fmtDate(iso, lang) {
 }
 
 function ComposeModal({ onClose, onSent, defaultAccount = 'operations', lang }) {
-  const [form, setForm] = useState({ to_email: '', subject: '', body: '', account: defaultAccount });
+  const [form, setForm] = useState({ to_email: '', cc: '', subject: '', body: '' });
+  const [files, setFiles] = useState([]);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState('');
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const onPickFiles = async (e) => {
+    const list = Array.from(e.target.files || []);
+    const next = [];
+    for (const f of list) {
+      const buf = await f.arrayBuffer();
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      next.push({ name: f.name, mime: f.type || 'application/octet-stream', base64: b64 });
+    }
+    setFiles(prev => [...prev, ...next]);
+    e.target.value = '';
+  };
 
   const send = async () => {
     if (!form.to_email || !form.subject || !form.body) { setErr(t('email.fillAll', lang)); return; }
     setSending(true);
     try {
-      const r = await api.sendEmail(form);
+      const r = await api.sendEmail({
+        to_email: form.to_email,
+        cc: form.cc || undefined,
+        subject: form.subject,
+        body: form.body,
+        body_html: form.body.replace(/\n/g, '<br>'),
+        attachments: files.map(f => ({ filename: f.name, mimeType: f.mime, content: f.base64 })),
+      });
+      if (!r.ok) throw new Error(r.error || 'No se pudo enviar');
       onSent(r);
       onClose();
     } catch (e) { setErr(e.message); }
@@ -59,16 +80,8 @@ function ComposeModal({ onClose, onSent, defaultAccount = 'operations', lang }) 
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 20 }}>×</button>
         </div>
         <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10, flex: 1, overflowY: 'auto' }}>
-          {/* Account selector */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>{t('email.sendFrom', lang)}</label>
-            <select value={form.account} onChange={e => set('account', e.target.value)}
-              style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', fontSize: 13, color: C.text, outline: 'none' }}>
-              <option value="operations">operations@energydepotpr.com</option>
-              <option value="bookings">bookings@energydepotpr.com</option>
-            </select>
-          </div>
-          {[[t('email.to', lang), 'to_email', 'email'], [t('email.subject', lang), 'subject', 'text']].map(([lbl, key, type]) => (
+          <div style={{ fontSize: 11, color: C.muted }}>De: <strong style={{ color: C.text }}>info@energydepotpr.com</strong></div>
+          {[[t('email.to', lang), 'to_email', 'email'], ['CC (opcional)', 'cc', 'email'], [t('email.subject', lang), 'subject', 'text']].map(([lbl, key, type]) => (
             <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>{lbl}</label>
               <input type={type} value={form[key]} onChange={e => set(key, e.target.value)}
@@ -79,6 +92,19 @@ function ComposeModal({ onClose, onSent, defaultAccount = 'operations', lang }) 
             <label style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>{t('email.message', lang)}</label>
             <textarea value={form.body} onChange={e => set('body', e.target.value)} rows={8}
               style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', fontSize: 13, color: C.text, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6 }} />
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            <label style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>Adjuntos</label>
+            <label style={{ background: C.bg, border:`1px dashed ${C.border}`, borderRadius:8, padding:'8px 12px', fontSize:12, color:C.text, cursor:'pointer', alignSelf:'flex-start' }}>
+              📎 Subir archivo
+              <input type="file" multiple onChange={onPickFiles} style={{ display:'none' }} />
+            </label>
+            {files.map((f, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background:C.bg, border:`1px solid ${C.border}`, borderRadius:6, padding:'6px 10px', fontSize:12 }}>
+                <span style={{ color:C.text }}>📄 {f.name} <span style={{ color:C.muted }}>({Math.round(f.base64.length*0.75/1024)} KB)</span></span>
+                <button onClick={() => setFiles(files.filter((_,j) => j!==i))} style={{ background:'none', border:'none', color:'#ef4444', cursor:'pointer', fontSize:14 }}>×</button>
+              </div>
+            ))}
           </div>
           {err && <div style={{ fontSize: 12, color: C.danger }}>{err}</div>}
         </div>
