@@ -2349,7 +2349,10 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
     (active?.batteries||[]).forEach(b => { const i = BATERIAS_COT.findIndex(x => x.name === b.name); if (i>=0) arr[i] = b.qty || 0; });
     return arr;
   })();
-  const batTotal = (active?.batteries||[]).reduce((s,b)=>s+(b.qty||0)*(b.unitPrice||0),0);
+  // Solo cuenta baterías cuyo nombre exista en el catálogo actual (ignora "fantasma" de catálogos viejos)
+  const batTotal = (active?.batteries||[])
+    .filter(b => BATERIAS_COT.some(c => c.name === b.name))
+    .reduce((s,b)=>s+(b.qty||0)*(b.unitPrice||0),0);
 
   const updateActive = (patch) => setQuotations(prev => prev.map(q => q.id === activeId ? { ...q, ...patch } : q));
   const setMeses = (newM) => updateActive({ meses: typeof newM === 'function' ? newM(meses) : newM });
@@ -2396,7 +2399,12 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
     if (!calc) return;
     setSaving(true);
     try {
-      const battActive = active?.batteries || [];
+      // Limpia baterías que ya no están en el catálogo
+      const battActive = (active?.batteries || []).filter(b => BATERIAS_COT.some(c => c.name === b.name));
+      const cleanedQuotations = quotations.map(q => ({
+        ...q,
+        batteries: (q.batteries || []).filter(b => BATERIAS_COT.some(c => c.name === b.name)),
+      }));
       // Mirror active al solar_data legacy para que el PDF (publicLeadController) siga funcionando
       await api.saveSolarData(leadId, {
         solar_data: { ...sd,
@@ -2404,7 +2412,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
           batteries: battActive,
           calc: { avg:calc.avg, systemKw:calc.kw, panels:calc.panels, costBase:calc.costBase, annualSavings:calc.annSav, roi:calc.roi, annProd:calc.annProd, annCons:calc.annCons },
           pagoLuz: calc.pagoLuma,
-          quotations,
+          quotations: cleanedQuotations,
           activeQuotationId: activeId,
         },
         value: calc.costBase,
