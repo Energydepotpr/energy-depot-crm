@@ -875,7 +875,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <label style={{ fontSize: 10, color: 'var(--muted)' }}>Responsible</label>
-                    <select value={lead.assigned_to || ''} onChange={async e => { const v = e.target.value; setLead(p => ({...p, assigned_to: v})); try { await api.moveLead(leadId, { assigned_to: v || null }); } catch {} }} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '5px 7px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', outline: 'none', width: '100%' }}>
+                    <select value={lead.assigned_to || ''} onChange={async e => { const v = e.target.value; setLead(p => ({...p, assigned_to: v})); try { await api.updateLead(leadId, { assigned_to: v || null }); if (onUpdated) onUpdated(); } catch (err) { alert('Error: ' + err.message); } }} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '5px 7px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', outline: 'none', width: '100%' }}>
                       <option value="">Unassigned</option>
                       {agents.map(a => <option key={a.id} value={a.id}>{a.name || a.email}</option>)}
                     </select>
