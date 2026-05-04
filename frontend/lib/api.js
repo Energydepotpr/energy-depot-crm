@@ -369,7 +369,7 @@ export const api = {
   },
 
   // Solar proposal
-  leadPropuesta:     (id)       => req('GET',   `/api/leads/${id}/propuesta`),
+  leadPropuesta:     (id, quotationId) => req('GET', `/api/leads/${id}/propuesta${quotationId ? `?quotation_id=${encodeURIComponent(quotationId)}` : ''}`),
   saveSolarData:     (id, data) => req('PATCH', `/api/leads/${id}/solar`, data),
   generarContrato:   (id, data) => req('POST',  `/api/leads/${id}/contrato-solar`, data),
 

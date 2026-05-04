@@ -210,10 +210,10 @@ function SidebarEmailBtn({ leadId, lead }) {
     e.target.value = '';
   };
 
-  const adjuntarPropuesta = async () => {
+  const adjuntarPropuesta = async (quotationId) => {
     setAttaching(true);
     try {
-      const data = await api.leadPropuesta(leadId);
+      const data = await api.leadPropuesta(leadId, quotationId);
       if (!data?.pdf) throw new Error('Sin PDF');
       setFiles(prev => [...prev, {
         name: data.filename || `Propuesta-${leadId}.pdf`,
@@ -223,6 +223,13 @@ function SidebarEmailBtn({ leadId, lead }) {
     } catch (e) { alert('Error generando propuesta: ' + e.message); }
     finally { setAttaching(false); }
   };
+
+  // Cotizaciones disponibles para adjuntar
+  const quotationsList = (() => {
+    const sd = lead?.solar_data || {};
+    if (Array.isArray(sd.quotations) && sd.quotations.length > 0) return sd.quotations;
+    return [];
+  })();
 
   const enviar = async () => {
     if (!to.trim()) { alert('Falta destinatario'); return; }
@@ -293,10 +300,22 @@ function SidebarEmailBtn({ leadId, lead }) {
                 📎 Subir archivo
                 <input type="file" multiple onChange={onPickFiles} style={{ display:'none' }} />
               </label>
-              <button onClick={adjuntarPropuesta} disabled={attaching}
-                style={{ background:'#1a3c8f', color:'#fff', border:'none', borderRadius:6, padding:'8px 12px', fontSize:12, fontWeight:600, cursor:'pointer', opacity:attaching?0.6:1 }}>
-                {attaching ? 'Generando…' : '☀️ Adjuntar Propuesta'}
-              </button>
+              {quotationsList.length === 0 ? (
+                <button onClick={() => adjuntarPropuesta()} disabled={attaching}
+                  style={{ background:'#1a3c8f', color:'#fff', border:'none', borderRadius:6, padding:'8px 12px', fontSize:12, fontWeight:600, cursor:'pointer', opacity:attaching?0.6:1 }}>
+                  {attaching ? 'Generando…' : '☀️ Adjuntar Propuesta'}
+                </button>
+              ) : (
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <span style={{ fontSize:11, color:'var(--muted)' }}>☀️ Adjuntar:</span>
+                  {quotationsList.map(q => (
+                    <button key={q.id} onClick={() => adjuntarPropuesta(q.id)} disabled={attaching}
+                      style={{ background:'#1a3c8f', color:'#fff', border:'none', borderRadius:6, padding:'7px 10px', fontSize:11, fontWeight:600, cursor:'pointer', opacity:attaching?0.6:1 }}>
+                      {q.name || 'Cotización'}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {files.length > 0 && (
               <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:6 }}>
