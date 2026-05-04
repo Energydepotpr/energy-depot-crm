@@ -30,7 +30,7 @@ export async function saveBaterias(list) {
 }
 
 export const DEFAULT_PRICING = {
-  panelPrice: 1182.50,
+  panelPrice: 1084,
   panelWatts: 550,
   tarifaLuma: 0.26,
   factorProduccion: 1460,
