@@ -2360,7 +2360,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
 }
 
 // ─── Cotizar Tab ──────────────────────────────────────────────────────────────
-const MESES_L = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MESES_L_DEFAULT = ['Mes 1','Mes 2','Mes 3','Mes 4','Mes 5','Mes 6','Mes 7','Mes 8','Mes 9','Mes 10','Mes 11','Mes 12'];
 const cotFmt  = n => `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const cotFmtK = n => Number(n).toLocaleString('en-US');
 
@@ -2390,6 +2390,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
         name: q.name || 'Cotización',
         createdAt: q.createdAt || new Date().toISOString(),
         meses: Array.isArray(q.meses) ? Array(12).fill('').map((_,i)=>q.meses[i]||'') : Array(12).fill(''),
+        mesLabels: Array.isArray(q.mesLabels) && q.mesLabels.length === 12 ? q.mesLabels : null,
         batteries: Array.isArray(q.batteries) ? q.batteries : [],
       }));
     }
@@ -2418,6 +2419,8 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
   });
   const active = quotations.find(q => q.id === activeId) || quotations[0];
   const meses = active?.meses || Array(12).fill('');
+  const mesLabels = (active?.mesLabels && active.mesLabels.length === 12) ? active.mesLabels : MESES_L_DEFAULT;
+  const setMesLabel = (i, v) => updateActive({ mesLabels: mesLabels.map((x,j) => j===i ? v : x) });
   const batQty = (() => {
     const arr = Array(BATERIAS_COT.length).fill(0);
     (active?.batteries||[]).forEach(b => { const i = BATERIAS_COT.findIndex(x => x.name === b.name); if (i>=0) arr[i] = b.qty || 0; });
@@ -2446,7 +2449,8 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
     const id = 'q'+Math.random().toString(36).slice(2,9);
     // Hereda meses de la cotización activa (consumo es del lead, no de la cotización)
     const inheritedMeses = (active?.meses && active.meses.some(v => v)) ? [...active.meses] : Array(12).fill('');
-    setQuotations(prev => [...prev, { id, name: `Cotización ${prev.length+1}`, createdAt: new Date().toISOString(), meses: inheritedMeses, batteries: [] }]);
+    const inheritedLabels = (active?.mesLabels && active.mesLabels.length === 12) ? [...active.mesLabels] : [...MESES_L_DEFAULT];
+    setQuotations(prev => [...prev, { id, name: `Cotización ${prev.length+1}`, createdAt: new Date().toISOString(), meses: inheritedMeses, mesLabels: inheritedLabels, batteries: [] }]);
     setActiveId(id);
   };
   const deleteQuotation = (id) => {
@@ -2619,9 +2623,10 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
         <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Consumo Mensual (kWh)</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(56px, 1fr))', gap:7 }}>
-          {MESES_L.map((m,i) => (
+          {mesLabels.map((m,i) => (
             <div key={i} style={{ minWidth:0 }}>
-              <div style={{ fontSize:9, color:'var(--muted)', fontWeight:600, textAlign:'center', marginBottom:3 }}>{m}</div>
+              <input value={m} onChange={e => setMesLabel(i, e.target.value)}
+                style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px dashed var(--border)', outline:'none', fontSize:9, color:'var(--muted)', fontWeight:600, textAlign:'center', marginBottom:3, padding:'0 2px' }} />
               <input type="number" min="0" value={meses[i]} onChange={e=>{ const n=[...meses]; n[i]=e.target.value; setMeses(n); }}
                 style={{ ...inp, color:Number(meses[i])>0?'#3b82f6':'var(--text)', fontWeight:Number(meses[i])>0?700:400 }} />
             </div>
