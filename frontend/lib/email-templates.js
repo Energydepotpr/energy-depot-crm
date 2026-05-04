@@ -9,13 +9,16 @@ export const EMAIL_TEMPLATES = {
       `${lead?.contact_name || 'Cliente'} — Cotización Solar Energy Depot PR`,
     html: (lead) => `
 <div style="font-family: Arial, sans-serif; max-width:600px; margin:0 auto; background:#f3f4f6;">
-  <div style="background:#ffffff; padding:18px 24px; border-bottom:1px solid #e5e7eb;">
+  <div style="background:#0f172a; padding:14px 24px;">
     <table width="100%" cellpadding="0" cellspacing="0">
       <tr>
-        <td><img src="${LOGO}" alt="Energy Depot PR" style="height:42px;display:block;"/></td>
-        <td align="right" style="color:#7e2099;font-size:13px;font-weight:600;">Tus cotizaciones en PDF</td>
+        <td><span style="color:#fff;font-size:18px;font-weight:800;letter-spacing:.5px;">ENERGY DEPOT PR</span></td>
+        <td align="right" style="color:#a78bfa;font-size:13px;font-weight:500;">Tus cotizaciones en PDF</td>
       </tr>
     </table>
+  </div>
+  <div style="background:#ffffff; padding:18px 24px; border-bottom:1px solid #e5e7eb; text-align:center;">
+    <img src="${LOGO}" alt="Energy Depot PR" style="height:54px;display:inline-block;"/>
   </div>
   <div style="background:#fff; padding:32px 28px;">
     <h2 style="color:#7e2099;font-size:22px;font-weight:800;margin:0 0 16px;">Hola ${lead?.contact_name || ''},</h2>
