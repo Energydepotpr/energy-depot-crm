@@ -912,11 +912,11 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
               <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Contact</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <SidebarField label="Name" value={lead.contact_name || ''} onChange={v => setLead(p => ({...p, contact_name: v}))} onBlur={async v => { try { await api.moveLead(leadId, { contact_name: v }); } catch {} }} />
+                  <SidebarField label="Name" value={lead.contact_name || ''} onChange={v => setLead(p => ({...p, contact_name: v}))} onBlur={async v => { try { if (lead.contact_id) await api.updateContact(lead.contact_id, { name: v }); } catch {} }} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <label style={{ fontSize: 10, color: 'var(--muted)' }}>Phone</label>
                     <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                      <input value={lead.contact_phone || ''} onChange={e => setLead(p => ({...p, contact_phone: e.target.value}))} onBlur={async e => { try { await api.moveLead(leadId, { contact_phone: e.target.value }); } catch {} }} style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '5px 7px', fontSize: 12, color: 'var(--text)', outline: 'none', minWidth: 0 }} />
+                      <input value={lead.contact_phone || ''} onChange={e => setLead(p => ({...p, contact_phone: e.target.value}))} onBlur={async e => { try { if (lead.contact_id) await api.updateContact(lead.contact_id, { phone: e.target.value }); } catch {} }} style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '5px 7px', fontSize: 12, color: 'var(--text)', outline: 'none', minWidth: 0 }} />
                       {lead.contact_phone && (
                         <button onClick={() => setTab('llamadas')} title="Call" style={{ flexShrink: 0, background: '#10b981', border: 'none', borderRadius: 5, padding: '5px 8px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center' }}>
                           <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.68A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>
@@ -924,16 +924,30 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                       )}
                     </div>
                   </div>
-                  <SidebarField label="Email" value={lead.contact_email || ''} onChange={v => setLead(p => ({...p, contact_email: v}))} onBlur={async v => { try { await api.moveLead(leadId, { contact_email: v }); } catch {} }} />
+                  <SidebarField label="Email" value={lead.contact_email || ''} onChange={v => setLead(p => ({...p, contact_email: v}))} onBlur={async v => { try { if (lead.contact_id) await api.updateContact(lead.contact_id, { email: v }); } catch {} }} />
                   <button
                     onClick={async () => {
                       try {
-                        await api.moveLead(leadId, {
-                          contact_name: lead.contact_name || null,
-                          contact_email: lead.contact_email || null,
-                          contact_phone: lead.contact_phone || null,
-                        });
+                        let cid = lead.contact_id;
+                        if (!cid) {
+                          // Crear contacto si no existe
+                          const c = await api.createContact({
+                            name: lead.contact_name || lead.title || '',
+                            email: lead.contact_email || null,
+                            phone: lead.contact_phone || null,
+                          });
+                          cid = c.id || c.contact?.id;
+                          if (cid) await api.updateLead(leadId, { contact_id: cid });
+                          setLead(p => ({ ...p, contact_id: cid }));
+                        } else {
+                          await api.updateContact(cid, {
+                            name: lead.contact_name || null,
+                            email: lead.contact_email || null,
+                            phone: lead.contact_phone || null,
+                          });
+                        }
                         if (onUpdated) onUpdated();
+                        alert('✓ Contacto guardado');
                       } catch (e) { alert('Error: ' + e.message); }
                     }}
                     style={{ marginTop:8, width:'100%', background:'#10b981', color:'#fff', border:'none', borderRadius:6, padding:'7px 10px', fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
