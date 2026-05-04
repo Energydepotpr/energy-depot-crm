@@ -925,6 +925,21 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     </div>
                   </div>
                   <SidebarField label="Email" value={lead.contact_email || ''} onChange={v => setLead(p => ({...p, contact_email: v}))} onBlur={async v => { try { await api.moveLead(leadId, { contact_email: v }); } catch {} }} />
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.moveLead(leadId, {
+                          contact_name: lead.contact_name || null,
+                          contact_email: lead.contact_email || null,
+                          contact_phone: lead.contact_phone || null,
+                        });
+                        if (onUpdated) onUpdated();
+                      } catch (e) { alert('Error: ' + e.message); }
+                    }}
+                    style={{ marginTop:8, width:'100%', background:'#10b981', color:'#fff', border:'none', borderRadius:6, padding:'7px 10px', fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
+                    <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    Guardar contacto
+                  </button>
                 </div>
               </div>
               {/* Tags */}
