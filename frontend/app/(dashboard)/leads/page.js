@@ -189,9 +189,22 @@ function SidebarEmailBtn({ leadId, lead }) {
     const list = Array.from(e.target.files || []);
     const next = [];
     for (const f of list) {
-      const buf = await f.arrayBuffer();
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-      next.push({ name: f.name, mime: f.type || 'application/octet-stream', base64: b64 });
+      try {
+        // Lee como DataURL y extrae solo la parte base64 — funciona con archivos grandes
+        const b64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const s = String(reader.result || '');
+            const i = s.indexOf(',');
+            resolve(i >= 0 ? s.slice(i + 1) : s);
+          };
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(f);
+        });
+        next.push({ name: f.name, mime: f.type || 'application/octet-stream', base64: b64 });
+      } catch (err) {
+        alert(`Error leyendo "${f.name}": ${err.message}`);
+      }
     }
     setFiles(prev => [...prev, ...next]);
     e.target.value = '';
