@@ -336,7 +336,7 @@ function PortalLuma() {
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <a
-            href="https://lumapr.com"
+            href="https://miacceso.lumapr.com/login.html"
             target="_blank"
             rel="noopener noreferrer"
             style={{
