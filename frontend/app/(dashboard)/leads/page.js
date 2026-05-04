@@ -2444,7 +2444,9 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
   };
   const newQuotation = () => {
     const id = 'q'+Math.random().toString(36).slice(2,9);
-    setQuotations(prev => [...prev, { id, name: `Cotización ${prev.length+1}`, createdAt: new Date().toISOString(), meses: Array(12).fill(''), batteries: [] }]);
+    // Hereda meses de la cotización activa (consumo es del lead, no de la cotización)
+    const inheritedMeses = (active?.meses && active.meses.some(v => v)) ? [...active.meses] : Array(12).fill('');
+    setQuotations(prev => [...prev, { id, name: `Cotización ${prev.length+1}`, createdAt: new Date().toISOString(), meses: inheritedMeses, batteries: [] }]);
     setActiveId(id);
   };
   const deleteQuotation = (id) => {
