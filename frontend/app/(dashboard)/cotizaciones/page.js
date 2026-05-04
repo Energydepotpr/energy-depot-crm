@@ -230,7 +230,7 @@ function CotizadorInner() {
             <div style={S.card}>
               <div style={S.sec}>Sistema Recomendado</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-                {[['Capacidad DC',`${calc.systemKw} kW`],['Paneles',`${calc.panels} uds`],['Producción/año',`${fmtK(calc.annProd)} kWh`],['Cobertura',`${calc.offset}%`]].map(([k,v]) => (
+                {[['Capacidad DC',`${calc.systemKw} kW`],['Paneles',`${calc.panels} unidades`],['Producción/año',`${fmtK(calc.annProd)} kWh`],['Cobertura',`${calc.offset}%`]].map(([k,v]) => (
                   <div key={k} style={S.stat}>
                     <div style={{ fontSize:9, color:'var(--muted)', fontWeight:600, textTransform:'uppercase' }}>{k}</div>
                     <div style={{ fontSize:15, fontWeight:800, color:'var(--text)', marginTop:2 }}>{v}</div>

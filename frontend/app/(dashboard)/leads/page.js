@@ -893,7 +893,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
                     {[
                       ['Sistema', `${lead.solar_data.calc.systemKw} kW`],
-                      ['Paneles', `${lead.solar_data.calc.panels} uds`],
+                      ['Paneles', `${lead.solar_data.calc.panels} unidades`],
                       ['Prom. mensual', `${lead.solar_data.calc.avg} kWh`],
                       ['Ahorro anual', `$${(lead.solar_data.calc.annualSavings||0).toLocaleString()}`],
                     ].map(([k, v]) => (
@@ -2672,7 +2672,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
             <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Sistema Recomendado</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(80px, 1fr))', gap:8 }}>
-              {[['kW DC',calc.kw],['Paneles',calc.panels+' uds'],['Prod/año',cotFmtK(calc.annProd)+' kWh'],['Cobertura',calc.offset+'%']].map(([k,v])=>(
+              {[['kW DC',calc.kw],['Paneles',calc.panels+' unidades'],['Prod/año',cotFmtK(calc.annProd)+' kWh'],['Cobertura',calc.offset+'%']].map(([k,v])=>(
                 <div key={k} style={{ background:'var(--bg)', borderRadius:6, padding:'8px', textAlign:'center' }}>
                   <div style={{ fontSize:9, color:'var(--muted)', fontWeight:600 }}>{k}</div>
                   <div style={{ fontSize:13, fontWeight:800, color:'var(--text)', marginTop:2 }}>{v}</div>
