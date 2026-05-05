@@ -705,9 +705,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                 </>);
               })()}
               {isMobile ? (
-                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7a9ab8', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
-                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                  Atrás
+                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e0eaf5', minWidth: 40, minHeight: 40, padding: '0 10px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, borderRadius: 10 }}>
+                  <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
                 </button>
               ) : (
                 <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7a9ab8', padding: 4 }}>
@@ -765,24 +764,33 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           </div>
         </div>
 
-        {/* Mobile tabs — Chat | Info | ⚡ */}
+        {/* Mobile tabs — Chat | Info | More */}
         {isMobile && (
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
-            {[['chat', '💬 Chat'], ['info', '📋 Info']].map(([k, l]) => (
-              <button key={k} onClick={() => { setMobileTab(k); setShowMoreSheet(false); }} style={{
-                flex: 1, padding: '11px 0', border: 'none', cursor: 'pointer',
-                background: 'none', fontSize: 13, fontWeight: mobileTab === k && !showMoreSheet ? 700 : 400,
-                color: mobileTab === k && !showMoreSheet ? 'var(--accent)' : 'var(--muted)',
-                borderBottom: mobileTab === k && !showMoreSheet ? '2px solid var(--accent)' : '2px solid transparent',
-              }}>{l}</button>
-            ))}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0, position: 'sticky', top: 0, zIndex: 5 }}>
+            {[
+              { k: 'chat', l: 'Chat', icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg> },
+              { k: 'info', l: 'Info', icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+            ].map(({ k, l, icon }) => {
+              const sel = mobileTab === k && !showMoreSheet;
+              return (
+                <button key={k} onClick={() => { setMobileTab(k); setShowMoreSheet(false); }} style={{
+                  flex: 1, minHeight: 46, padding: '0', border: 'none', cursor: 'pointer',
+                  background: 'none', fontSize: 13, fontWeight: sel ? 700 : 500,
+                  color: sel ? '#1a3c8f' : 'var(--muted)',
+                  borderBottom: sel ? '2px solid #1a3c8f' : '2px solid transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}>{icon}{l}</button>
+              );
+            })}
             <button onClick={() => setShowMoreSheet(v => !v)} style={{
-              width: 52, padding: '11px 0', border: 'none', cursor: 'pointer',
-              background: 'none', fontSize: 13, fontWeight: showMoreSheet ? 700 : 400,
-              color: showMoreSheet ? 'var(--accent)' : 'var(--muted)',
-              borderBottom: showMoreSheet ? '2px solid var(--accent)' : '2px solid transparent',
-              flexShrink: 0,
-            }}>⚡</button>
+              width: 56, minHeight: 46, padding: 0, border: 'none', cursor: 'pointer',
+              background: 'none',
+              color: showMoreSheet ? '#1a3c8f' : 'var(--muted)',
+              borderBottom: showMoreSheet ? '2px solid #1a3c8f' : '2px solid transparent',
+              flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }} aria-label="Más">
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+            </button>
           </div>
         )}
         {/* More sheet — small floating panel from bottom inside the lead panel */}
@@ -3290,46 +3298,83 @@ function TablaView({ leads, onOpen, onEdit, onDelete, selectMode, selectedIds, o
 // ─── Mobile Lead Card ─────────────────────────────────────────────────────────
 
 function MobileLeadCard({ lead, onOpen, onEdit, onDelete }) {
+  const [pressed, setPressed] = useState(false);
+  const initial = (lead.contact_name || lead.title || '?').trim()[0].toUpperCase();
+  const stageColor = lead.stage_color || '#1a3c8f';
   return (
-    <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border/50 active:bg-white/3 transition-colors"
-      onClick={() => onOpen(lead)}>
-      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
-        style={{ backgroundColor: `${lead.stage_color || '#1b9af5'}20`, color: lead.stage_color || '#1b9af5' }}>
-        {(lead.contact_name || lead.title || '?')[0].toUpperCase()}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-white truncate">{lead.title}</span>
-          {lead.value > 0 && <span className="text-xs text-emerald-400 flex-shrink-0">${Number(lead.value).toLocaleString()}</span>}
+    <div
+      onClick={() => onOpen(lead)}
+      onTouchStart={() => setPressed(true)}
+      onTouchEnd={() => setPressed(false)}
+      onTouchCancel={() => setPressed(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: '14px 16px',
+        minHeight: 76,
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--surface)',
+        transform: pressed ? 'scale(0.98)' : 'scale(1)',
+        transition: 'transform 0.12s ease, background 0.12s ease',
+        cursor: 'pointer',
+        WebkitTapHighlightColor: 'transparent',
+      }}
+    >
+      {/* Avatar gradient */}
+      <div style={{
+        width: 46, height: 46, borderRadius: '50%',
+        background: 'linear-gradient(135deg, #1a3c8f 0%, #67e8f9 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontSize: 17, fontWeight: 700, flexShrink: 0,
+        boxShadow: '0 2px 8px rgba(26,60,143,0.25)',
+        letterSpacing: 0.5,
+      }}>{initial}</div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#1a3c8f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {lead.title || lead.contact_name || 'Sin nombre'}
+          </span>
+          {lead.value > 0 && (
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#10b981', flexShrink: 0 }}>
+              ${Number(lead.value).toLocaleString()}
+            </span>
+          )}
         </div>
-        <div className="text-xs text-muted truncate mt-0.5">{lead.contact_name || 'Sin contacto'}</div>
-        <div className="flex items-center gap-2 mt-1">
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {lead.contact_phone || lead.contact_email || lead.contact_name || 'Sin contacto'}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
           {lead.stage_name && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-              style={{ backgroundColor: `${lead.stage_color}20`, color: lead.stage_color }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
+              backgroundColor: `${stageColor}1f`, color: stageColor,
+              border: `1px solid ${stageColor}40`,
+              textTransform: 'uppercase', letterSpacing: 0.3,
+            }}>
               {lead.stage_name}
             </span>
           )}
           {lead.follow_up_at && (() => {
-            const due = new Date(lead.follow_up_at);
-            const now = new Date();
-            const diffH = (due - now) / 3600000;
+            const diffH = (new Date(lead.follow_up_at) - new Date()) / 3600000;
             if (diffH < -1) return (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, padding: '1px 6px', fontSize: 10, color: '#ef4444' }}>
-                🔔 Vencido
-              </div>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', borderRadius: 999, padding: '2px 8px', fontSize: 10, color: '#ef4444', fontWeight: 600 }}>
+                <svg width="9" height="9" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 3h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.19 16a2 2 0 001.74 3z"/></svg>
+                Vencido
+              </span>
             );
             if (diffH < 24) return (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 4, padding: '1px 6px', fontSize: 10, color: '#f59e0b' }}>
-                📅 Hoy
-              </div>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 999, padding: '2px 8px', fontSize: 10, color: '#f59e0b', fontWeight: 600 }}>
+                <svg width="9" height="9" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" d="M12 6v6l4 2"/></svg>
+                Hoy
+              </span>
             );
             return null;
           })()}
         </div>
       </div>
-      <svg className="w-4 h-4 text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+
+      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ color: 'var(--muted)', flexShrink: 0, opacity: 0.6 }}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
       </svg>
     </div>
   );
@@ -3382,6 +3427,7 @@ export default function LeadsPage() {
   const [activePipeline, setActivePipeline] = useState(null);
   const [activeStage, setActiveStage] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  const [mobileFilterSheet, setMobileFilterSheet] = useState(false);
   const [search, setSearch] = useState('');
   const [desktopView, setDesktopView] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -3688,56 +3734,79 @@ export default function LeadsPage() {
 
   // ── MOBILE VIEW ─────────────────────────────────────────────────────────────
   if (isMobile) {
+    const activeFilterCount = (filterDormidos ? 1 : 0) + (filterSmallGroup ? 1 : 0) + (filterTags.size > 0 ? 1 : 0);
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full" style={{ background: 'var(--bg)', position: 'relative' }}>
         {confirmDialog && <ConfirmModal message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
         {/* Header móvil */}
-        <div className="px-4 pt-3 pb-2">
-          <div className="flex items-center gap-2 mb-2">
-            <input
-              type="text" placeholder={`🔍 ${t('common.search', lang)}`} value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="input text-sm flex-1 min-w-0"
-            />
-            <button onClick={() => setModal('new')} className="btn-primary px-3 py-2 text-sm flex-shrink-0">+ {t('leads.newLead', lang)}</button>
+        <div style={{ padding: '12px 16px 8px', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }}>
+                <circle cx="11" cy="11" r="7"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/>
+              </svg>
+              <input
+                type="text" placeholder={t('common.search', lang)} value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{
+                  width: '100%', minHeight: 42,
+                  background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12,
+                  padding: '0 12px 0 38px', fontSize: 14, color: 'var(--text)', outline: 'none',
+                }}
+              />
+            </div>
+            <button
+              onClick={() => setMobileFilterSheet(true)}
+              style={{
+                position: 'relative', width: 42, height: 42, flexShrink: 0,
+                borderRadius: 12, border: '1px solid var(--border)',
+                background: activeFilterCount > 0 ? '#1a3c8f' : 'var(--bg)',
+                color: activeFilterCount > 0 ? '#fff' : 'var(--text)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              }}
+              aria-label="Filtros"
+            >
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+              </svg>
+              {activeFilterCount > 0 && (
+                <span style={{ position: 'absolute', top: -4, right: -4, background: '#67e8f9', color: '#1a3c8f', fontSize: 10, fontWeight: 700, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--surface)' }}>
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-            <span className="flex-shrink-0 text-xs px-2 py-1 text-muted">{loading ? '...' : `${leadsFiltrados.length}`}</span>
-            <button onClick={() => setFilterDormidos(f => !f)}
-              className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filterDormidos ? 'border-red-500 bg-red-500/15 text-red-400' : 'border-border text-muted'}`}>
-              😴 +7d
-            </button>
-            <button onClick={() => setFilterSmallGroup(f => !f)}
-              className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filterSmallGroup ? 'border-amber-500 bg-amber-500/15 text-amber-400' : 'border-border text-muted'}`}>
-              👥 ≤4
-            </button>
-            <button onClick={exportCSV}
-              className="flex-shrink-0 text-xs px-2.5 py-1 rounded-full border border-border text-muted">
-              ↓ CSV
-            </button>
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--muted)', fontWeight: 500 }}>
+            {loading ? '...' : `${leadsFiltrados.length} leads`}
           </div>
         </div>
 
         {/* Filtro por etapa (chips horizontales) */}
         {pipeline?.stages && (
-          <div className="flex gap-1.5 px-4 pb-2 overflow-x-auto scrollbar-hide">
+          <div style={{ display: 'flex', gap: 6, padding: '10px 16px', overflowX: 'auto', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }} className="scrollbar-hide">
             <button
               onClick={() => setActiveStage(null)}
-              className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                !activeStage ? 'bg-accent text-white' : 'bg-white/5 text-muted'
-              }`}
+              style={{
+                flexShrink: 0, padding: '7px 14px', borderRadius: 999, border: 'none',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                background: !activeStage ? '#1a3c8f' : 'rgba(26,60,143,0.08)',
+                color: !activeStage ? '#fff' : '#1a3c8f',
+              }}
             >
               {t('common.all', lang)} ({leadsDelPipeline.length})
             </button>
             {pipeline.stages.map(s => {
               const count = leadsDelPipeline.filter(l => l.stage_id === s.id).length;
+              const sel = activeStage === s.id;
               return (
                 <button key={s.id}
-                  onClick={() => setActiveStage(activeStage === s.id ? null : s.id)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                    activeStage === s.id ? 'text-white' : 'bg-white/5 text-muted'
-                  }`}
-                  style={activeStage === s.id ? { backgroundColor: s.color } : {}}
+                  onClick={() => setActiveStage(sel ? null : s.id)}
+                  style={{
+                    flexShrink: 0, padding: '7px 14px', borderRadius: 999, border: 'none',
+                    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    background: sel ? s.color : `${s.color}14`,
+                    color: sel ? '#fff' : s.color,
+                  }}
                 >
                   {s.name} ({count})
                 </button>
@@ -3746,31 +3815,77 @@ export default function LeadsPage() {
           </div>
         )}
 
-        {/* Tag filter chips (mobile) */}
-        {allTags.length > 0 && (
-          <div className="flex gap-2 px-4 pb-2 overflow-x-auto scrollbar-hide">
-            {filterTags.size > 0 && (
-              <button onClick={() => setFilterTags(new Set())}
-                className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 text-muted">
-                ✕ Quitar filtros
-              </button>
-            )}
-            {allTags.map(t => (
-              <button key={t.tag} onClick={() => toggleFilterTag(t.tag)}
-                className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium"
-                style={{
-                  border: `1px solid ${filterTags.has(t.tag) ? (t.color || '#1b9af5') : 'transparent'}`,
-                  background: filterTags.has(t.tag) ? `${t.color || '#1b9af5'}20` : 'rgba(255,255,255,0.05)',
-                  color: filterTags.has(t.tag) ? (t.color || '#1b9af5') : 'var(--muted)',
-                }}>
-                🏷 {t.tag}
-              </button>
-            ))}
-          </div>
+        {/* Filter bottom sheet */}
+        {mobileFilterSheet && (
+          <>
+            <div onClick={() => setMobileFilterSheet(false)} style={{ position: 'fixed', inset: 0, zIndex: 199, background: 'rgba(0,0,0,0.5)' }} />
+            <div style={{ position: 'fixed', bottom: 60, left: 0, right: 0, zIndex: 200, background: 'var(--surface)', borderRadius: '20px 20px 0 0', borderTop: '1px solid var(--border)', maxHeight: '75vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 6px' }}>
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
+              </div>
+              <div style={{ padding: '8px 20px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 17, fontWeight: 700, color: '#1a3c8f', margin: 0 }}>Filtros</h3>
+                  {activeFilterCount > 0 && (
+                    <button onClick={() => { setFilterDormidos(false); setFilterSmallGroup(false); setFilterTags(new Set()); }}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Estado</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <button onClick={() => setFilterDormidos(f => !f)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, padding: '0 14px', borderRadius: 12, border: `1px solid ${filterDormidos ? '#ef4444' : 'var(--border)'}`, background: filterDormidos ? 'rgba(239,68,68,0.1)' : 'var(--bg)', color: filterDormidos ? '#ef4444' : 'var(--text)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                      <span>Sin actividad +7 días</span>
+                      <span style={{ fontSize: 18 }}>{filterDormidos ? '✓' : ''}</span>
+                    </button>
+                    <button onClick={() => setFilterSmallGroup(f => !f)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, padding: '0 14px', borderRadius: 12, border: `1px solid ${filterSmallGroup ? '#f59e0b' : 'var(--border)'}`, background: filterSmallGroup ? 'rgba(245,158,11,0.1)' : 'var(--bg)', color: filterSmallGroup ? '#f59e0b' : 'var(--text)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                      <span>Grupos pequeños (≤4)</span>
+                      <span style={{ fontSize: 18 }}>{filterSmallGroup ? '✓' : ''}</span>
+                    </button>
+                  </div>
+                </div>
+                {allTags.length > 0 && (
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Tags</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {allTags.map(tg => {
+                        const sel = filterTags.has(tg.tag);
+                        return (
+                          <button key={tg.tag} onClick={() => toggleFilterTag(tg.tag)}
+                            style={{
+                              minHeight: 36, padding: '0 14px', borderRadius: 999,
+                              border: `1px solid ${sel ? (tg.color || '#1a3c8f') : 'var(--border)'}`,
+                              background: sel ? `${tg.color || '#1a3c8f'}20` : 'var(--bg)',
+                              color: sel ? (tg.color || '#1a3c8f') : 'var(--text)',
+                              fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                            }}>
+                            {tg.tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                <button onClick={exportCSV}
+                  style={{ width: '100%', minHeight: 48, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                  Exportar CSV
+                </button>
+                <button onClick={() => setMobileFilterSheet(false)}
+                  style={{ marginTop: 12, width: '100%', minHeight: 48, borderRadius: 12, border: 'none', background: '#1a3c8f', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Lista de leads */}
-        <div className="flex-1 overflow-y-auto bg-surface border-t border-border">
+        <div className="flex-1 overflow-y-auto" style={{ background: 'var(--bg)' }}>
           {loading && (
             <div className="flex justify-center py-12 text-muted text-sm gap-2">
               <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -3789,7 +3904,28 @@ export default function LeadsPage() {
               onDelete={eliminar}
             />
           ))}
+          <div style={{ height: 100 }} />
         </div>
+
+        {/* FAB nuevo lead */}
+        {!panelLeadId && !modal && (
+          <button
+            onClick={() => setModal('new')}
+            aria-label="Nuevo lead"
+            style={{
+              position: 'fixed', right: 18, bottom: 80,
+              width: 56, height: 56, borderRadius: '50%',
+              background: '#1a3c8f', color: '#fff', border: 'none',
+              boxShadow: '0 8px 24px rgba(26,60,143,0.45), 0 0 0 4px rgba(103,232,249,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', zIndex: 90,
+            }}
+          >
+            <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+        )}
 
         {modal && (
           <LeadModal lead={modal === 'new' ? null : modal} pipelines={pipelines} agents={agents}

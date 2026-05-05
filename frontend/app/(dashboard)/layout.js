@@ -281,6 +281,8 @@ export default function DashboardLayout({ children }) {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [iosBanner, setIosBanner] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [isMobile, setIsMobile] = useState(false);
+  const [pwaBanner, setPwaBanner] = useState(false);
   const prevChatCount = useRef(0);
   const pullStartY = useRef(0);
   const [pullProgress, setPullProgress] = useState(0);
@@ -291,6 +293,26 @@ export default function DashboardLayout({ children }) {
     const handler = (e) => { e.preventDefault(); setInstallPrompt(e); };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  // Track mobile viewport
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  // PWA install banner (one-time, dismissal persisted)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const dismissed = localStorage.getItem('pwa_banner_dismissed');
+    const isMob = /iPad|iPhone|iPod|Android/.test(navigator.userAgent);
+    if (isMob && !isStandalone && !dismissed) {
+      const t = setTimeout(() => setPwaBanner(true), 1500);
+      return () => clearTimeout(t);
+    }
   }, []);
 
   // Show iOS "Add to Home Screen" banner if in Safari (not standalone)
@@ -415,6 +437,14 @@ export default function DashboardLayout({ children }) {
     </div>
   );
 
+  // Page title for mobile header (derived from pathname)
+  const pageTitle = (() => {
+    const allNav = [...NAV_SIDEBAR_MAIN, ...NAV_SIDEBAR_EXTRA];
+    const match = allNav.find(n => pathname === n.href || (n.href !== '/dashboard' && pathname.startsWith(n.href)));
+    if (match) return t(match.tKey, lang);
+    return 'Energy Depot';
+  })();
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', maxWidth: '100vw', overflowX: 'hidden' }}>
 
@@ -422,7 +452,7 @@ export default function DashboardLayout({ children }) {
       <aside className="desktop-sidebar" style={{
         width: 68, background: 'var(--sidebar-bg)',
         borderRight: '1px solid var(--sidebar-border)',
-        display: 'flex', flexDirection: 'column', flexShrink: 0, alignItems: 'center',
+        display: isMobile ? 'none' : 'flex', flexDirection: 'column', flexShrink: 0, alignItems: 'center',
         position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
       }}>
         {/* Logo — Energy Depot brand mark */}
@@ -582,41 +612,31 @@ export default function DashboardLayout({ children }) {
       {/* ── Área principal ────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', minWidth: 0 }}>
 
-        {/* Header MÓVIL */}
+        {/* Header MÓVIL — native app feel */}
         <header className="mobile-header" style={{
-          display: 'none', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 16px', background: 'var(--mobile-header-bg)', borderBottom: '1px solid var(--mobile-header-border)',
+          display: isMobile ? 'flex' : 'none', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 14px', height: 56, paddingTop: 'env(safe-area-inset-top, 0px)',
+          background: 'linear-gradient(135deg,#1a3c8f 0%,#0f2558 100%)',
+          borderBottom: '1px solid rgba(103,232,249,0.15)',
           position: 'sticky', top: 0, zIndex: 50, flexShrink: 0,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}>
-          {theme === 'dark'
-            ? <Logo variant="full" size={28}/>
-            : <Logo variant="card" size={26}/>}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {installPrompt && (
-              <button onClick={async () => { installPrompt.prompt(); const r = await installPrompt.userChoice; if (r.outcome === 'accepted') setInstallPrompt(null); }}
-                style={{ background: '#1b9af5', border: 'none', borderRadius: 8, padding: '5px 10px', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Instalar
-              </button>
-            )}
-            <button onClick={toggleTheme} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7880a0', padding: 6, display: 'flex', alignItems: 'center' }}>
-              {theme === 'dark'
-                ? <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                : <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-              }
-            </button>
-            <Link href="/herramientas" title="Herramientas" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7880a0', padding: 6, display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            </Link>
-            {alertCount > 0 && (
-              <Link href="/alerts" style={{ position: 'relative', padding: 8, color: '#9ca3af', display: 'flex' }}>
-                <Icono path="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" size={22} />
-                <span style={{ position: 'absolute', top: 4, right: 4, width: 16, height: 16, background: '#f59e0b', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', flexShrink: 0, textDecoration: 'none' }}>
+            <Logo variant="icon" size={32}/>
+          </Link>
+          <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 16, fontWeight: 600, letterSpacing: '0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 8px' }}>
+            {pageTitle}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Link href="/alerts" style={{ position: 'relative', padding: 8, color: '#fff', display: 'flex', minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+              <Icono path="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" size={22} />
+              {alertCount > 0 && (
+                <span style={{ position: 'absolute', top: 6, right: 6, minWidth: 16, height: 16, background: '#67e8f9', color: '#0f2558', fontSize: 9, fontWeight: 700, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>
                   {alertCount > 9 ? '9+' : alertCount}
                 </span>
-              </Link>
-            )}
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1b9af520', color: '#1b9af5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
+              )}
+            </Link>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#67e8f9', color: '#0f2558', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
               {user.name[0].toUpperCase()}
             </div>
           </div>
@@ -625,7 +645,7 @@ export default function DashboardLayout({ children }) {
         {/* Contenido */}
         <main
           className="main-content"
-          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative', minWidth: 0 }}
+          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative', minWidth: 0, paddingBottom: isMobile ? 'calc(64px + env(safe-area-inset-bottom, 0px))' : 0 }}
           onTouchStart={e => { pullStartY.current = e.touches[0].clientY; }}
           onTouchMove={e => {
             const el = e.currentTarget;
@@ -665,10 +685,11 @@ export default function DashboardLayout({ children }) {
 
       {/* ── Bottom Nav MÓVIL (Kommo style: 4 tabs + center button) ────────── */}
       <nav className="mobile-bottom-nav" style={{
-        display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+        display: isMobile ? 'flex' : 'none', position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
         background: 'var(--mobile-nav-bg)', borderTop: '1px solid var(--mobile-nav-border)',
         paddingBottom: 'env(safe-area-inset-bottom, 8px)',
-        alignItems: 'stretch', height: 60,
+        alignItems: 'stretch', height: 64,
+        boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
       }}>
         {/* Chats & Inicio (left 2) */}
         {NAV_MOBILE.slice(0, 2).map(item => {
@@ -677,7 +698,7 @@ export default function DashboardLayout({ children }) {
           return (
             <Link key={item.href} href={item.href} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              padding: '8px 4px 6px', textDecoration: 'none',
+              padding: '8px 4px 6px', textDecoration: 'none', minHeight: 44,
               color: active ? 'var(--mobile-nav-active)' : 'var(--mobile-nav-icon)',
               position: 'relative', gap: 2,
             }}>
@@ -699,17 +720,17 @@ export default function DashboardLayout({ children }) {
 
         {/* Centro: botón + amarillo Kommo */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <button onClick={() => setPlusOpen(v => !v)} style={{
-            width: 44, height: 44, borderRadius: '50%',
-            background: plusOpen ? '#e6a800' : '#ffbc00',
-            border: 'none', cursor: 'pointer',
+          <button onClick={() => setPlusOpen(v => !v)} aria-label="Nuevo" style={{
+            width: 52, height: 52, borderRadius: '50%',
+            background: 'linear-gradient(135deg,#1a3c8f 0%,#67e8f9 100%)',
+            border: '3px solid var(--mobile-nav-bg, #fff)', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 10px rgba(255,188,0,0.35)',
-            transition: 'background 0.15s, transform 0.15s',
-            transform: plusOpen ? 'rotate(45deg)' : 'none',
-            flexShrink: 0,
+            boxShadow: '0 4px 14px rgba(26,60,143,0.45)',
+            transition: 'transform 0.18s',
+            transform: plusOpen ? 'rotate(45deg) scale(0.96)' : 'none',
+            flexShrink: 0, marginTop: -16,
           }}>
-            <svg width="22" height="22" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24">
+            <svg width="24" height="24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" viewBox="0 0 24 24">
               <path d="M12 5v14M5 12h14"/>
             </svg>
           </button>
@@ -721,7 +742,7 @@ export default function DashboardLayout({ children }) {
           return (
             <Link key={item.href} href={item.href} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              padding: '8px 4px 6px', textDecoration: 'none',
+              padding: '8px 4px 6px', textDecoration: 'none', minHeight: 44,
               color: active ? 'var(--mobile-nav-active)' : 'var(--mobile-nav-icon)',
               position: 'relative', gap: 2,
             }}>
@@ -734,7 +755,7 @@ export default function DashboardLayout({ children }) {
         {/* Más */}
         <button onClick={() => setMoreOpen(true)} style={{
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: '8px 4px 6px', background: 'none', border: 'none', cursor: 'pointer',
+          padding: '8px 4px 6px', background: 'none', border: 'none', cursor: 'pointer', minHeight: 44,
           color: moreOpen ? 'var(--mobile-nav-active)' : 'var(--mobile-nav-icon)', gap: 2,
         }}>
           <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -807,6 +828,42 @@ export default function DashboardLayout({ children }) {
           <button onClick={() => { setIosBanner(false); sessionStorage.setItem('ios_banner_dismissed', '1'); }}
             style={{ background: 'none', border: 'none', color: '#7880a0', fontSize: 18, cursor: 'pointer', padding: '0 4px', flexShrink: 0 }}>
             ✕
+          </button>
+        </div>
+      )}
+
+      {/* PWA Install Banner — solo móvil, descartable, persistido en localStorage */}
+      {pwaBanner && isMobile && (
+        <div style={{
+          position: 'fixed', bottom: 76, left: 12, right: 12, zIndex: 250,
+          background: 'linear-gradient(135deg,#1a3c8f 0%,#0f2558 100%)',
+          border: '1px solid #67e8f9',
+          borderRadius: 14, padding: '12px 14px',
+          boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
+          display: 'flex', gap: 12, alignItems: 'center',
+        }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: '#67e8f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="20" height="20" fill="none" stroke="#0f2558" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{lang === 'es' ? 'Instalar app' : 'Install app'}</div>
+            <div style={{ color: '#cbd5e1', fontSize: 11, marginTop: 2 }}>
+              {lang === 'es' ? 'Acceso rápido como app nativa' : 'Quick access like a native app'}
+            </div>
+          </div>
+          {installPrompt ? (
+            <button onClick={async () => {
+              installPrompt.prompt();
+              const r = await installPrompt.userChoice;
+              if (r.outcome === 'accepted') { setInstallPrompt(null); setPwaBanner(false); localStorage.setItem('pwa_banner_dismissed', '1'); }
+            }} style={{ background: '#67e8f9', color: '#0f2558', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+              {lang === 'es' ? 'Instalar' : 'Install'}
+            </button>
+          ) : null}
+          <button onClick={() => { setPwaBanner(false); localStorage.setItem('pwa_banner_dismissed', '1'); }}
+            aria-label="Cerrar"
+            style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 28, height: 28, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
           </button>
         </div>
       )}
