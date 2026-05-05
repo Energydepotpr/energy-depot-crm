@@ -689,10 +689,10 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
       >
 
         {/* Header — always dark navy (Kommo style) */}
-        <div className={isMobile ? "px-3 py-1.5 flex-shrink-0" : "px-4 py-2 flex-shrink-0"} style={{ background: '#1c2d3e', borderBottom: '1px solid #253b4f', paddingTop: isMobile ? 'calc(env(safe-area-inset-top, 0px) + 8px)' : undefined }}>
+        <div className={isMobile ? "flex-shrink-0" : "px-4 py-2 flex-shrink-0"} style={{ background: '#1c2d3e', borderBottom: '1px solid #253b4f', paddingTop: isMobile ? 'calc(env(safe-area-inset-top, 0px) + 10px)' : undefined, paddingLeft: isMobile ? 8 : undefined, paddingRight: isMobile ? 8 : undefined, paddingBottom: isMobile ? 10 : undefined }}>
           {/* Fila 1: título + cerrar */}
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <div className="font-semibold text-sm truncate flex-1" style={{ color: '#e0eaf5' }}>{lead.title}</div>
+          <div className="flex items-center justify-between gap-2" style={{ marginBottom: isMobile ? 2 : 4 }}>
+            <div style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 16 : 14, fontWeight: 600, color: '#e0eaf5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lead.title}</div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {onNavigate && leads.length > 1 && (() => {
                 const idx = leads.findIndex(l => l.id === leadId);
@@ -721,13 +721,13 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           {(lead.contact_name || lead.contact_phone) && (() => {
             const hasRealName = lead.contact_name && lead.contact_name !== lead.contact_phone;
             return (
-              <div className="text-xs mb-1 truncate" style={{ color: '#7a9ab8' }}>
+              <div className="truncate" style={{ color: '#7a9ab8', fontSize: isMobile ? 13 : 12, marginBottom: 2 }}>
                 {hasRealName ? lead.contact_name : ''}{lead.contact_phone ? `${hasRealName ? ' · ' : ''}${lead.contact_phone}` : ''}
               </div>
             );
           })()}
-          {/* Fila 3: etapa + valor + acciones */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Fila 3: etapa + valor + acciones — desktop only */}
+          {!isMobile && <div className="flex items-center gap-2 flex-wrap">
             {lead.stage_name && (
               <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0" style={{ backgroundColor: `${lead.stage_color}20`, color: lead.stage_color }}>
                 {lead.stage_name}
@@ -769,7 +769,18 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                 <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M4 17h12m0 0l-4-4m4 4l-4 4"/></svg>
               </button>
             </div>
-          </div>
+          </div>}
+          {/* Mobile: subtitle row with stage chip + value */}
+          {isMobile && (lead.stage_name || lead.value > 0) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+              {lead.stage_name && (
+                <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, fontWeight: 600, backgroundColor: `${lead.stage_color}25`, color: lead.stage_color }}>
+                  {lead.stage_name}
+                </span>
+              )}
+              {lead.value > 0 && <span style={{ fontSize: 12, color: '#10b981', fontWeight: 600 }}>${Number(lead.value).toLocaleString()}</span>}
+            </div>
+          )}
         </div>
 
         {/* Mobile tabs — Chat | Info | More */}
@@ -814,31 +825,35 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
               <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
                 <div style={{ width: 32, height: 4, borderRadius: 2, background: 'var(--border)' }} />
               </div>
-              {[
-                { key: 'cotizar',   icon: '☀️', label: 'Cotizar',        count: lead.solar_data?.calc ? 1 : 0 },
-                { key: 'notas',     icon: '📝', label: 'Notas',          count: notes.length },
-                { key: 'tareas',    icon: '✅', label: 'Tareas',         count: tasks.filter(tk => !tk.completed).length },
-                { key: 'llamadas',  icon: '📞', label: 'Llamadas',       count: callLogs.length },
-                { key: 'actividad', icon: '📋', label: 'Actividad',      count: 0 },
-                { key: 'factura',   icon: '🧾', label: 'Factura',        count: leadInvoice ? 1 : 0 },
-                { key: 'contactos', icon: '👥', label: 'Contactos',      count: leadContacts.length },
-                { key: 'notas-int', icon: '🔒', label: 'Notas internas', count: internalNotes.length },
-                { key: 'ai',        icon: '🤖', label: 'Bot IA',         count: 0 },
-                { key: 'extra',     icon: '＋', label: 'Extras',         count: customFields.length },
-              ].map(item => (
-                <button key={item.key} onClick={() => { setTab(item.key); setMobileTab('chat'); setShowMoreSheet(false); }}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 20px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 18, width: 24, textAlign: 'center' }}>{item.icon}</span>
-                    <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--text)' }}>{item.label}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {item.count > 0 && <span style={{ fontSize: 11, background: 'var(--accent)', color: '#fff', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>{item.count}</span>}
-                    <span style={{ color: 'var(--muted)', fontSize: 16 }}>›</span>
-                  </div>
-                </button>
-              ))}
-              <div style={{ height: 12 }} />
+              {(() => {
+                const iconWrap = (path) => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" style={{ color: '#1a3c8f' }}>{path}</svg>;
+                const items = [
+                  { key: 'cotizar',   icon: iconWrap(<><circle cx="12" cy="12" r="4"/><path strokeLinecap="round" d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></>), label: 'Cotizar', count: lead.solar_data?.calc ? 1 : 0 },
+                  { key: 'notas',     icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>), label: 'Notas', count: notes.length },
+                  { key: 'tareas',    icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>), label: 'Tareas', count: tasks.filter(tk => !tk.completed).length },
+                  { key: 'llamadas',  icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>), label: 'Llamadas', count: callLogs.length },
+                  { key: 'actividad', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>), label: 'Actividad', count: 0 },
+                  { key: 'factura',   icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-3-7 3V5a2 2 0 012-2h10a2 2 0 012 2v16z"/>), label: 'Factura', count: leadInvoice ? 1 : 0 },
+                  { key: 'contactos', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2a4 4 0 100-8 4 4 0 000 8z"/>), label: 'Contactos', count: leadContacts.length },
+                  { key: 'notas-int', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>), label: 'Notas internas', count: internalNotes.length },
+                  { key: 'ai',        icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>), label: 'Bot IA', count: 0 },
+                  { key: 'extra',     icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>), label: 'Extras', count: customFields.length },
+                ];
+                return items.map(item => (
+                  <button key={item.key} onClick={() => { setTab(item.key); setMobileTab('chat'); setShowMoreSheet(false); }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <span style={{ width: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.icon}</span>
+                      <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--text)' }}>{item.label}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {item.count > 0 && <span style={{ fontSize: 11, background: '#1a3c8f', color: '#fff', padding: '2px 8px', borderRadius: 10, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{item.count}</span>}
+                      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ color: 'var(--muted)', opacity: 0.5 }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </div>
+                  </button>
+                ));
+              })()}
+              <div style={{ height: 16 }} />
             </div>
           </>
         )}
@@ -868,8 +883,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             {/* PRINCIPAL tab */}
             {infoTab === 'principal' && (<>
               {/* Management */}
-              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Management</div>
+              <div style={{ padding: isMobile ? '18px 18px' : '12px 14px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: isMobile ? 14 : 10 }}>Management</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <label style={{ fontSize: 10, color: 'var(--muted)' }}>Stage</label>
@@ -893,8 +908,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
               </div>
               {/* Solar Data block */}
               {lead.solar_data?.calc && (
-                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>☀ Sistema Solar</div>
+                <div style={{ padding: isMobile ? '18px 18px' : '12px 14px', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: isMobile ? 14 : 10 }}>Sistema Solar</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
                     {[
                       ['Sistema', `${lead.solar_data.calc.systemKw} kW`],
@@ -946,8 +961,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                 </div>
               )}
               {/* Contact */}
-              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Contact</div>
+              <div style={{ padding: isMobile ? '18px 18px' : '12px 14px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: isMobile ? 14 : 10 }}>Contact</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <SidebarField label="Name" value={lead.contact_name || ''} onChange={v => setLead(p => ({...p, contact_name: v}))} onBlur={async v => { try { if (lead.contact_id) await api.updateContact(lead.contact_id, { name: v }); } catch {} }} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -994,8 +1009,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                 </div>
               </div>
               {/* Tags */}
-              <div style={{ padding: '12px 14px' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Tags</div>
+              <div style={{ padding: isMobile ? '18px 18px' : '12px 14px' }}>
+                <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: isMobile ? 12 : 8 }}>Tags</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
                   {tags.length === 0 && <span style={{ fontSize: 11, color: 'var(--muted)' }}>No tags</span>}
                   {tags.map(t => (
@@ -2307,7 +2322,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             </div>
           )}
           {/* ─── TAB: COTIZAR ─── */}
-          {tab === 'cotizar' && <CotizarTab lead={lead} leadId={leadId} onLeadUpdate={() => api.lead(leadId).then(setLead).catch(()=>{})} />}
+          {tab === 'cotizar' && <CotizarTab lead={lead} leadId={leadId} isMobile={isMobile} onLeadUpdate={() => api.lead(leadId).then(setLead).catch(()=>{})} />}
 
         </div>{/* end Content */}
         </div>{/* end RIGHT Chat */}
@@ -2335,7 +2350,7 @@ function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING) {
   return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
 }
 
-function CotizarTab({ lead, leadId, onLeadUpdate }) {
+function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   const sd = lead?.solar_data || {};
   const [BATERIAS_COT, setBateriasList] = useState(DEFAULT_BATERIAS);
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
@@ -2497,9 +2512,9 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
   const inp = { width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:5, padding:'6px 8px', fontSize:12, color:'var(--text)', outline:'none', boxSizing:'border-box', textAlign:'center' };
 
   return (
-    <div style={{ padding:16, display:'flex', flexDirection:'column', gap:14 }}>
+    <div style={{ padding: isMobile ? 14 : 16, display:'flex', flexDirection:'column', gap: isMobile ? 18 : 14, paddingBottom: isMobile ? 28 : 16 }}>
       {/* Tabs de cotizaciones */}
-      <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', borderBottom:'1px solid var(--border)', paddingBottom:10 }}>
+      <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', borderBottom:'1px solid var(--border)', paddingBottom:10, overflowX: isMobile ? 'auto' : undefined }}>
         {quotations.map(q => (
           <button key={q.id} onClick={()=>setActiveId(q.id)} style={{
             background: q.id===activeId ? '#1a3c8f' : 'var(--bg)',
@@ -2533,17 +2548,17 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
       )}
 
       {/* Actions */}
-      <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-        {msg && <span style={{ fontSize:12, color: msg.startsWith('✓')?'#10b981':'#ef4444', fontWeight:600 }}>{msg}</span>}
-        <div style={{ flex:1 }} />
-        <button onClick={guardar} disabled={saving||!calc} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, padding:'6px 14px', fontSize:12, fontWeight:600, color:'var(--text)', cursor:'pointer', opacity:!calc||saving?0.5:1 }}>
+      <div style={{ display:'flex', gap: isMobile ? 8 : 8, alignItems:'center', flexWrap:'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
+        {msg && <span style={{ fontSize: isMobile ? 13 : 12, color: msg.startsWith('✓')?'#10b981':'#ef4444', fontWeight:600, alignSelf: isMobile ? 'flex-start' : 'auto' }}>{msg}</span>}
+        {!isMobile && <div style={{ flex:1 }} />}
+        <button onClick={guardar} disabled={saving||!calc} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '12px 14px' : '6px 14px', fontSize: isMobile ? 14 : 12, fontWeight:600, color:'var(--text)', cursor:'pointer', opacity:!calc||saving?0.5:1, width: isMobile ? '100%' : 'auto' }}>
           {saving?'Guardando…':'Guardar Cotización'}
         </button>
-        <button onClick={generarPDF} disabled={!calc||pdfLoad} style={{ background:'#1a3c8f', border:'none', borderRadius:6, padding:'6px 14px', fontSize:12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc||pdfLoad?0.5:1, display:'flex', alignItems:'center', gap:6 }}>
-          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <button onClick={generarPDF} disabled={!calc||pdfLoad} style={{ background:'#1a3c8f', border:'none', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '12px 14px' : '6px 14px', fontSize: isMobile ? 14 : 12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc||pdfLoad?0.5:1, display:'flex', alignItems:'center', justifyContent: 'center', gap:6, width: isMobile ? '100%' : 'auto' }}>
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           {pdfLoad?'Generando…':'Propuesta PDF'}
         </button>
-        <button onClick={()=>setShowContrato(true)} disabled={!calc} style={{ background:'#10b981', border:'none', borderRadius:6, padding:'6px 14px', fontSize:12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc?0.5:1, display:'flex', alignItems:'center', gap:6 }}>
+        <button onClick={()=>setShowContrato(true)} disabled={!calc} style={{ background:'#10b981', border:'none', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '12px 14px' : '6px 14px', fontSize: isMobile ? 14 : 12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc?0.5:1, display:'flex', alignItems:'center', justifyContent: 'center', gap:6, width: isMobile ? '100%' : 'auto' }}>
           <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
           Generar Contrato
         </button>
@@ -2579,15 +2594,15 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
       </div>
 
       {/* kWh inputs */}
-      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
-        <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Consumo Mensual (kWh)</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(56px, 1fr))', gap:7 }}>
+      <div style={{ background:'var(--surface)', border: isMobile ? 'none' : '1px solid var(--border)', borderRadius: isMobile ? 12 : 8, padding: isMobile ? '16px 16px' : '14px 16px', boxShadow: isMobile ? '0 1px 2px rgba(0,0,0,0.04)' : 'none' }}>
+        <div style={{ fontSize: isMobile ? 12 : 11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom: isMobile ? 14 : 10 }}>Consumo Mensual (kWh)</div>
+        <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(4, 1fr)' : 'repeat(auto-fit, minmax(56px, 1fr))', gap: isMobile ? 10 : 7 }}>
           {mesLabels.map((m,i) => (
             <div key={i} style={{ minWidth:0 }}>
               <input value={m} onChange={e => setMesLabel(i, e.target.value)}
-                style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px dashed var(--border)', outline:'none', fontSize:9, color:'var(--muted)', fontWeight:600, textAlign:'center', marginBottom:3, padding:'0 2px' }} />
+                style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px dashed var(--border)', outline:'none', fontSize: isMobile ? 11 : 9, color:'var(--muted)', fontWeight:600, textAlign:'center', marginBottom:4, padding:'0 2px' }} />
               <input type="number" min="0" value={meses[i]} onChange={e=>{ const n=[...meses]; n[i]=e.target.value; setMeses(n); }}
-                style={{ ...inp, color:Number(meses[i])>0?'#3b82f6':'var(--text)', fontWeight:Number(meses[i])>0?700:400 }} />
+                style={{ ...inp, padding: isMobile ? '10px 6px' : '6px 8px', fontSize: isMobile ? 14 : 12, color:Number(meses[i])>0?'#1a3c8f':'var(--text)', fontWeight:Number(meses[i])>0?700:400 }} />
             </div>
           ))}
         </div>
@@ -2601,21 +2616,23 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
       </div>
 
       {/* Batería */}
-      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
-        <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Baterías</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(190px, 1fr))', gap:7 }}>
+      <div style={{ background:'var(--surface)', border: isMobile ? 'none' : '1px solid var(--border)', borderRadius: isMobile ? 12 : 8, padding: isMobile ? '16px 16px' : '14px 16px', boxShadow: isMobile ? '0 1px 2px rgba(0,0,0,0.04)' : 'none' }}>
+        <div style={{ fontSize: isMobile ? 12 : 11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom: isMobile ? 14 : 10 }}>Baterías</div>
+        <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: isMobile ? 10 : 7 }}>
           {BATERIAS_COT.map((b,i) => {
             const active = batQty[i]>0;
-            const qbtn = { width:26, height:26, borderRadius:6, border:'1px solid var(--border)', background:'var(--bg)', color:'var(--text)', fontSize:14, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 };
+            const qbtn = isMobile
+              ? { width:36, height:36, borderRadius:8, border:'1px solid var(--border)', background:'var(--bg)', color:'var(--text)', fontSize:18, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }
+              : { width:26, height:26, borderRadius:6, border:'1px solid var(--border)', background:'var(--bg)', color:'var(--text)', fontSize:14, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 };
             return (
-              <div key={i} style={{ border:active?'2px solid #1a3c8f':'1px solid var(--border)', borderRadius:7, padding:'8px 10px', background:active?'rgba(26,60,143,0.10)':'var(--bg)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+              <div key={i} style={{ border:active?'2px solid #1a3c8f':'1px solid var(--border)', borderRadius: isMobile ? 10 : 7, padding: isMobile ? '12px 14px' : '8px 10px', background:active?'rgba(26,60,143,0.10)':'var(--bg)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
                 <div style={{ minWidth:0, flex:1 }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:active?'#60a5fa':'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{b.name}</div>
-                  <div style={{ fontSize:10, color:'var(--muted)', marginTop:1 }}>{cotFmt(b.precio)}</div>
+                  <div style={{ fontSize: isMobile ? 14 : 11, fontWeight:700, color:active?'#1a3c8f':'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{b.name}</div>
+                  <div style={{ fontSize: isMobile ? 12 : 10, color:'var(--muted)', marginTop:2 }}>{cotFmt(b.precio)}</div>
                 </div>
-                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                <div style={{ display:'flex', alignItems:'center', gap: isMobile ? 8 : 4 }}>
                   <button onClick={()=>setQ(i,-1)} disabled={batQty[i]===0} style={{ ...qbtn, opacity:batQty[i]===0?0.4:1 }}>−</button>
-                  <div style={{ minWidth:22, textAlign:'center', fontSize:13, fontWeight:800, color:active?'#1a3c8f':'var(--muted)' }}>{batQty[i]}</div>
+                  <div style={{ minWidth: isMobile ? 28 : 22, textAlign:'center', fontSize: isMobile ? 16 : 13, fontWeight:800, color:active?'#1a3c8f':'var(--muted)' }}>{batQty[i]}</div>
                   <button onClick={()=>setQ(i,+1)} style={qbtn}>+</button>
                 </div>
               </div>
@@ -2626,33 +2643,33 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
 
       {/* Resultados */}
       {calc && (
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap: isMobile ? 14 : 10 }}>
           {/* Sistema */}
-          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px' }}>
-            <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>Sistema Recomendado</div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(80px, 1fr))', gap:8 }}>
+          <div style={{ background:'var(--surface)', border: isMobile ? 'none' : '1px solid var(--border)', borderRadius: isMobile ? 12 : 8, padding: isMobile ? '16px 16px' : '14px 16px', boxShadow: isMobile ? '0 1px 2px rgba(0,0,0,0.04)' : 'none' }}>
+            <div style={{ fontSize: isMobile ? 12 : 11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom: isMobile ? 14 : 10 }}>Sistema Recomendado</div>
+            <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(80px, 1fr))', gap: isMobile ? 10 : 8 }}>
               {[['kW DC',calc.kw],['Paneles',calc.panels+' unidades'],['Prod/año',cotFmtK(calc.annProd)+' kWh'],['Cobertura',calc.offset+'%']].map(([k,v])=>(
-                <div key={k} style={{ background:'var(--bg)', borderRadius:6, padding:'8px', textAlign:'center' }}>
-                  <div style={{ fontSize:9, color:'var(--muted)', fontWeight:600 }}>{k}</div>
-                  <div style={{ fontSize:13, fontWeight:800, color:'var(--text)', marginTop:2 }}>{v}</div>
+                <div key={k} style={{ background:'var(--bg)', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '14px 8px' : '8px', textAlign:'center' }}>
+                  <div style={{ fontSize: isMobile ? 11 : 9, color:'var(--muted)', fontWeight:600, textTransform: isMobile ? 'uppercase' : 'none', letterSpacing: isMobile ? '0.4px' : 0 }}>{k}</div>
+                  <div style={{ fontSize: isMobile ? 17 : 13, fontWeight:800, color:'#1a3c8f', marginTop: isMobile ? 6 : 2 }}>{v}</div>
                 </div>
               ))}
             </div>
           </div>
           {/* Pagos */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:9 }}>
-            <div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:8, padding:'10px 14px' }}>
-              <div style={{ fontSize:10, fontWeight:600, color:'#991b1b' }}>LUMA Actual</div>
-              <div style={{ fontSize:20, fontWeight:900, color:'#dc2626' }}>{cotFmt(calc.pagoLuma)}</div>
+          <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 10 : 9 }}>
+            <div style={{ background:'#fee2e2', border: isMobile ? 'none' : '1px solid #fca5a5', borderRadius: isMobile ? 12 : 8, padding: isMobile ? '14px 16px' : '10px 14px', display: isMobile ? 'flex' : 'block', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: isMobile ? 13 : 10, fontWeight:600, color:'#991b1b' }}>LUMA Actual</div>
+              <div style={{ fontSize: isMobile ? 22 : 20, fontWeight:900, color:'#dc2626' }}>{cotFmt(calc.pagoLuma)}</div>
             </div>
-            <div style={{ background:'#dbeafe', border:'1px solid #93c5fd', borderRadius:8, padding:'10px 14px' }}>
-              <div style={{ fontSize:10, fontWeight:600, color:'#1e40af' }}>Solo Placas · 15a</div>
-              <div style={{ fontSize:20, fontWeight:900, color:'#1d4ed8' }}>{cotFmt(calc.pagoFV)}</div>
+            <div style={{ background:'#dbeafe', border: isMobile ? 'none' : '1px solid #93c5fd', borderRadius: isMobile ? 12 : 8, padding: isMobile ? '14px 16px' : '10px 14px', display: isMobile ? 'flex' : 'block', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: isMobile ? 13 : 10, fontWeight:600, color:'#1e40af' }}>Solo Placas · 15a</div>
+              <div style={{ fontSize: isMobile ? 22 : 20, fontWeight:900, color:'#1d4ed8' }}>{cotFmt(calc.pagoFV)}</div>
             </div>
             {batTotal>0 && (
-              <div style={{ background:'#ede9fe', border:'1px solid #c4b5fd', borderRadius:8, padding:'10px 14px', gridColumn:'1/-1' }}>
-                <div style={{ fontSize:10, fontWeight:600, color:'#5b21b6' }}>Placas + Batería · 15a</div>
-                <div style={{ fontSize:20, fontWeight:900, color:'#6d28d9' }}>{cotFmt(calc.pagoBat)}</div>
+              <div style={{ background:'#ede9fe', border: isMobile ? 'none' : '1px solid #c4b5fd', borderRadius: isMobile ? 12 : 8, padding: isMobile ? '14px 16px' : '10px 14px', gridColumn: isMobile ? 'auto' : '1/-1', display: isMobile ? 'flex' : 'block', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: isMobile ? 13 : 10, fontWeight:600, color:'#5b21b6' }}>Placas + Batería · 15a</div>
+                <div style={{ fontSize: isMobile ? 22 : 20, fontWeight:900, color:'#6d28d9' }}>{cotFmt(calc.pagoBat)}</div>
               </div>
             )}
           </div>
@@ -2668,9 +2685,9 @@ function CotizarTab({ lead, leadId, onLeadUpdate }) {
               </div>
             ))}
           </div>
-          <div style={{ background:'#1a3c8f', borderRadius:8, padding:'12px 16px', display:'flex', justifyContent:'space-around' }}>
-            <div style={{ textAlign:'center' }}><div style={{ fontSize:9, color:'rgba(255,255,255,0.6)', textTransform:'uppercase' }}>Ahorro anual</div><div style={{ fontSize:16, fontWeight:900, color:'#fff' }}>{cotFmt(calc.annSav)}</div></div>
-            <div style={{ textAlign:'center' }}><div style={{ fontSize:9, color:'rgba(255,255,255,0.6)', textTransform:'uppercase' }}>ROI estimado</div><div style={{ fontSize:16, fontWeight:900, color:'#fff' }}>{calc.roi} años</div></div>
+          <div style={{ background:'#1a3c8f', borderRadius: isMobile ? 12 : 8, padding: isMobile ? '18px 16px' : '12px 16px', display:'flex', justifyContent:'space-around' }}>
+            <div style={{ textAlign:'center' }}><div style={{ fontSize: isMobile ? 11 : 9, color:'rgba(255,255,255,0.7)', textTransform:'uppercase', letterSpacing:'0.5px', fontWeight:600 }}>Ahorro anual</div><div style={{ fontSize: isMobile ? 22 : 16, fontWeight:900, color:'#fff', marginTop: isMobile ? 6 : 0 }}>{cotFmt(calc.annSav)}</div></div>
+            <div style={{ textAlign:'center' }}><div style={{ fontSize: isMobile ? 11 : 9, color:'rgba(255,255,255,0.7)', textTransform:'uppercase', letterSpacing:'0.5px', fontWeight:600 }}>ROI estimado</div><div style={{ fontSize: isMobile ? 22 : 16, fontWeight:900, color:'#fff', marginTop: isMobile ? 6 : 0 }}>{calc.roi} años</div></div>
           </div>
         </div>
       )}
