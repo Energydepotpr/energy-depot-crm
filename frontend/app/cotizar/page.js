@@ -1,32 +1,43 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-c4232.up.railway.app';
 
 const LOGO = 'https://energy-depot-web.vercel.app/logo.png';
 
-const PRICING = {
+const DEFAULT_PRICING = {
   panelPrice: 1084,
   panelWatts: 550,
   tarifaLuma: 0.26,
   factorProduccion: 1460,
   pmt15: 0.008711,
 };
+const DEFAULT_BATERIAS = [
+  { name: 'SolaX ESS 10.24 kWh', precio: 9900 },
+  { name: 'SolaX ESS 15.36 kWh', precio: 12950 },
+  { name: 'SolaX ESS 20.48 kWh', precio: 15900 },
+  { name: 'FranklinWH G2',       precio: 13539 },
+  { name: 'Tesla PowerWall 3',   precio: 11992 },
+];
 
-function calc(meses) {
+function calc(meses, batPrecio = 0, pricing = DEFAULT_PRICING) {
   const filled = meses.map(Number).filter(v => v > 0);
   if (!filled.length) return null;
   const avg = filled.reduce((a,b)=>a+b,0) / filled.length;
   const annCons = Math.round(avg * 12);
-  const panels = Math.round(annCons * 1.07 / PRICING.factorProduccion * 1000 / PRICING.panelWatts);
-  const kw = +(panels * PRICING.panelWatts / 1000).toFixed(2);
-  const annProd = Math.round(kw * PRICING.factorProduccion);
-  const costBase = Math.round(panels * PRICING.panelPrice);
-  const pagoLuma = Math.round(avg * PRICING.tarifaLuma);
+  const panels = Math.round(annCons * 1.07 / pricing.factorProduccion * 1000 / pricing.panelWatts);
+  const kw = +(panels * pricing.panelWatts / 1000).toFixed(2);
+  const annProd = Math.round(kw * pricing.factorProduccion);
+  const costBase = Math.round(panels * pricing.panelPrice);
+  const sub = costBase + batPrecio;
+  const pagoLuma = Math.round(avg * pricing.tarifaLuma);
   const offset = annCons > 0 ? Math.round(annProd / annCons * 100) : 0;
   return {
     avg: Math.round(avg), annCons, panels, kw, annProd, costBase, offset,
-    pagoLuma, pagoFV: Math.round(costBase * PRICING.pmt15),
+    pagoLuma,
+    pagoFV: Math.round(costBase * pricing.pmt15),
+    pagoBat: Math.round(sub * pricing.pmt15),
+    sub,
     annualSavings: pagoLuma * 12,
   };
 }
@@ -43,8 +54,37 @@ export default function CotizarPage() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [err, setErr] = useState('');
+  const [bateriasList, setBateriasList] = useState(DEFAULT_BATERIAS);
+  const [pricing, setPricing] = useState(DEFAULT_PRICING);
+  const [selectedBatt, setSelectedBatt] = useState({}); // { name: qty }
 
-  const c = useMemo(() => calc(meses), [meses]);
+  useEffect(() => {
+    fetch(API + '/api/public/solar-config')
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d.solar_batteries) && d.solar_batteries.length) setBateriasList(d.solar_batteries);
+        if (d.solar_pricing) setPricing({ ...DEFAULT_PRICING, ...d.solar_pricing });
+      })
+      .catch(() => {});
+  }, []);
+
+  const batPrecio = useMemo(() => Object.entries(selectedBatt).reduce((s, [name, qty]) => {
+    const b = bateriasList.find(x => x.name === name);
+    return s + (b?.precio || 0) * (qty || 0);
+  }, 0), [selectedBatt, bateriasList]);
+
+  const c = useMemo(() => calc(meses, batPrecio, pricing), [meses, batPrecio, pricing]);
+
+  const setBattQty = (name, delta) => {
+    setSelectedBatt(prev => {
+      const cur = prev[name] || 0;
+      const next = Math.max(0, cur + delta);
+      const out = { ...prev };
+      if (next === 0) delete out[name];
+      else out[name] = next;
+      return out;
+    });
+  };
 
   const submit = async () => {
     setErr('');
@@ -53,18 +93,21 @@ export default function CotizarPage() {
     if (!c) { setErr('Llena al menos un mes de consumo'); return; }
     setSubmitting(true);
     try {
+      const batteries = Object.entries(selectedBatt).map(([n, q]) => ({
+        name: n, qty: q, unitPrice: bateriasList.find(b => b.name === n)?.precio || 0,
+      }));
       const r = await fetch(API + '/api/public/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name, email, phonenumber: phone, city,
-          meses, calc: c,
+          meses, calc: c, batteries,
           source: 'autocotizar-web',
         }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error');
-      setResult({ ...c, updated: data.updated });
+      setResult({ ...c, updated: data.updated, batPrecio });
       setStep(3);
     } catch (e) { setErr(e.message); }
     finally { setSubmitting(false); }
@@ -130,6 +173,36 @@ export default function CotizarPage() {
               </div>
             )}
 
+            {/* Baterías opcionales */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f2a5c', marginBottom: 4 }}>¿Quieres añadir batería de respaldo? <span style={{ color: '#94a3b8', fontWeight: 400, fontSize: 12 }}>(opcional)</span></div>
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>Selecciona qué baterías te interesan. Puedes elegir una o varias.</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 }}>
+                {bateriasList.map(b => {
+                  const qty = selectedBatt[b.name] || 0;
+                  const active = qty > 0;
+                  return (
+                    <div key={b.name} style={{ border: active ? '2px solid #1a3c8f' : '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', background: active ? 'rgba(26,60,143,0.06)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: active ? '#1a3c8f' : '#0f2a5c', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</div>
+                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>{fmt(b.precio)}</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <button onClick={() => setBattQty(b.name, -1)} disabled={qty === 0} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 700, cursor: qty > 0 ? 'pointer' : 'default', opacity: qty === 0 ? 0.4 : 1, color: '#0f2a5c' }}>−</button>
+                        <div style={{ minWidth: 22, textAlign: 'center', fontSize: 13, fontWeight: 800, color: active ? '#1a3c8f' : '#94a3b8' }}>{qty}</div>
+                        <button onClick={() => setBattQty(b.name, +1)} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', color: '#0f2a5c' }}>+</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {batPrecio > 0 && (
+                <div style={{ marginTop: 10, fontSize: 12, color: '#64748b' }}>
+                  Total baterías: <strong style={{ color: '#1a3c8f' }}>{fmt(batPrecio)}</strong>
+                </div>
+              )}
+            </div>
+
             {err && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 12, fontWeight: 500 }}>{err}</div>}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
@@ -161,9 +234,12 @@ export default function CotizarPage() {
               <div style={{ fontSize: 14, opacity: 0.85 }}>{result.panels} paneles · {result.annProd.toLocaleString()} kWh/año · {result.offset}% cobertura</div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: result.batPrecio > 0 ? '1fr 1fr 1fr' : '1fr 1fr', gap: 12, marginBottom: 20 }}>
               <ResultCard label="Pago LUMA actual" value={fmt(result.pagoLuma) + '/mes'} color="#ef4444" sub="Lo que pagas hoy" />
-              <ResultCard label="Pago Solar (estimado)" value={fmt(result.pagoFV) + '/mes'} color="#10b981" sub="Financiado 15 años" />
+              <ResultCard label="Solar (sin batería)" value={fmt(result.pagoFV) + '/mes'} color="#10b981" sub="Financiado 15 años" />
+              {result.batPrecio > 0 && (
+                <ResultCard label="Solar + Batería" value={fmt(result.pagoBat) + '/mes'} color="#1a3c8f" sub="Con respaldo de energía" />
+              )}
             </div>
 
             <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: 14, fontSize: 13, color: '#78350f', marginBottom: 20 }}>
