@@ -678,8 +678,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
       style={{
         position: 'fixed',
         top: 0, left: isMobile ? 0 : 68, right: 0,
-        bottom: isMobile ? 60 : 0,
-        zIndex: isMobile ? 200 : 50,
+        bottom: 0,
+        zIndex: isMobile ? 250 : 50,
         display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end',
       }}
     >
@@ -689,7 +689,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
       >
 
         {/* Header — always dark navy (Kommo style) */}
-        <div className="px-4 py-2 flex-shrink-0" style={{ background: '#1c2d3e', borderBottom: '1px solid #253b4f' }}>
+        <div className={isMobile ? "px-3 py-1.5 flex-shrink-0" : "px-4 py-2 flex-shrink-0"} style={{ background: '#1c2d3e', borderBottom: '1px solid #253b4f', paddingTop: isMobile ? 'calc(env(safe-area-inset-top, 0px) + 8px)' : undefined }}>
           {/* Fila 1: título + cerrar */}
           <div className="flex items-center justify-between gap-2 mb-1">
             <div className="font-semibold text-sm truncate flex-1" style={{ color: '#e0eaf5' }}>{lead.title}</div>
@@ -753,6 +753,14 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   {callStatus === 'active' ? `${Math.floor(callTimer/60).toString().padStart(2,'0')}:${(callTimer%60).toString().padStart(2,'0')}` : 'Llamar'}
                 </button>
               )}
+              <button
+                onClick={() => setTab('cotizar')}
+                title="Cotizar"
+                style={{ background: '#1a3c8f', border: 'none', borderRadius: 7, padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: '#fff', fontSize: 11, fontWeight: 600 }}
+              >
+                <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                Cotizar
+              </button>
               <button
                 onClick={() => setShowMerge(true)}
                 title="Unir leads"
@@ -3899,7 +3907,7 @@ export default function LeadsPage() {
             <MobileLeadCard
               key={lead.id}
               lead={lead}
-              onOpen={lead => setPreviewLead(lead)}
+              onOpen={lead => setPanelLeadId(lead.id)}
               onEdit={lead => setModal(lead)}
               onDelete={eliminar}
             />
