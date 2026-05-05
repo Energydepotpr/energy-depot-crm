@@ -75,6 +75,36 @@ export default function CotizarPage() {
 
   const c = useMemo(() => calc(meses, batPrecio, pricing), [meses, batPrecio, pricing]);
 
+  const [actionLoad, setActionLoad] = useState(null); // 'email'|'download'|null
+  const [actionMsg, setActionMsg] = useState('');
+
+  const propuestaAction = async (action) => {
+    if (!result?.lead_id) return;
+    setActionLoad(action);
+    setActionMsg('');
+    try {
+      const r = await fetch(`${API}/api/public/leads/${result.lead_id}/propuesta-action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, email }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Error');
+      if (action === 'download' && data.pdf) {
+        const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = data.filename || 'Propuesta.pdf'; a.click();
+        URL.revokeObjectURL(url);
+        setActionMsg('✓ PDF descargado');
+      } else if (action === 'email') {
+        setActionMsg(`✓ Enviado a ${data.to}`);
+      }
+    } catch (e) { setActionMsg('Error: ' + e.message); }
+    finally { setActionLoad(null); }
+  };
+
   const setBattQty = (name, delta) => {
     setSelectedBatt(prev => {
       const cur = prev[name] || 0;
@@ -107,7 +137,7 @@ export default function CotizarPage() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error');
-      setResult({ ...c, updated: data.updated, batPrecio });
+      setResult({ ...c, updated: data.updated, batPrecio, lead_id: data.lead_id });
       setStep(3);
     } catch (e) { setErr(e.message); }
     finally { setSubmitting(false); }
@@ -242,16 +272,31 @@ export default function CotizarPage() {
               )}
             </div>
 
-            <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: 14, fontSize: 13, color: '#78350f', marginBottom: 20 }}>
+            <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: 14, fontSize: 13, color: '#78350f', marginBottom: 16 }}>
               💡 Esto es una estimación. Un asesor te dará la cotización final con baterías, financiamiento y opciones específicas para tu hogar.
             </div>
 
+            {/* Propuesta PDF actions */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <button onClick={() => propuestaAction('download')} disabled={!!actionLoad}
+                style={{ background: '#1a3c8f', color: '#fff', border: 'none', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: actionLoad ? 0.6 : 1 }}>
+                {actionLoad === 'download' ? 'Generando…' : '↓ Descargar PDF'}
+              </button>
+              <button onClick={() => propuestaAction('email')} disabled={!!actionLoad || !email}
+                style={{ background: 'transparent', color: '#1a3c8f', border: '1px solid #1a3c8f', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: actionLoad || !email ? 0.6 : 1 }}>
+                {actionLoad === 'email' ? 'Enviando…' : `✉ Enviar a ${email || 'mi correo'}`}
+              </button>
+            </div>
+            {actionMsg && (
+              <div style={{ fontSize: 13, color: actionMsg.startsWith('✓') ? '#10b981' : '#ef4444', marginBottom: 14, fontWeight: 600 }}>{actionMsg}</div>
+            )}
+
             <a href="https://wa.me/17876278585" target="_blank" rel="noopener noreferrer"
-              style={{ display: 'block', background: '#25d366', color: '#fff', textAlign: 'center', padding: '14px', borderRadius: 10, fontSize: 15, fontWeight: 700, textDecoration: 'none', marginBottom: 10 }}>
+              style={{ display: 'block', background: '#25d366', color: '#fff', textAlign: 'center', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, textDecoration: 'none', marginTop: 14, marginBottom: 8 }}>
               Hablar por WhatsApp ahora →
             </a>
             <a href="tel:7876278585"
-              style={{ display: 'block', background: 'transparent', color: '#1a3c8f', textAlign: 'center', padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none', border: '1px solid #1a3c8f' }}>
+              style={{ display: 'block', background: 'transparent', color: '#1a3c8f', textAlign: 'center', padding: '11px', borderRadius: 10, fontSize: 13, fontWeight: 600, textDecoration: 'none', border: '1px solid #e2e8f0' }}>
               Llamar al 787-627-8585
             </a>
           </div>
