@@ -651,6 +651,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   };
 
   const generarResumen = async () => {
+    // Toggle: si ya hay resumen, cerrarlo
+    if (resumen) { setResumen(null); return; }
     setResumenLoading(true);
     try {
       const data = await api.leadResumen(leadId);
@@ -691,8 +693,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
         {/* Header — always dark navy (Kommo style) */}
         <div className={isMobile ? "flex-shrink-0" : "px-4 py-2 flex-shrink-0"} style={{ background: '#1c2d3e', borderBottom: '1px solid #253b4f', paddingTop: isMobile ? 'calc(env(safe-area-inset-top, 0px) + 10px)' : undefined, paddingLeft: isMobile ? 8 : undefined, paddingRight: isMobile ? 8 : undefined, paddingBottom: isMobile ? 10 : undefined }}>
           {/* Fila 1: título + cerrar */}
-          <div className="flex items-center justify-between gap-2" style={{ marginBottom: isMobile ? 2 : 4 }}>
-            <div style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 16 : 14, fontWeight: 600, color: '#e0eaf5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lead.title}</div>
+          <div className="flex items-center justify-between gap-2" style={{ marginBottom: isMobile ? 0 : 4 }}>
+            <div style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 14, fontWeight: 600, color: '#e0eaf5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lead.title}</div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {onNavigate && leads.length > 1 && (() => {
                 const idx = leads.findIndex(l => l.id === leadId);
@@ -717,12 +719,16 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
               )}
             </div>
           </div>
-          {/* Fila 2: contacto + teléfono */}
+          {/* Fila 2: contacto + teléfono — oculto si el nombre del contacto ya está en el title */}
           {(lead.contact_name || lead.contact_phone) && (() => {
-            const hasRealName = lead.contact_name && lead.contact_name !== lead.contact_phone;
+            // Si title contiene contact_name, no repetimos el nombre
+            const titleHasName = lead.contact_name && lead.title?.toLowerCase().includes(lead.contact_name.toLowerCase());
+            const showName = lead.contact_name && lead.contact_name !== lead.contact_phone && !titleHasName;
+            const showPhone = !!lead.contact_phone;
+            if (!showName && !showPhone) return null;
             return (
-              <div className="truncate" style={{ color: '#7a9ab8', fontSize: isMobile ? 13 : 12, marginBottom: 2 }}>
-                {hasRealName ? lead.contact_name : ''}{lead.contact_phone ? `${hasRealName ? ' · ' : ''}${lead.contact_phone}` : ''}
+              <div className="truncate" style={{ color: '#7a9ab8', fontSize: isMobile ? 11 : 12, marginBottom: 2, lineHeight: 1.3 }}>
+                {showName ? lead.contact_name : ''}{showPhone ? `${showName ? ' · ' : ''}${lead.contact_phone}` : ''}
               </div>
             );
           })()}
