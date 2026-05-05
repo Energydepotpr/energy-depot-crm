@@ -151,6 +151,19 @@ function CotizadorInner() {
         </div>
         <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
           {msg.text && <span style={{ fontSize:12, fontWeight:600, color: msg.ok ? '#10b981' : '#ef4444' }}>{msg.text}</span>}
+          <button
+            onClick={() => {
+              const link = (typeof window !== 'undefined' ? window.location.origin : 'https://crm-energydepotpr.com') + '/cotizar';
+              navigator.clipboard.writeText(link).then(() => {
+                setMsg({ ok: true, text: '✓ Link copiado: ' + link });
+                setTimeout(() => setMsg({ ok: true, text: '' }), 4000);
+              });
+            }}
+            title="Copiar link público para que el cliente se autocotice"
+            style={{ background:'rgba(124,58,237,0.10)', border:'1px solid #7c3aed', borderRadius:7, padding:'7px 14px', fontSize:12, fontWeight:600, color:'#7c3aed', cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+            Copiar link autocotizar
+          </button>
           <button onClick={guardarLead} disabled={saveLoading || !info.name.trim()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:7, padding:'7px 16px', fontSize:13, fontWeight:600, color:'var(--text)', cursor:'pointer', opacity: saveLoading || !info.name.trim() ? 0.5 : 1 }}>
             {saveLoading ? 'Guardando…' : leadId ? 'Actualizar Lead' : 'Guardar como Lead'}
           </button>
