@@ -689,7 +689,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
       >
 
         {/* Header — always dark navy (Kommo style) */}
-        <div className="px-4 py-3 flex-shrink-0" style={{ background: '#1c2d3e', borderBottom: '1px solid #253b4f' }}>
+        <div className="px-4 py-2 flex-shrink-0" style={{ background: '#1c2d3e', borderBottom: '1px solid #253b4f' }}>
           {/* Fila 1: título + cerrar */}
           <div className="flex items-center justify-between gap-2 mb-1">
             <div className="font-semibold text-sm truncate flex-1" style={{ color: '#e0eaf5' }}>{lead.title}</div>
@@ -722,7 +722,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           {(lead.contact_name || lead.contact_phone) && (() => {
             const hasRealName = lead.contact_name && lead.contact_name !== lead.contact_phone;
             return (
-              <div className="text-xs mb-2 truncate" style={{ color: '#7a9ab8' }}>
+              <div className="text-xs mb-1 truncate" style={{ color: '#7a9ab8' }}>
                 {hasRealName ? lead.contact_name : ''}{lead.contact_phone ? `${hasRealName ? ' · ' : ''}${lead.contact_phone}` : ''}
               </div>
             );
@@ -753,16 +753,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   </svg>
                   {callStatus === 'active' ? `${Math.floor(callTimer/60).toString().padStart(2,'0')}:${(callTimer%60).toString().padStart(2,'0')}` : 'Llamar'}
                 </button>
-              )}
-              {!isMobile && (
-                <select
-                  value={lead.stage_id || ''}
-                  onChange={e => moverEtapa(e.target.value)}
-                  style={{ maxWidth: 110, fontSize: 11, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 7, padding: '4px 6px', color: '#b0c8e0', outline: 'none' }}
-                >
-                  <option value="">Etapa...</option>
-                  {allStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
               )}
               <button
                 onClick={() => setShowMerge(true)}
@@ -1129,52 +1119,6 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           {/* CHAT */}
           {tab === 'chat' && (
             <div className="flex flex-col h-full">
-              {/* Pipeline + Stage chips (Kommo style) — desktop only */}
-              {!isMobile && (() => {
-                const pip = pipelines.find(p => p.id === lead.pipeline_id);
-                const stageName = lead.stage_name || 'Etapa';
-                const pipelineName = pip?.name || lead.pipeline_name || 'Pipeline';
-                return (
-                  <div style={{ flexShrink: 0, background: '#0f1419', borderBottom: '1px solid #242a35' }}>
-                    <div style={{ display: 'flex', gap: 6, padding: '6px 12px', flexWrap: 'wrap' }}>
-                      {/* Pipeline chip — outline style */}
-                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 3, border: '1px solid #64748b', color: '#94a3b8', cursor: 'default', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                        title={pipelineName}>
-                        {pipelineName.length > 18 ? pipelineName.slice(0, 18) + '…' : pipelineName}
-                      </span>
-                      {/* Stage chip — yellow, toggles dropdown */}
-                      <span
-                        onClick={() => setShowStageDropdown(s => !s)}
-                        style={{ fontSize: 11, padding: '2px 8px', borderRadius: 3, background: '#ffbc00', color: '#000', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'relative' }}
-                        title={stageName}>
-                        {stageName.length > 22 ? stageName.slice(0, 22) + '…' : stageName} ▼
-                      </span>
-                    </div>
-                    {/* Stage selector dropdown */}
-                    {showStageDropdown && (
-                      <div style={{ padding: '6px 12px 10px', borderTop: '1px solid #1e2a38' }}>
-                        <div style={{ fontSize: 10, color: '#64748b', marginBottom: 5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cambiar etapa</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                          {allStages.map(s => (
-                            <button
-                              key={s.id}
-                              onClick={async () => { await moverEtapa(s.id); setShowStageDropdown(false); }}
-                              style={{
-                                fontSize: 11, padding: '3px 10px', borderRadius: 12, cursor: 'pointer', border: 'none',
-                                background: lead.stage_id === s.id ? (s.color || '#ffbc00') : `${s.color || '#64748b'}22`,
-                                color: lead.stage_id === s.id ? '#000' : (s.color || '#94a3b8'),
-                                fontWeight: lead.stage_id === s.id ? 700 : 400,
-                              }}
-                            >
-                              {s.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
               {/* Bot toggle + AI summary bar */}
               <div className="px-4 pt-3 pb-1 flex-shrink-0 flex items-center gap-2 flex-wrap">
                 {/* Bot on/off toggle */}
