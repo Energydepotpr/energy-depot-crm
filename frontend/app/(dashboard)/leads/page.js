@@ -2995,45 +2995,76 @@ function LeadModal({ lead, pipelines, agents, onClose, onSaved }) {
 function KanbanColumn({ stage, leads, onMove, onEdit, onDelete, onOpen, selectMode, selectedIds, onToggleSelect, unreadByLead }) {
   const [over, setOver] = useState(false);
   const total = leads.reduce((s, l) => s + (Number(l.value) || 0), 0);
+  const stageColor = stage.color || '#1a3c8f';
   return (
     <div
       data-stage-id={stage.id}
       style={{
-        flexShrink: 0, width: 260, display: 'flex', flexDirection: 'column',
-        background: 'transparent',
-        transition: 'background 0.15s',
+        flexShrink: 0, width: 280, display: 'flex', flexDirection: 'column',
+        background: over ? 'rgba(103,232,249,0.06)' : 'transparent',
+        borderRadius: 12,
+        transition: 'background 0.18s',
       }}
       onDragOver={e => { e.preventDefault(); setOver(true); }}
       onDragLeave={() => setOver(false)}
       onDrop={e => { setOver(false); const id = e.dataTransfer.getData('lead_id'); if (id) onMove(Number(id), stage.id); }}
     >
-      {/* Column header */}
+      {/* Sticky column header */}
       <div style={{
-        padding: '10px 12px 8px',
-        borderBottom: `2px solid ${stage.color || '#1b9af5'}`,
-        marginBottom: 6,
+        position: 'sticky', top: 0, zIndex: 5,
+        background: 'var(--surface)',
+        padding: '12px 14px 10px',
+        borderRadius: '10px 10px 0 0',
+        border: '1px solid var(--border)',
+        borderBottom: 'none',
+        marginBottom: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: stageColor, flexShrink: 0 }} />
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.05em', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {stage.name}
           </span>
-          <span style={{ fontSize: 11, color: 'var(--muted)', background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: '1px 7px' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', background: 'rgba(26,60,143,0.10)', borderRadius: 999, padding: '2px 8px', minWidth: 22, textAlign: 'center' }}>
             {leads.length}
           </span>
         </div>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-          {leads.length} Clientes potenciales{total > 0 ? `: $${total.toLocaleString()}` : ''}
-        </div>
+        {total > 0 && (
+          <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, letterSpacing: '0.01em' }}>
+            ${total.toLocaleString()}
+          </div>
+        )}
       </div>
+      {/* Stage accent bar under header */}
+      <div style={{ height: 2, background: stageColor, opacity: 0.85 }} />
 
       {/* Cards */}
-      <div style={{ flex: 1, padding: '0 4px', overflowY: 'auto', maxHeight: 'calc(100dvh - 220px)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{
+        flex: 1, padding: '8px 6px 6px', overflowY: 'auto',
+        maxHeight: 'calc(100dvh - 220px)',
+        display: 'flex', flexDirection: 'column', gap: 8,
+        background: 'var(--bg)',
+        border: '1px solid var(--border)',
+        borderTop: 'none',
+        borderRadius: '0 0 10px 10px',
+      }}>
+        {leads.length === 0 && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: '28px 12px', textAlign: 'center', gap: 6,
+            border: '1px dashed var(--border)', borderRadius: 10, margin: 4,
+          }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ color: 'var(--muted)', opacity: 0.6 }}>
+              <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/>
+            </svg>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>Arrastra leads aquí</span>
+          </div>
+        )}
         {leads.map(lead => {
           const isSelected = selectedIds.has(lead.id);
           const displayName = lead.contact_name || lead.title || 'Sin nombre';
           const tags = Array.isArray(lead.tags) ? lead.tags.filter(t => t && t.tag) : [];
           const fecha = lead.updated_at
-            ? new Date(lead.updated_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+            ? new Date(lead.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : '';
           return (
             <div
@@ -3059,46 +3090,68 @@ function KanbanColumn({ stage, leads, onMove, onEdit, onDelete, onOpen, selectMo
                 }
               }}
               style={{
-                background: isSelected ? 'rgba(27,154,245,0.08)' : 'var(--surface)',
-                border: isSelected ? '1px solid rgba(27,154,245,0.5)' : '1px solid var(--border)',
-                borderRadius: 6,
-                padding: '9px 10px 8px',
-                cursor: 'pointer',
-                transition: 'border-color 0.15s, background 0.15s',
                 position: 'relative',
+                background: 'var(--surface)',
+                border: isSelected ? '1px solid #67e8f9' : '1px solid var(--border)',
+                borderRadius: 10,
+                padding: '11px 12px 10px 16px',
+                cursor: 'pointer',
+                transition: 'transform 0.18s, border-color 0.18s, box-shadow 0.18s',
+                boxShadow: isSelected ? '0 0 0 3px rgba(103,232,249,0.18)' : '0 1px 2px rgba(15,42,92,0.04)',
+                overflow: 'hidden',
               }}
-              onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = 'rgba(27,154,245,0.4)'; e.currentTarget.style.background = 'var(--surface2)'; } }}
-              onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface)'; } }}
+              onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#67e8f9'; e.currentTarget.style.boxShadow = '0 6px 14px -4px rgba(26,60,143,0.18)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+              onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,42,92,0.04)'; e.currentTarget.style.transform = 'translateY(0)'; } }}
             >
+              {/* Stage accent strip */}
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: stageColor }} />
+
               {/* Select checkbox (select mode) */}
               {selectMode && (
-                <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${isSelected ? '#1b9af5' : 'var(--muted)'}`, background: isSelected ? '#1b9af5' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-                  {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>}
+                <div style={{ width: 17, height: 17, borderRadius: 5, border: `2px solid ${isSelected ? '#67e8f9' : 'var(--muted)'}`, background: isSelected ? '#67e8f9' : 'transparent', boxShadow: isSelected ? '0 0 0 3px rgba(103,232,249,0.25)' : 'none', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 7 }}>
+                  {isSelected && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0f2a5c" strokeWidth="3.5"><path d="M5 13l4 4L19 7" /></svg>}
                 </div>
               )}
 
               {/* Name + unread badge */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', lineHeight: 1.35, flex: 1, minWidth: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#1a3c8f', lineHeight: 1.35, flex: 1, minWidth: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                   {displayName}
                 </span>
                 {unreadByLead?.[lead.id] > 0 && (
-                  <span style={{ background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 10, padding: '1px 5px', flexShrink: 0, marginTop: 1 }}>
+                  <span style={{ background: '#ef4444', color: '#fff', fontSize: 9.5, fontWeight: 700, borderRadius: 999, padding: '2px 6px', flexShrink: 0, marginTop: 1 }}>
                     {unreadByLead[lead.id]}
                   </span>
                 )}
               </div>
 
-              {/* Date */}
-              {fecha && (
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{fecha}</div>
+              {/* Value pill */}
+              {lead.value > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.10)', borderRadius: 6, padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    ${Number(lead.value).toLocaleString()}
+                  </span>
+                </div>
+              )}
+
+              {/* Contact info */}
+              {(lead.contact_phone || fecha) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 11, color: 'var(--muted)' }}>
+                  {lead.contact_phone && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                      {lead.contact_phone}
+                    </span>
+                  )}
+                  {fecha && <span style={{ marginLeft: 'auto' }}>{fecha}</span>}
+                </div>
               )}
 
               {/* Tags */}
               {tags.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 5 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 7 }}>
                   {tags.slice(0, 3).map((tg, i) => (
-                    <span key={i} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: `${tg.color || '#1b9af5'}22`, color: tg.color || '#1b9af5', fontWeight: 500, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span key={i} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: `${tg.color || '#1a3c8f'}18`, color: tg.color || '#1a3c8f', fontWeight: 600, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {tg.tag}
                     </span>
                   ))}
@@ -3106,30 +3159,36 @@ function KanbanColumn({ stage, leads, onMove, onEdit, onDelete, onOpen, selectMo
               )}
 
               {/* Bottom row: personas + assigned agent */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-                {lead.cantidad_personas ? (
-                  <span style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    {lead.cantidad_personas}
-                  </span>
-                ) : <span />}
-                {lead.assigned_name && (
-                  <span style={{ fontSize: 10, color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>
-                    {lead.assigned_name.split(' ')[0]}
-                  </span>
-                )}
-              </div>
+              {(lead.cantidad_personas || lead.assigned_name) && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 7, borderTop: '1px dashed var(--border)' }}>
+                  {lead.cantidad_personas ? (
+                    <span style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      {lead.cantidad_personas}
+                    </span>
+                  ) : <span />}
+                  {lead.assigned_name && (
+                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>
+                      <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'linear-gradient(135deg,#1a3c8f,#67e8f9)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700 }}>
+                        {lead.assigned_name[0].toUpperCase()}
+                      </span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{lead.assigned_name.split(' ')[0]}</span>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
 
         {/* Add lead button at bottom of column */}
         <button
-          style={{ width: '100%', padding: '7px', fontSize: 12, color: 'var(--muted)', background: 'none', border: '1px dashed var(--border)', borderRadius: 8, cursor: 'pointer', textAlign: 'center', marginTop: 2 }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = '#1b9af5'; e.currentTarget.style.color = '#1b9af5'; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--muted)'; }}
+          style={{ width: '100%', padding: '8px', fontSize: 11.5, fontWeight: 600, color: 'var(--muted)', background: 'none', border: '1px dashed var(--border)', borderRadius: 8, cursor: 'pointer', textAlign: 'center', marginTop: 2, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#1a3c8f'; e.currentTarget.style.color = '#1a3c8f'; e.currentTarget.style.background = 'rgba(26,60,143,0.04)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'none'; }}
         >
-          + Agregar lead
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar lead
         </button>
       </div>
     </div>
@@ -3141,7 +3200,7 @@ function KanbanColumn({ stage, leads, onMove, onEdit, onDelete, onOpen, selectMo
 function LeadRow({ lead, onOpen, onEdit, onDelete, selectMode, selectedIds, onToggleSelect, isLast }) {
   const isSelected = selectedIds.has(lead.id);
   const initial    = (lead.contact_name || lead.title || '?')[0].toUpperCase();
-  const avatarColor = lead.stage_color || '#2dd4bf';
+  const avatarColor = lead.stage_color || '#1a3c8f';
   const createdDate = lead.created_at ? new Date(lead.created_at).toLocaleDateString('es-PR', { month: 'short', day: 'numeric' }) : '';
   const sd_        = lead.solar_data || {};
   const hasSolar   = !!(sd_ && (sd_.meses?.some(v => Number(v) > 0) || sd_.calc?.systemKw > 0 || sd_.pagoLuz || sd_.batteries?.length));
@@ -3149,43 +3208,48 @@ function LeadRow({ lead, onOpen, onEdit, onDelete, selectMode, selectedIds, onTo
   return (
     <div
       onClick={selectMode ? () => onToggleSelect(lead.id) : () => onOpen(lead.id)}
-      style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 16px', borderBottom: isLast ? 'none' : '1px solid #242a35', cursor:'pointer', background: isSelected ? 'rgba(45,212,191,0.06)' : 'transparent', transition:'background 0.12s' }}
-      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
-      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isSelected ? 'rgba(45,212,191,0.06)' : 'transparent'; }}
+      style={{ position:'relative', display:'flex', alignItems:'center', gap:12, padding:'12px 16px 12px 20px', borderBottom: isLast ? 'none' : '1px solid var(--border)', cursor:'pointer', background: isSelected ? 'rgba(103,232,249,0.08)' : 'transparent', transition:'background 0.15s' }}
+      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(26,60,143,0.04)'; }}
+      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isSelected ? 'rgba(103,232,249,0.08)' : 'transparent'; }}
     >
+      {/* Stage accent strip */}
+      <div style={{ position:'absolute', left:0, top:0, bottom:0, width:3, background:avatarColor }} />
       {selectMode && (
-        <div style={{ width:16, height:16, borderRadius:4, border:`2px solid ${isSelected?'#2dd4bf':'#64748b'}`, background:isSelected?'#2dd4bf':'transparent', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0f1419" strokeWidth="3"><path d="M5 13l4 4L19 7"/></svg>}
+        <div style={{ width:17, height:17, borderRadius:5, border:`2px solid ${isSelected?'#67e8f9':'var(--muted)'}`, background:isSelected?'#67e8f9':'transparent', boxShadow: isSelected ? '0 0 0 3px rgba(103,232,249,0.25)' : 'none', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          {isSelected && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0f2a5c" strokeWidth="3.5"><path d="M5 13l4 4L19 7"/></svg>}
         </div>
       )}
-      <div style={{ width:36, height:36, borderRadius:'50%', background:`${avatarColor}22`, color:avatarColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700, flexShrink:0, border:`1px solid ${avatarColor}33` }}>
+      <div style={{ width:38, height:38, borderRadius:'50%', background:`linear-gradient(135deg, ${avatarColor}, #67e8f9)`, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700, flexShrink:0, boxShadow:'0 2px 4px rgba(15,42,92,0.15)' }}>
         {initial}
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-          <span style={{ fontSize:13, fontWeight:600, color:'#2dd4bf', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:220 }} title={lead.title}>{lead.title}</span>
-          {lead.stage_name && <span style={{ fontSize:10, padding:'1px 7px', borderRadius:10, background:`${lead.stage_color||'#64748b'}22`, color:lead.stage_color||'#94a3b8', border:`1px solid ${lead.stage_color||'#64748b'}33`, whiteSpace:'nowrap' }}>{lead.stage_name}</span>}
-          {lead.value > 0 && <span style={{ fontSize:11, color:'#10b981', fontWeight:600 }}>${Number(lead.value).toLocaleString()}</span>}
-          {hasSolar && !hasCalc && <span style={{ fontSize:10, padding:'1px 7px', borderRadius:10, background:'rgba(251,191,36,0.15)', color:'#fbbf24', border:'1px solid rgba(251,191,36,0.3)', whiteSpace:'nowrap' }}>☀️ Sin cotizar</span>}
-          {hasCalc && <span style={{ fontSize:10, padding:'1px 7px', borderRadius:10, background:'rgba(26,60,143,0.2)', color:'#60a5fa', border:'1px solid rgba(26,60,143,0.4)', whiteSpace:'nowrap' }}>☀️ {lead.solar_data.calc.systemKw}kW</span>}
+          <span style={{ fontSize:13.5, fontWeight:700, color:'#1a3c8f', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:240 }} title={lead.title}>{lead.title}</span>
+          {lead.stage_name && <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:999, background:`${lead.stage_color||'#1a3c8f'}18`, color:lead.stage_color||'#1a3c8f', whiteSpace:'nowrap' }}>{lead.stage_name}</span>}
+          {lead.value > 0 && <span style={{ fontSize:11, fontWeight:700, color:'#10b981', background:'rgba(16,185,129,0.10)', borderRadius:6, padding:'2px 7px' }}>${Number(lead.value).toLocaleString()}</span>}
+          {hasSolar && !hasCalc && <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:999, background:'rgba(245,158,11,0.12)', color:'#d97706', whiteSpace:'nowrap' }}>Sin cotizar</span>}
+          {hasCalc && <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:999, background:'rgba(26,60,143,0.10)', color:'#1a3c8f', whiteSpace:'nowrap' }}>{lead.solar_data.calc.systemKw} kW</span>}
         </div>
         {lead.tags?.length > 0 && (
-          <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginTop:4 }}>
-            {lead.tags.slice(0,4).map((tag,ti) => <span key={ti} style={{ fontSize:10, padding:'1px 6px', borderRadius:3, background:'rgba(100,116,139,0.2)', color:'#94a3b8', border:'1px solid rgba(100,116,139,0.3)' }}>{typeof tag==='string'?tag:tag.tag}</span>)}
+          <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginTop:5 }}>
+            {lead.tags.slice(0,4).map((tag,ti) => {
+              const tg = typeof tag==='string' ? { tag, color: '#1a3c8f' } : tag;
+              return <span key={ti} style={{ fontSize:10, padding:'1px 7px', borderRadius:999, background:`${tg.color||'#1a3c8f'}15`, color:tg.color||'#1a3c8f', fontWeight:600 }}>{tg.tag}</span>;
+            })}
           </div>
         )}
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:3, flexWrap:'wrap' }}>
-          {createdDate && <span style={{ fontSize:10, color:'#64748b' }}>{createdDate}</span>}
-          {lead.assigned_name && <span style={{ fontSize:10, color:'#2dd4bf', display:'flex', alignItems:'center', gap:4 }}><div style={{ width:14, height:14, borderRadius:'50%', background:'rgba(45,212,191,0.2)', color:'#2dd4bf', display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700 }}>{lead.assigned_name[0].toUpperCase()}</div>{lead.assigned_name}</span>}
-          {lead.contact_phone && <span style={{ fontSize:10, color:'#64748b' }}>📞 {lead.contact_phone}</span>}
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:5, flexWrap:'wrap' }}>
+          {createdDate && <span style={{ fontSize:10.5, color:'var(--muted)' }}>{createdDate}</span>}
+          {lead.assigned_name && <span style={{ fontSize:10.5, color:'var(--text)', fontWeight:600, display:'flex', alignItems:'center', gap:5 }}><span style={{ width:16, height:16, borderRadius:'50%', background:'linear-gradient(135deg,#1a3c8f,#67e8f9)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700 }}>{lead.assigned_name[0].toUpperCase()}</span>{lead.assigned_name}</span>}
+          {lead.contact_phone && <span style={{ fontSize:10.5, color:'var(--muted)', display:'inline-flex', alignItems:'center', gap:4 }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>{lead.contact_phone}</span>}
         </div>
       </div>
       <div style={{ flexShrink:0, textAlign:'right' }}>
-        <span style={{ fontSize:10, color:'#64748b', whiteSpace:'nowrap' }}>{tiempoRelativo(lead.updated_at)}</span>
+        <span style={{ fontSize:10.5, color:'var(--muted)', whiteSpace:'nowrap' }}>{tiempoRelativo(lead.updated_at)}</span>
         {!selectMode && (
-          <div style={{ display:'flex', gap:4, justifyContent:'flex-end', marginTop:4 }}>
-            <button onClick={e=>{ e.stopPropagation(); onEdit(lead); }} style={{ fontSize:10, color:'#64748b', background:'none', border:'none', cursor:'pointer', padding:'2px 5px', borderRadius:4 }} onMouseEnter={e=>e.currentTarget.style.color='#fff'} onMouseLeave={e=>e.currentTarget.style.color='#64748b'}>Editar</button>
-            <button onClick={e=>{ e.stopPropagation(); onDelete(lead.id); }} style={{ fontSize:10, color:'#64748b', background:'none', border:'none', cursor:'pointer', padding:'2px 5px', borderRadius:4 }} onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color='#64748b'}>Eliminar</button>
+          <div style={{ display:'flex', gap:2, justifyContent:'flex-end', marginTop:5 }}>
+            <button onClick={e=>{ e.stopPropagation(); onEdit(lead); }} style={{ fontSize:10.5, fontWeight:600, color:'var(--muted)', background:'none', border:'1px solid var(--border)', cursor:'pointer', padding:'3px 9px', borderRadius:6, transition:'all 0.15s' }} onMouseEnter={e=>{ e.currentTarget.style.color='#1a3c8f'; e.currentTarget.style.borderColor='#1a3c8f'; }} onMouseLeave={e=>{ e.currentTarget.style.color='var(--muted)'; e.currentTarget.style.borderColor='var(--border)'; }}>Editar</button>
+            <button onClick={e=>{ e.stopPropagation(); onDelete(lead.id); }} style={{ fontSize:10.5, fontWeight:600, color:'var(--muted)', background:'none', border:'1px solid var(--border)', cursor:'pointer', padding:'3px 9px', borderRadius:6, transition:'all 0.15s' }} onMouseEnter={e=>{ e.currentTarget.style.color='#ef4444'; e.currentTarget.style.borderColor='#ef4444'; }} onMouseLeave={e=>{ e.currentTarget.style.color='var(--muted)'; e.currentTarget.style.borderColor='var(--border)'; }}>Eliminar</button>
           </div>
         )}
       </div>
@@ -3200,13 +3264,14 @@ function ListaView({ leads, onOpen, onEdit, onDelete, selectMode, selectedIds, o
   const listos    = leads.filter(tieneSolar);
   const sinDatos  = leads.filter(l => !tieneSolar(l));
 
-  const Section = ({ title, color, bg, items }) => items.length === 0 ? null : (
-    <div style={{ marginBottom:18 }}>
-      <div style={{ padding:'7px 16px', background:bg, borderRadius:'8px 8px 0 0', display:'flex', alignItems:'center', gap:8 }}>
-        <span style={{ fontSize:11, fontWeight:700, color, textTransform:'uppercase', letterSpacing:'0.06em' }}>{title}</span>
-        <span style={{ fontSize:11, color, opacity:0.7 }}>({items.length})</span>
+  const Section = ({ title, color, bg, items, accent }) => items.length === 0 ? null : (
+    <div style={{ marginBottom:20 }}>
+      <div style={{ padding:'10px 16px', background:bg, borderRadius:'10px 10px 0 0', display:'flex', alignItems:'center', gap:10, border:'1px solid var(--border)', borderBottom:'none' }}>
+        {accent && <span style={{ width:8, height:8, borderRadius:2, background:accent }} />}
+        <span style={{ fontSize:11.5, fontWeight:700, color, textTransform:'uppercase', letterSpacing:'0.06em' }}>{title}</span>
+        <span style={{ fontSize:11, fontWeight:600, color, background:'rgba(255,255,255,0.5)', borderRadius:999, padding:'1px 8px' }}>{items.length}</span>
       </div>
-      <div style={{ background:'#161b24', border:'1px solid #242a35', borderTop:'none', borderRadius:'0 0 8px 8px', overflow:'hidden' }}>
+      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderTop:'none', borderRadius:'0 0 10px 10px', overflow:'hidden', boxShadow:'0 1px 3px rgba(15,42,92,0.04)' }}>
         {items.map((lead,i) => <LeadRow key={lead.id} lead={lead} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} selectMode={selectMode} selectedIds={selectedIds} onToggleSelect={onToggleSelect} isLast={i===items.length-1} />)}
       </div>
     </div>
@@ -3214,8 +3279,8 @@ function ListaView({ leads, onOpen, onEdit, onDelete, selectMode, selectedIds, o
 
   return (
     <div>
-      <Section title="☀️ Listos para cotizar" color="#fbbf24" bg="rgba(251,191,36,0.1)" items={listos} />
-      <Section title="Todos los leads" color="#64748b" bg="rgba(100,116,139,0.07)" items={sinDatos} />
+      <Section title="Listos para cotizar" color="#b45309" bg="rgba(245,158,11,0.10)" accent="#f59e0b" items={listos} />
+      <Section title="Todos los leads" color="#1a3c8f" bg="rgba(26,60,143,0.06)" accent="#1a3c8f" items={sinDatos} />
     </div>
   );
 }
@@ -3854,53 +3919,58 @@ export default function LeadsPage() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
       {confirmDialog && <ConfirmModal message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
-      {/* Kommo-style top bar */}
+      {/* Top toolbar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 0,
         borderBottom: '1px solid var(--border)',
         background: 'var(--surface)',
-        padding: '0 16px',
-        height: 52,
+        padding: '0 18px',
+        height: 60,
         flexShrink: 0,
+        boxShadow: '0 1px 2px rgba(15,42,92,0.03)',
       }}>
         {/* Pipeline selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 22, paddingRight: 18, borderRight: '1px solid var(--border)', height: 40 }}>
+          <span style={{ width: 6, height: 24, borderRadius: 3, background: 'linear-gradient(180deg, #1a3c8f, #67e8f9)' }} />
           {pipelines.length > 1 ? (
             <select
               value={activePipeline || ''}
               onChange={e => { const pid = Number(e.target.value); setActivePipeline(pid); cargar(pid); }}
-              style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}
+              style={{ background: 'none', border: 'none', outline: 'none', color: '#1a3c8f', fontSize: 13.5, fontWeight: 800, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}
             >
-              {pipelines.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--surface)' }}>{p.name}</option>)}
+              {pipelines.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--surface)', color: 'var(--text)' }}>{p.name}</option>)}
             </select>
           ) : (
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {pipeline?.name || 'VENTAS'} ▾
+            <span style={{ fontSize: 13.5, fontWeight: 800, color: '#1a3c8f', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {pipeline?.name || 'VENTAS SOLAR'}
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6"/></svg>
             </span>
           )}
         </div>
 
         {/* View toggles */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginRight: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginRight: 14, padding: 3, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
           {[
             { v: 'kanban', icon: <IconKanban active={desktopView === 'kanban'} /> },
             { v: 'lista', icon: <IconLista active={desktopView === 'lista'} /> },
             { v: 'tabla', icon: <IconTabla active={desktopView === 'tabla'} /> },
           ].map(({ v, icon }) => (
             <button key={v} onClick={() => changeView(v)}
-              style={{ padding: '4px 7px', borderRadius: 6, border: 'none', cursor: 'pointer', background: desktopView === v ? 'rgba(59,130,246,0.18)' : 'none', transition: 'background 0.15s' }}>
+              style={{ padding: '5px 8px', borderRadius: 6, border: 'none', cursor: 'pointer', background: desktopView === v ? '#1a3c8f' : 'transparent', color: desktopView === v ? '#fff' : 'var(--muted)', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {icon}
             </button>
           ))}
         </div>
 
         {/* Search */}
-        <div style={{ position: 'relative', marginRight: 16 }}>
-          <svg style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <div style={{ position: 'relative', marginRight: 10 }}>
+          <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('common.search', lang)}
-            style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 10px 5px 26px', fontSize: 12, color: 'var(--text)', outline: 'none', width: 180 }}
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px 7px 30px', fontSize: 12.5, color: 'var(--text)', outline: 'none', width: 220, transition: 'border-color 0.15s, box-shadow 0.15s' }}
+            onFocus={e => { e.currentTarget.style.borderColor = '#1a3c8f'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,60,143,0.10)'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
           />
         </div>
 
@@ -3908,20 +3978,24 @@ export default function LeadsPage() {
         <button
           onClick={() => setFilterOpen(f => !f)}
           title="Filtros avanzados"
-          style={{ fontSize: 12, padding: '5px 10px', borderRadius: 7, border: `1px solid ${filterOpen || activeFilterCount > 0 ? '#1b9af5' : 'var(--border)'}`, background: filterOpen || activeFilterCount > 0 ? 'rgba(27,154,245,0.15)' : 'none', color: filterOpen || activeFilterCount > 0 ? '#1b9af5' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, marginRight: 6 }}
+          style={{ fontSize: 12.5, fontWeight: 600, padding: '7px 12px', borderRadius: 8, border: `1px solid ${filterOpen || activeFilterCount > 0 ? '#1a3c8f' : 'var(--border)'}`, background: filterOpen || activeFilterCount > 0 ? 'rgba(26,60,143,0.10)' : 'var(--bg)', color: filterOpen || activeFilterCount > 0 ? '#1a3c8f' : 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginRight: 14, transition: 'all 0.15s' }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 12h10M11 20h2"/></svg>
-          Filtros{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 12h10M11 20h2"/></svg>
+          Filtros
+          {activeFilterCount > 0 && (
+            <span style={{ background: '#1a3c8f', color: '#fff', borderRadius: 999, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{activeFilterCount}</span>
+          )}
         </button>
 
         {/* Stats */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 'auto' }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            <span style={{ color: 'var(--text)', fontWeight: 600 }}>{leadsDelPipeline.length}</span> leads
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginRight: 'auto' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 999, padding: '4px 11px' }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1a3c8f" strokeWidth="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span style={{ color: '#1a3c8f', fontWeight: 700 }}>{leadsDelPipeline.length}</span> leads
           </span>
           {totalValue > 0 && (
-            <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-              <span style={{ color: '#00c9a7', fontWeight: 600 }}>${totalValue.toLocaleString()}</span> total
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 999, padding: '4px 11px' }}>
+              <span style={{ color: '#10b981', fontWeight: 700 }}>${totalValue.toLocaleString()}</span> total
             </span>
           )}
         </div>
@@ -3930,21 +4004,22 @@ export default function LeadsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={toggleSelectMode}
-            style={{ fontSize: 12, padding: '5px 12px', borderRadius: 7, border: `1px solid ${selectMode ? '#1b9af5' : 'var(--border)'}`, background: selectMode ? 'rgba(59,130,246,0.15)' : 'none', color: selectMode ? '#1b9af5' : 'var(--muted)', cursor: 'pointer' }}>
-            {selectMode ? `✕ ${t('common.cancel', lang)}` : t('leads.select', lang)}
+            style={{ fontSize: 12.5, fontWeight: 600, padding: '7px 13px', borderRadius: 8, border: `1px solid ${selectMode ? '#67e8f9' : 'var(--border)'}`, background: selectMode ? 'rgba(103,232,249,0.15)' : 'var(--bg)', color: selectMode ? '#0e7490' : 'var(--muted)', cursor: 'pointer', transition: 'all 0.15s' }}>
+            {selectMode ? `× ${t('common.cancel', lang)}` : t('leads.select', lang)}
           </button>
           <button onClick={exportCSV}
-            style={{ fontSize: 12, padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'none', color: 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            title="Exportar CSV"
+            style={{ fontSize: 12.5, fontWeight: 600, padding: '7px 13px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s' }}>
+            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             CSV
           </button>
-          <button
-            style={{ fontSize: 12, padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'none', color: 'var(--muted)', cursor: 'pointer' }}>
-            ⚡ {t('leads.automate', lang)}
-          </button>
           <button onClick={() => setModal('new')}
-            style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none', background: '#1b9af5', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-            + {t('leads.newLead', lang)}
+            style={{ fontSize: 13, fontWeight: 700, padding: '8px 16px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #1a3c8f, #0f2a5c)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 2px 6px rgba(26,60,143,0.25)', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(26,60,143,0.32)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(26,60,143,0.25)'; }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            {t('leads.newLead', lang)}
           </button>
         </div>
       </div>
@@ -4139,50 +4214,57 @@ export default function LeadsPage() {
       </div>{/* end main content wrapper */}
       </div>{/* end content area flex row */}
 
-      {/* Bulk action bar */}
+      {/* Bulk action floating pill */}
       {selectMode && selectedIds.size > 0 && (
         <div style={{
-          position: 'fixed', bottom: 0, left: 224, right: 0, zIndex: 90,
-          background: 'var(--surface)', borderTop: '1px solid var(--border)',
-          padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 12,
+          position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)', zIndex: 90,
+          background: 'linear-gradient(135deg, #0f2a5c, #1a3c8f)',
+          borderRadius: 999, padding: '8px 10px 8px 22px',
+          display: 'flex', alignItems: 'center', gap: 10,
+          boxShadow: '0 12px 32px -6px rgba(15,42,92,0.45), 0 2px 6px rgba(15,42,92,0.18)',
+          border: '1px solid rgba(103,232,249,0.25)',
+          maxWidth: '95vw', flexWrap: 'wrap',
         }}>
-          <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 500, marginRight: 8 }}>
-            {selectedIds.size} lead{selectedIds.size !== 1 ? 's' : ''} seleccionado{selectedIds.size !== 1 ? 's' : ''}
+          <span style={{ color: '#fff', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ background: '#67e8f9', color: '#0f2a5c', borderRadius: 999, padding: '2px 9px', fontSize: 12, fontWeight: 800 }}>{selectedIds.size}</span>
+            seleccionado{selectedIds.size !== 1 ? 's' : ''}
           </span>
+          <span style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.15)' }} />
           <select
             value={bulkStageId}
             onChange={e => setBulkStageId(e.target.value)}
-            style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px', color: 'var(--text)', fontSize: 13 }}
+            style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 999, padding: '6px 12px', color: '#fff', fontSize: 12.5, outline: 'none', cursor: 'pointer' }}
           >
-            <option value="">Mover a etapa...</option>
-            {allPipelineStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            <option value="" style={{ color: '#1a3c8f' }}>Mover a etapa...</option>
+            {allPipelineStages.map(s => <option key={s.id} value={s.id} style={{ color: '#1a3c8f' }}>{s.name}</option>)}
           </select>
           <button
             onClick={bulkMoveStage}
             disabled={!bulkStageId || bulkLoading}
-            style={{ background: '#1b9af5', border: 'none', borderRadius: 8, padding: '8px 16px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: (!bulkStageId || bulkLoading) ? 0.5 : 1 }}
+            style={{ background: '#67e8f9', border: 'none', borderRadius: 999, padding: '7px 14px', color: '#0f2a5c', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', opacity: (!bulkStageId || bulkLoading) ? 0.5 : 1 }}
           >
             {bulkLoading ? 'Moviendo...' : 'Mover'}
           </button>
           <button
             onClick={() => setBulkMsgModal(true)}
-            style={{ background: '#8b5cf6', border: 'none', borderRadius: 8, padding: '8px 16px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 999, padding: '7px 14px', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
-            💬 Mensaje masivo
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Mensaje
           </button>
           <button
             onClick={bulkDelete}
             disabled={bulkLoading}
-            style={{ background: '#ef444420', border: '1px solid #ef444440', borderRadius: 8, padding: '8px 16px', color: '#ef4444', fontSize: 13, fontWeight: 600, cursor: 'pointer', marginLeft: 'auto' }}
+            style={{ background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 999, padding: '7px 14px', color: '#fecaca', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
-            {bulkLoading ? '...' : 'Eliminar seleccionados'}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+            {bulkLoading ? '...' : 'Eliminar'}
           </button>
           <button
             onClick={toggleSelectMode}
-            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 14px', color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}
-          >
-            ✕ Cancelar
-          </button>
+            title="Cancelar"
+            style={{ background: 'none', border: 'none', borderRadius: 999, padding: '6px 8px', color: 'rgba(255,255,255,0.7)', fontSize: 16, lineHeight: 1, cursor: 'pointer' }}
+          >×</button>
         </div>
       )}
 
