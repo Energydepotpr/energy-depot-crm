@@ -3093,19 +3093,16 @@ function KanbanColumn({ stage, leads, onMove, onEdit, onDelete, onOpen, selectMo
                 position: 'relative',
                 background: 'var(--surface)',
                 border: isSelected ? '1px solid #67e8f9' : '1px solid var(--border)',
-                borderRadius: 10,
-                padding: '11px 12px 10px 16px',
+                borderLeft: `3px solid ${stageColor || '#cbd5e1'}`,
+                borderRadius: 8,
+                padding: '11px 12px 10px 13px',
                 cursor: 'pointer',
                 transition: 'transform 0.18s, border-color 0.18s, box-shadow 0.18s',
                 boxShadow: isSelected ? '0 0 0 3px rgba(103,232,249,0.18)' : '0 1px 2px rgba(15,42,92,0.04)',
-                overflow: 'hidden',
               }}
               onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#67e8f9'; e.currentTarget.style.boxShadow = '0 6px 14px -4px rgba(26,60,143,0.18)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
               onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,42,92,0.04)'; e.currentTarget.style.transform = 'translateY(0)'; } }}
             >
-              {/* Stage accent strip */}
-              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: stageColor }} />
-
               {/* Select checkbox (select mode) */}
               {selectMode && (
                 <div style={{ width: 17, height: 17, borderRadius: 5, border: `2px solid ${isSelected ? '#67e8f9' : 'var(--muted)'}`, background: isSelected ? '#67e8f9' : 'transparent', boxShadow: isSelected ? '0 0 0 3px rgba(103,232,249,0.25)' : 'none', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 7 }}>
@@ -3134,18 +3131,18 @@ function KanbanColumn({ stage, leads, onMove, onEdit, onDelete, onOpen, selectMo
                 </div>
               )}
 
-              {/* Contact info */}
-              {(lead.contact_phone || fecha) && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 11, color: 'var(--muted)' }}>
-                  {lead.contact_phone && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                      {lead.contact_phone}
-                    </span>
-                  )}
-                  {fecha && <span style={{ marginLeft: 'auto' }}>{fecha}</span>}
-                </div>
-              )}
+              {/* Contact info — siempre visible (fuente + fecha si no hay phone) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 11, color: 'var(--muted)' }}>
+                {lead.contact_phone ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    {lead.contact_phone}
+                  </span>
+                ) : lead.source ? (
+                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: 'rgba(26,60,143,0.08)', color: '#1a3c8f', fontWeight: 600, textTransform: 'capitalize' }}>{lead.source}</span>
+                ) : null}
+                {fecha && <span style={{ marginLeft: 'auto' }}>{fecha}</span>}
+              </div>
 
               {/* Tags */}
               {tags.length > 0 && (
