@@ -446,7 +446,7 @@ export default function DashboardLayout({ children }) {
   })();
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', maxWidth: '100vw', overflowX: 'hidden' }}>
+    <div style={{ display: 'flex', height: isMobile ? '100dvh' : '100vh', maxWidth: '100vw', overflowX: 'hidden' }}>
 
       {/* ── Sidebar DESKTOP — Kommo identical ───────────────────────────── */}
       <aside className="desktop-sidebar" style={{
@@ -610,7 +610,7 @@ export default function DashboardLayout({ children }) {
       )}
 
       {/* ── Área principal ────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', minWidth: 0 }}>
 
         {/* Header MÓVIL — native app feel */}
         <header className="mobile-header" style={{
