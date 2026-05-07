@@ -2385,6 +2385,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         meses: Array.isArray(q.meses) ? Array(12).fill('').map((_,i)=>q.meses[i]||'') : Array(12).fill(''),
         mesLabels: Array.isArray(q.mesLabels) && q.mesLabels.length === 12 ? q.mesLabels : null,
         batteries: Array.isArray(q.batteries) ? q.batteries : [],
+        descuentoPct: Number(q.descuentoPct) || 0,
       }));
     }
     // Migración: legacy fields → 1 cotización
