@@ -2712,8 +2712,8 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
               ['Total',cotFmt(calc.sub),'bold'],
             ].map(([k,v,st])=>(
               <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderTop:st==='bold'?'1px solid var(--border)':undefined, marginTop:st==='bold'?4:0 }}>
-                <span style={{ color:st==='discount'?'#ef4444':st==='green'?'#10b981':'var(--muted)', fontWeight:st==='discount'?600:400 }}>{k}</span>
-                <span style={{ fontWeight:st==='bold'?800:st==='discount'?700:500, color:st==='discount'?'#ef4444':st==='green'?'#10b981':'var(--text)' }}>{v}</span>
+                <span style={{ color:st==='discount'?'#10b981':st==='green'?'#10b981':'var(--muted)', fontWeight:st==='discount'?600:400 }}>{k}</span>
+                <span style={{ fontWeight:st==='bold'?800:st==='discount'?700:500, color:st==='discount'?'#10b981':st==='green'?'#10b981':'var(--text)' }}>{v}</span>
               </div>
             ))}
           </div>
