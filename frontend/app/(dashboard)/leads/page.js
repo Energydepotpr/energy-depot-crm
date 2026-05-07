@@ -983,6 +983,13 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     </div>
                   </div>
                   <SidebarField label="Email" value={lead.contact_email || ''} onChange={v => setLead(p => ({...p, contact_email: v}))} onBlur={async v => { try { if (lead.contact_id) await api.updateContact(lead.contact_id, { email: v }); } catch {} }} />
+                  <SidebarField
+                    label="Dirección"
+                    value={lead.solar_data?.address || ''}
+                    onChange={v => setLead(p => ({...p, solar_data: { ...(p.solar_data || {}), address: v }}))}
+                    onBlur={async v => { try { await api.saveSolarData(leadId, { solar_data: { ...(lead.solar_data || {}), address: v } }); } catch {} }}
+                    placeholder="Calle, ciudad, ZIP"
+                  />
                   <button
                     onClick={async () => {
                       try {
@@ -2344,16 +2351,23 @@ const MESES_L_DEFAULT = ['Mes 1','Mes 2','Mes 3','Mes 4','Mes 5','Mes 6','Mes 7'
 const cotFmt  = n => `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const cotFmtK = n => Number(n).toLocaleString('en-US');
 
-function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING) {
+function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0) {
   const { panelPrice, panelWatts, tarifaLuma, factorProduccion, pmt15 } = pricing;
   const filled = meses.map(Number).filter(v=>v>0);
   if (!filled.length) return null;
   const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
   const panels=Math.round(annCons*1.07/factorProduccion*1000/panelWatts), kw=parseFloat((panels*panelWatts/1000).toFixed(2));
-  const annProd=Math.round(kw*factorProduccion), costBase=Math.round(panels*panelPrice), sub=costBase+batPrecio;
+  const annProd=Math.round(kw*factorProduccion);
+  const costBaseRaw=Math.round(panels*panelPrice);
+  const subRaw=costBaseRaw+batPrecio;
+  const dPct = Math.max(0, Math.min(100, Number(descuentoPct) || 0));
+  const factor = 1 - dPct / 100;
+  const costBase = Math.round(costBaseRaw * factor);
+  const sub = Math.round(subRaw * factor);
+  const descuentoAmt = subRaw - sub;
   const pagoLuma=Math.round(avg*tarifaLuma);
   const offset=annCons>0?Math.round(annProd/annCons*100):0;
-  return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
+  return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, costBaseRaw, sub, subRaw, descuentoPct: dPct, descuentoAmt, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
 }
 
 function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
@@ -2451,7 +2465,9 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   const [prontoDado, setProntoDado] = useState('');
   const [msg, setMsg]             = useState('');
 
-  useEffect(() => { setCalc(cotCalc(meses, batTotal, pricing)); }, [meses, batTotal, pricing]);
+  const descuentoPct = Number(active?.descuentoPct) || 0;
+  const setDescuentoPct = (v) => updateActive({ descuentoPct: v === '' ? 0 : Math.max(0, Math.min(100, Number(v) || 0)) });
+  useEffect(() => { setCalc(cotCalc(meses, batTotal, pricing, descuentoPct)); }, [meses, batTotal, pricing, descuentoPct]);
 
   const showMsg = t => { setMsg(t); setTimeout(()=>setMsg(''),3000); };
 
@@ -2560,6 +2576,16 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         <button onClick={guardar} disabled={saving||!calc} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '12px 14px' : '6px 14px', fontSize: isMobile ? 14 : 12, fontWeight:600, color:'var(--text)', cursor:'pointer', opacity:!calc||saving?0.5:1, width: isMobile ? '100%' : 'auto' }}>
           {saving?'Guardando…':'Guardar Cotización'}
         </button>
+        <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '6px 10px' : '4px 10px', width: isMobile ? '100%' : 'auto' }}>
+          <span style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>Descuento</span>
+          <input
+            type="number" min="0" max="100" step="0.5"
+            value={descuentoPct || ''}
+            onChange={e => setDescuentoPct(e.target.value)}
+            placeholder="0"
+            style={{ width: 50, background:'transparent', border:'none', outline:'none', fontSize: isMobile ? 14 : 13, fontWeight:700, color:'#1a3c8f', textAlign:'right' }} />
+          <span style={{ fontSize:13, color:'#1a3c8f', fontWeight:700 }}>%</span>
+        </div>
         <button onClick={generarPDF} disabled={!calc||pdfLoad} style={{ background:'#1a3c8f', border:'none', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '12px 14px' : '6px 14px', fontSize: isMobile ? 14 : 12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc||pdfLoad?0.5:1, display:'flex', alignItems:'center', justifyContent: 'center', gap:6, width: isMobile ? '100%' : 'auto' }}>
           <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           {pdfLoad?'Generando…':'Propuesta PDF'}
@@ -2605,7 +2631,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(4, 1fr)' : 'repeat(auto-fit, minmax(56px, 1fr))', gap: isMobile ? 10 : 7 }}>
           {mesLabels.map((m,i) => (
             <div key={i} style={{ minWidth:0 }}>
-              <input value={m} onChange={e => setMesLabel(i, e.target.value)}
+              <input value={m} onChange={e => setMesLabel(i, e.target.value)} tabIndex={-1}
                 style={{ width:'100%', background:'transparent', border:'none', borderBottom:'1px dashed var(--border)', outline:'none', fontSize: isMobile ? 11 : 9, color:'var(--muted)', fontWeight:600, textAlign:'center', marginBottom:4, padding:'0 2px' }} />
               <input type="number" min="0" value={meses[i]} onChange={e=>{ const n=[...meses]; n[i]=e.target.value; setMeses(n); }}
                 style={{ ...inp, padding: isMobile ? '10px 6px' : '6px 8px', fontSize: isMobile ? 14 : 12, color:Number(meses[i])>0?'#1a3c8f':'var(--text)', fontWeight:Number(meses[i])>0?700:400 }} />
