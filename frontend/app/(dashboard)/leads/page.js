@@ -424,6 +424,9 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   const [merging, setMerging] = useState(false);
   // Stage chip dropdown
   const [showStageDropdown, setShowStageDropdown] = useState(false);
+  // Marketing campaigns
+  const [marketingCampaigns, setMarketingCampaigns] = useState([]);
+  useEffect(() => { api.marketingCampaigns().then(d => setMarketingCampaigns(d.campaigns || [])).catch(() => {}); }, []);
   // AI Assistant state
   const [aiMessages, setAiMessages] = useState([]);
   const [aiInput, setAiInput] = useState('');
@@ -909,6 +912,20 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <label style={{ fontSize: 10, color: 'var(--muted)' }}>Budget</label>
                     <input type="number" value={lead.value || ''} placeholder="$0" onChange={e => setLead(p => ({...p, value: e.target.value}))} onBlur={async e => { try { await api.moveLead(leadId, { value: e.target.value || null }); } catch {} }} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '5px 7px', fontSize: 12, color: 'var(--text)', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <label style={{ fontSize: 10, color: 'var(--muted)' }}>Campaña Marketing</label>
+                    <select
+                      value={lead.marketing_campaign_id || ''}
+                      onChange={async e => {
+                        const v = e.target.value;
+                        setLead(p => ({...p, marketing_campaign_id: v ? Number(v) : null}));
+                        try { await api.updateLead(leadId, { marketing_campaign_id: v ? Number(v) : null }); if (onUpdated) onUpdated(); } catch (err) { alert('Error: ' + err.message); }
+                      }}
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '5px 7px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', outline: 'none', width: '100%' }}>
+                      <option value="">— Sin campaña —</option>
+                      {marketingCampaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
                   </div>
                 </div>
               </div>
