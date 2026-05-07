@@ -21,7 +21,8 @@ const DEFAULT_BATERIAS = [
 ];
 
 function calc(meses, batPrecio = 0, pricing = DEFAULT_PRICING) {
-  const filled = meses.map(Number).filter(v => v > 0);
+  const last12 = meses.length > 12 ? meses.slice(-12) : meses;
+  const filled = last12.map(Number).filter(v => v > 0);
   if (!filled.length) return null;
   const avg = filled.reduce((a,b)=>a+b,0) / filled.length;
   const annCons = Math.round(avg * 12);
@@ -50,7 +51,7 @@ export default function CotizarPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
-  const [meses, setMeses] = useState(Array(12).fill(''));
+  const [meses, setMeses] = useState(Array(13).fill(''));
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [err, setErr] = useState('');

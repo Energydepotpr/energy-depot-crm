@@ -2347,13 +2347,16 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
 }
 
 // ─── Cotizar Tab ──────────────────────────────────────────────────────────────
-const MESES_L_DEFAULT = ['Mes 1','Mes 2','Mes 3','Mes 4','Mes 5','Mes 6','Mes 7','Mes 8','Mes 9','Mes 10','Mes 11','Mes 12'];
+const MESES_L_DEFAULT = ['Mes 1','Mes 2','Mes 3','Mes 4','Mes 5','Mes 6','Mes 7','Mes 8','Mes 9','Mes 10','Mes 11','Mes 12','Mes 13'];
+const MESES_LEN = 13;
 const cotFmt  = n => `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const cotFmtK = n => Number(n).toLocaleString('en-US');
 
 function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0) {
   const { panelPrice, panelWatts, tarifaLuma, factorProduccion, pmt15 } = pricing;
-  const filled = meses.map(Number).filter(v=>v>0);
+  // Si hay 13 meses, usa los últimos 12 (excluye el más antiguo)
+  const last12 = meses.length > 12 ? meses.slice(-12) : meses;
+  const filled = last12.map(Number).filter(v=>v>0);
   if (!filled.length) return null;
   const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
   const panels=Math.round(annCons*1.07/factorProduccion*1000/panelWatts), kw=parseFloat((panels*panelWatts/1000).toFixed(2));
@@ -2382,8 +2385,8 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         id: q.id || ('q'+Math.random().toString(36).slice(2,9)),
         name: q.name || 'Cotización',
         createdAt: q.createdAt || new Date().toISOString(),
-        meses: Array.isArray(q.meses) ? Array(12).fill('').map((_,i)=>q.meses[i]||'') : Array(12).fill(''),
-        mesLabels: Array.isArray(q.mesLabels) && q.mesLabels.length === 12 ? q.mesLabels : null,
+        meses: Array.isArray(q.meses) ? Array(MESES_LEN).fill('').map((_,i)=>q.meses[i]||'') : Array(MESES_LEN).fill(''),
+        mesLabels: Array.isArray(q.mesLabels) && q.mesLabels.length >= 12 ? q.mesLabels : null,
         batteries: Array.isArray(q.batteries) ? q.batteries : [],
         descuentoPct: Number(q.descuentoPct) || 0,
       }));
@@ -2394,7 +2397,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         id: 'q'+Math.random().toString(36).slice(2,9),
         name: 'Cotización 1',
         createdAt: new Date().toISOString(),
-        meses: Array(12).fill('').map((_,i)=>(sd.meses||[])[i]||''),
+        meses: Array(MESES_LEN).fill('').map((_,i)=>(sd.meses||[])[i]||''),
         batteries: Array.isArray(sd.batteries) ? sd.batteries : [],
       }];
     }
@@ -2402,7 +2405,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
       id: 'q'+Math.random().toString(36).slice(2,9),
       name: 'Cotización 1',
       createdAt: new Date().toISOString(),
-      meses: Array(12).fill(''),
+      meses: Array(MESES_LEN).fill(''),
       batteries: [],
     }];
   };
@@ -2412,8 +2415,8 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
     return (sd.activeQuotationId && qs.find(q=>q.id===sd.activeQuotationId)) ? sd.activeQuotationId : qs[0]?.id;
   });
   const active = quotations.find(q => q.id === activeId) || quotations[0];
-  const meses = active?.meses || Array(12).fill('');
-  const mesLabels = (active?.mesLabels && active.mesLabels.length === 12) ? active.mesLabels : MESES_L_DEFAULT;
+  const meses = active?.meses || Array(MESES_LEN).fill('');
+  const mesLabels = (active?.mesLabels && active.mesLabels.length >= 12) ? active.mesLabels : MESES_L_DEFAULT;
   const setMesLabel = (i, v) => updateActive({ mesLabels: mesLabels.map((x,j) => j===i ? v : x) });
   const batQty = (() => {
     const arr = Array(BATERIAS_COT.length).fill(0);
@@ -2442,8 +2445,8 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   const newQuotation = () => {
     const id = 'q'+Math.random().toString(36).slice(2,9);
     // Hereda meses de la cotización activa (consumo es del lead, no de la cotización)
-    const inheritedMeses = (active?.meses && active.meses.some(v => v)) ? [...active.meses] : Array(12).fill('');
-    const inheritedLabels = (active?.mesLabels && active.mesLabels.length === 12) ? [...active.mesLabels] : [...MESES_L_DEFAULT];
+    const inheritedMeses = (active?.meses && active.meses.some(v => v)) ? [...active.meses] : Array(MESES_LEN).fill('');
+    const inheritedLabels = (active?.mesLabels && active.mesLabels.length >= 12) ? [...active.mesLabels] : [...MESES_L_DEFAULT];
     setQuotations(prev => [...prev, { id, name: `Cotización ${prev.length+1}`, createdAt: new Date().toISOString(), meses: inheritedMeses, mesLabels: inheritedLabels, batteries: [] }]);
     setActiveId(id);
   };
@@ -2482,7 +2485,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
       const newMeses = (data.meses || []).map(v => v ? String(v) : '');
       while (newMeses.length < 12) newMeses.push('');
       const patch = { meses: newMeses.slice(0, 12) };
-      if (data.labels && Array.isArray(data.labels) && data.labels.length === 12) patch.mesLabels = data.labels;
+      if (data.labels && Array.isArray(data.labels) && data.labels.length >= 12) patch.mesLabels = data.labels;
       updateActive(patch);
 
       // Auto-llenar info del cliente si la factura la trae
@@ -3022,7 +3025,7 @@ function LeadModal({ lead, pipelines, agents, onClose, onSaved }) {
       }));
       if (Array.isArray(data.meses) && data.meses.some(v => v > 0)) {
         setExtractedMeses(data.meses);
-        if (Array.isArray(data.labels) && data.labels.length === 12) setExtractedLabels(data.labels);
+        if (Array.isArray(data.labels) && data.labels.length >= 12) setExtractedLabels(data.labels);
       }
       const parts = [];
       if (data.nombre) parts.push('Nombre');
