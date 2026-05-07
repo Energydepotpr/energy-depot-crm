@@ -2487,21 +2487,23 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
 
       // Auto-llenar info del cliente si la factura la trae
       const updates = {};
-      if (data.nombre && (!lead.contact_name || lead.contact_name.length < 3)) {
-        updates.contact_name = data.nombre;
-      }
+      if (data.nombre && (!lead.contact_name || lead.contact_name.length < 3)) updates.name = data.nombre;
+      if (data.email && !lead.contact_email) updates.email = data.email;
+      if (data.telefono && !lead.contact_phone) updates.phone = data.telefono;
       if (data.direccion) {
         const newSd = { ...(lead.solar_data || {}), address: data.direccion };
         if (data.cuenta_luma) newSd.cuenta_luma = data.cuenta_luma;
         try { await api.saveSolarData(leadId, { solar_data: newSd }); } catch {}
       }
       if (Object.keys(updates).length && lead.contact_id) {
-        try { await api.updateContact(lead.contact_id, { name: updates.contact_name }); } catch {}
+        try { await api.updateContact(lead.contact_id, updates); } catch {}
       }
       if (onLeadUpdate) onLeadUpdate();
 
       const extras = [];
       if (data.nombre) extras.push(`Cliente: ${data.nombre}`);
+      if (data.email) extras.push(`Email: ${data.email}`);
+      if (data.telefono) extras.push(`Tel: ${data.telefono}`);
       if (data.direccion) extras.push('Dirección guardada');
       if (data.cuenta_luma) extras.push(`Cuenta LUMA: ${data.cuenta_luma}`);
       const summary = extras.length ? ` (${extras.join(' · ')})` : '';
@@ -3012,6 +3014,8 @@ function LeadModal({ lead, pipelines, agents, onClose, onSaved }) {
       setForm(f => ({
         ...f,
         contact_name: data.nombre || f.contact_name,
+        contact_email: data.email || f.contact_email,
+        contact_phone: data.telefono || f.contact_phone,
         title: f.title || data.nombre || '',
         address: data.direccion || f.address,
         cuenta_luma: data.cuenta_luma || f.cuenta_luma,
