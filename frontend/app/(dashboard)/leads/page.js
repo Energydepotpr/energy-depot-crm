@@ -2484,7 +2484,28 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
       const patch = { meses: newMeses.slice(0, 12) };
       if (data.labels && Array.isArray(data.labels) && data.labels.length === 12) patch.mesLabels = data.labels;
       updateActive(patch);
-      showMsg('✓ Datos extraídos de la factura' + (data.notes ? ` — ${data.notes}` : ''));
+
+      // Auto-llenar info del cliente si la factura la trae
+      const updates = {};
+      if (data.nombre && (!lead.contact_name || lead.contact_name.length < 3)) {
+        updates.contact_name = data.nombre;
+      }
+      if (data.direccion) {
+        const newSd = { ...(lead.solar_data || {}), address: data.direccion };
+        if (data.cuenta_luma) newSd.cuenta_luma = data.cuenta_luma;
+        try { await api.saveSolarData(leadId, { solar_data: newSd }); } catch {}
+      }
+      if (Object.keys(updates).length && lead.contact_id) {
+        try { await api.updateContact(lead.contact_id, { name: updates.contact_name }); } catch {}
+      }
+      if (onLeadUpdate) onLeadUpdate();
+
+      const extras = [];
+      if (data.nombre) extras.push(`Cliente: ${data.nombre}`);
+      if (data.direccion) extras.push('Dirección guardada');
+      if (data.cuenta_luma) extras.push(`Cuenta LUMA: ${data.cuenta_luma}`);
+      const summary = extras.length ? ` (${extras.join(' · ')})` : '';
+      showMsg('✓ Datos extraídos' + summary + (data.notes ? ` — ${data.notes}` : ''));
     } catch (err) {
       alert('Error: ' + err.message);
     }
