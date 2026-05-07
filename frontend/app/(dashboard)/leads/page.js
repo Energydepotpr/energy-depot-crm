@@ -2973,14 +2973,63 @@ function LlamadasTab({ lead, leadId, callLogs, setCallLogs, callStatus, setCallS
 function LeadModal({ lead, pipelines, agents, onClose, onSaved }) {
   const [contacts, setContacts] = useState([]);
   const [form, setForm] = useState({
-    title:       lead?.title       || '',
-    value:       lead?.value       || '',
-    pipeline_id: lead?.pipeline_id || '',
-    stage_id:    lead?.stage_id    || '',
-    assigned_to: lead?.assigned_to || '',
-    contact_id:  lead?.contact_id  || '',
+    title:         lead?.title         || '',
+    contact_name:  lead?.contact_name  || '',
+    contact_email: lead?.contact_email || '',
+    contact_phone: lead?.contact_phone || '',
+    address:       lead?.solar_data?.address || '',
+    cuenta_luma:   lead?.solar_data?.cuenta_luma || '',
+    value:         lead?.value         || '',
+    pipeline_id:   lead?.pipeline_id   || '',
+    stage_id:      lead?.stage_id      || '',
+    assigned_to:   lead?.assigned_to   || '',
+    contact_id:    lead?.contact_id    || '',
   });
+  const [extractedMeses, setExtractedMeses] = useState(null);
+  const [extractedLabels, setExtractedLabels] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractMsg, setExtractMsg] = useState('');
+
+  const onSubirFactura = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setExtracting(true);
+    setExtractMsg('');
+    try {
+      const b64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => { const s = String(r.result || ''); const i = s.indexOf(','); resolve(i >= 0 ? s.slice(i + 1) : s); };
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(f);
+      });
+      // Si lead existe usa el endpoint con auth; si no, el público
+      const data = lead?.id
+        ? await api.extractFactura(lead.id, { name: f.name, mimeType: f.type || 'application/pdf', content: b64 })
+        : await fetch((process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-c4232.up.railway.app') + '/api/public/extract-factura', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ file: { name: f.name, mimeType: f.type || 'application/pdf', content: b64 } }) }).then(r => r.json());
+      if (!data.ok && data.error) throw new Error(data.error);
+      setForm(f => ({
+        ...f,
+        contact_name: data.nombre || f.contact_name,
+        title: f.title || data.nombre || '',
+        address: data.direccion || f.address,
+        cuenta_luma: data.cuenta_luma || f.cuenta_luma,
+      }));
+      if (Array.isArray(data.meses) && data.meses.some(v => v > 0)) {
+        setExtractedMeses(data.meses);
+        if (Array.isArray(data.labels) && data.labels.length === 12) setExtractedLabels(data.labels);
+      }
+      const parts = [];
+      if (data.nombre) parts.push('Nombre');
+      if (data.direccion) parts.push('Dirección');
+      if (Array.isArray(data.meses) && data.meses.some(v => v > 0)) parts.push('12 meses de consumo');
+      setExtractMsg('✓ Datos extraídos: ' + (parts.join(' · ') || 'OK'));
+    } catch (err) {
+      setExtractMsg('Error: ' + err.message);
+    }
+    setExtracting(false);
+  };
 
   useEffect(() => {
     api.contacts('?page=1').then(d => setContacts(d.contacts || [])).catch(() => {});
@@ -2989,11 +3038,37 @@ function LeadModal({ lead, pipelines, agents, onClose, onSaved }) {
   const stages = pipelines.find(p => p.id === Number(form.pipeline_id))?.stages || [];
 
   const save = async () => {
-    if (!form.title.trim()) return;
+    const titleFinal = (form.title || form.contact_name || '').trim();
+    if (!titleFinal) return;
     setSaving(true);
     try {
-      if (lead) await api.updateLead(lead.id, form);
-      else await api.createLead(form);
+      let leadId = lead?.id;
+      if (lead) {
+        await api.updateLead(lead.id, { ...form, title: titleFinal });
+      } else {
+        const created = await api.createLead({ ...form, title: titleFinal });
+        leadId = created?.id || created?.lead?.id;
+      }
+      // Guardar dirección y meses extraídos en solar_data si tenemos algo
+      if (leadId && (form.address || form.cuenta_luma || extractedMeses)) {
+        const sd = { ...(lead?.solar_data || {}) };
+        if (form.address) sd.address = form.address;
+        if (form.cuenta_luma) sd.cuenta_luma = form.cuenta_luma;
+        if (extractedMeses) {
+          // Crear quotation con los meses extraídos
+          const q = {
+            id: 'q' + Math.random().toString(36).slice(2,9),
+            name: form.contact_name ? `${form.contact_name} — Cotización inicial` : 'Cotización inicial',
+            createdAt: new Date().toISOString(),
+            meses: extractedMeses.map(v => v ? String(v) : ''),
+            mesLabels: extractedLabels || null,
+            batteries: [],
+          };
+          sd.quotations = [...(sd.quotations || []), q];
+          sd.activeQuotationId = q.id;
+        }
+        try { await api.saveSolarData(leadId, { solar_data: sd }); } catch {}
+      }
       onSaved();
       onClose();
     } catch (e) { alert(e.message); }
@@ -3002,15 +3077,50 @@ function LeadModal({ lead, pipelines, agents, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
-      <div className="card p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-        <h2 className="text-base font-semibold text-white mb-5">{lead ? 'Editar lead' : 'Nuevo lead'}</h2>
+      <div className="card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <h2 className="text-base font-semibold text-white mb-4">{lead ? 'Editar lead' : 'Nuevo lead'}</h2>
+
+        {/* Upload factura */}
+        {!lead && (
+          <div style={{ background:'linear-gradient(135deg,#eff6ff,#dbeafe)', border:'1px dashed #93c5fd', borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
+            <div style={{ fontSize:12.5, fontWeight:700, color:'#1a3c8f', marginBottom:6 }}>⚡ Subir factura LUMA → auto-llenar</div>
+            <label style={{ display:'inline-flex', alignItems:'center', gap:6, background:'#1a3c8f', color:'#fff', padding:'7px 12px', borderRadius:7, fontSize:12, fontWeight:700, cursor: extracting ? 'default' : 'pointer', opacity: extracting ? 0.6 : 1 }}>
+              {extracting ? 'Leyendo…' : 'Subir factura PDF'}
+              <input type="file" accept="application/pdf,image/*" onChange={onSubirFactura} disabled={extracting} style={{ display:'none' }} />
+            </label>
+            {extractMsg && <div style={{ marginTop:6, fontSize:11.5, fontWeight:600, color: extractMsg.startsWith('✓') ? '#10b981' : '#ef4444' }}>{extractMsg}</div>}
+          </div>
+        )}
+
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-muted mb-1">Título *</label>
-            <input className="input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Nombre del lead" />
+            <label className="block text-xs text-muted mb-1">Nombre del cliente</label>
+            <input className="input" value={form.contact_name} onChange={e => setForm(f => ({ ...f, contact_name: e.target.value, title: f.title || e.target.value }))} placeholder="Carlos Pérez" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-muted mb-1">Email</label>
+              <input className="input" type="email" value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} placeholder="cliente@correo.com" />
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Teléfono</label>
+              <input className="input" type="tel" value={form.contact_phone} onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))} placeholder="787-555-0000" />
+            </div>
           </div>
           <div>
-            <label className="block text-xs text-muted mb-1">Contacto</label>
+            <label className="block text-xs text-muted mb-1">Dirección</label>
+            <input className="input" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Calle, ciudad, ZIP" />
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">Cuenta LUMA (opcional)</label>
+            <input className="input" value={form.cuenta_luma} onChange={e => setForm(f => ({ ...f, cuenta_luma: e.target.value }))} placeholder="3601731000" />
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">Título del lead</label>
+            <input className="input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Auto: nombre del cliente" />
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">Contacto existente</label>
             <select className="input" value={form.contact_id} onChange={e => setForm(f => ({ ...f, contact_id: e.target.value }))}>
               <option value="">Sin contacto</option>
               {contacts.map(c => <option key={c.id} value={c.id}>{c.name}{c.phone ? ` (${c.phone})` : ''}</option>)}

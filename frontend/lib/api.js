@@ -371,6 +371,7 @@ export const api = {
   // Solar proposal
   leadPropuesta:     (id, quotationId) => req('GET', `/api/leads/${id}/propuesta${quotationId ? `?quotation_id=${encodeURIComponent(quotationId)}` : ''}`),
   extractFactura:    (id, file)   => req('POST',  `/api/leads/${id}/extract-factura`, { file }),
+  extractFacturaPublic: (file, apiBase) => fetch(`${apiBase}/api/public/extract-factura`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ file }) }).then(r => r.json()),
   saveSolarData:     (id, data) => req('PATCH', `/api/leads/${id}/solar`, data),
   generarContrato:   (id, data) => req('POST',  `/api/leads/${id}/contrato-solar`, data),
 

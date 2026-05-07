@@ -54,6 +54,8 @@ export default function CotizarPage() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [err, setErr] = useState('');
+  const [extracting, setExtracting] = useState(false);
+  const [extractMsg, setExtractMsg] = useState('');
   const [bateriasList, setBateriasList] = useState(DEFAULT_BATERIAS);
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
   const [selectedBatt, setSelectedBatt] = useState({}); // { name: qty }
@@ -103,6 +105,45 @@ export default function CotizarPage() {
       }
     } catch (e) { setActionMsg('Error: ' + e.message); }
     finally { setActionLoad(null); }
+  };
+
+  const onSubirFactura = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setExtracting(true);
+    setExtractMsg('');
+    try {
+      const b64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => { const s = String(r.result || ''); const i = s.indexOf(','); resolve(i >= 0 ? s.slice(i + 1) : s); };
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(f);
+      });
+      const r = await fetch(`${API}/api/public/extract-factura`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ file: { name: f.name, mimeType: f.type || 'application/pdf', content: b64 } }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Error');
+      if (data.nombre && !name) setName(data.nombre);
+      if (data.direccion && !city) {
+        // Intenta extraer ciudad de "Calle ... CIUDAD PR ZIP"
+        const m = data.direccion.match(/([A-Z][A-Za-zñÑáéíóú ]+?)\s+PR\s*\d{5}/);
+        if (m) setCity(m[1].trim());
+      }
+      if (Array.isArray(data.meses) && data.meses.some(v => v > 0)) {
+        setMeses(data.meses.map(v => v ? String(v) : ''));
+      }
+      const parts = [];
+      if (data.nombre) parts.push(`Nombre: ${data.nombre}`);
+      if (data.direccion) parts.push('Dirección leída');
+      if (Array.isArray(data.meses) && data.meses.some(v => v > 0)) parts.push('Consumo de 12 meses');
+      setExtractMsg('✓ ' + (parts.join(' · ') || 'Factura procesada'));
+    } catch (err) {
+      setExtractMsg('Error: ' + err.message);
+    }
+    setExtracting(false);
   };
 
   const setBattQty = (name, delta) => {
@@ -163,7 +204,18 @@ export default function CotizarPage() {
           <div style={{ background: '#fff', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(15,42,92,0.06)', border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#1a3c8f', letterSpacing: 2, marginBottom: 8 }}>PASO 1 DE 3</div>
             <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f2a5c', marginBottom: 8, lineHeight: 1.2 }}>Cuéntanos sobre ti</h1>
-            <p style={{ fontSize: 15, color: '#64748b', marginBottom: 24 }}>Tus datos para preparar la propuesta personalizada.</p>
+            <p style={{ fontSize: 15, color: '#64748b', marginBottom: 18 }}>Tus datos para preparar la propuesta personalizada.</p>
+
+            {/* Subir factura LUMA — auto-llenado */}
+            <div style={{ background: 'linear-gradient(135deg,#eff6ff,#dbeafe)', border: '1px dashed #93c5fd', borderRadius: 12, padding: 16, marginBottom: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a3c8f', marginBottom: 4 }}>⚡ Sube tu factura LUMA y llenamos todo por ti</div>
+              <div style={{ fontSize: 12, color: '#475569', marginBottom: 10 }}>Tomamos tu nombre, dirección y consumo de 12 meses automáticamente.</div>
+              <label style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#1a3c8f', color:'#fff', padding:'10px 16px', borderRadius:8, fontSize:13, fontWeight:700, cursor: extracting ? 'default' : 'pointer', opacity: extracting ? 0.6 : 1 }}>
+                {extracting ? 'Leyendo factura…' : 'Subir factura PDF'}
+                <input type="file" accept="application/pdf,image/*" onChange={onSubirFactura} disabled={extracting} style={{ display:'none' }} />
+              </label>
+              {extractMsg && <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: extractMsg.startsWith('✓') ? '#10b981' : '#ef4444' }}>{extractMsg}</div>}
+            </div>
 
             <Field label="Nombre completo" value={name} onChange={setName} placeholder="Juan Pérez" />
             <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="tu@correo.com" />
