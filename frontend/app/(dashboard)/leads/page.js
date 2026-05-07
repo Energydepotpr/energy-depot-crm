@@ -2358,16 +2358,15 @@ function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0) 
   const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
   const panels=Math.round(annCons*1.07/factorProduccion*1000/panelWatts), kw=parseFloat((panels*panelWatts/1000).toFixed(2));
   const annProd=Math.round(kw*factorProduccion);
-  const costBaseRaw=Math.round(panels*panelPrice);
-  const subRaw=costBaseRaw+batPrecio;
+  // costBase = sistema FV completo (NO se descuenta). El descuento es una línea aparte.
+  const costBase=Math.round(panels*panelPrice);
+  const subPreDescuento=costBase+batPrecio;
   const dPct = Math.max(0, Math.min(100, Number(descuentoPct) || 0));
-  const factor = 1 - dPct / 100;
-  const costBase = Math.round(costBaseRaw * factor);
-  const sub = Math.round(subRaw * factor);
-  const descuentoAmt = subRaw - sub;
+  const descuentoAmt = Math.round(subPreDescuento * (dPct / 100));
+  const sub = subPreDescuento - descuentoAmt; // total final con descuento aplicado
   const pagoLuma=Math.round(avg*tarifaLuma);
   const offset=annCons>0?Math.round(annProd/annCons*100):0;
-  return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, costBaseRaw, sub, subRaw, descuentoPct: dPct, descuentoAmt, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
+  return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, subPreDescuento, descuentoPct: dPct, descuentoAmt, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
 }
 
 function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
@@ -2709,11 +2708,12 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'12px 16px', fontSize:12 }}>
             {[['Sistema FV',cotFmt(calc.costBase),''],
               ...BATERIAS_COT.map((b,i)=>batQty[i]>0?[`${b.name} ×${batQty[i]}`,cotFmt(b.precio*batQty[i]),'']:null).filter(Boolean),
+              ...(calc.descuentoAmt > 0 ? [[`Descuento (${calc.descuentoPct}%)`, '-' + cotFmt(calc.descuentoAmt), 'discount']] : []),
               ['Total',cotFmt(calc.sub),'bold'],
             ].map(([k,v,st])=>(
               <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderTop:st==='bold'?'1px solid var(--border)':undefined, marginTop:st==='bold'?4:0 }}>
-                <span style={{ color:st==='green'?'#10b981':'var(--muted)' }}>{k}</span>
-                <span style={{ fontWeight:st==='bold'?800:500, color:st==='green'?'#10b981':'var(--text)' }}>{v}</span>
+                <span style={{ color:st==='discount'?'#ef4444':st==='green'?'#10b981':'var(--muted)', fontWeight:st==='discount'?600:400 }}>{k}</span>
+                <span style={{ fontWeight:st==='bold'?800:st==='discount'?700:500, color:st==='discount'?'#ef4444':st==='green'?'#10b981':'var(--text)' }}>{v}</span>
               </div>
             ))}
           </div>
