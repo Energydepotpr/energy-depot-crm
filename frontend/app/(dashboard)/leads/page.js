@@ -2465,6 +2465,32 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   const [prontoDado, setProntoDado] = useState('');
   const [msg, setMsg]             = useState('');
 
+  const [extractingFactura, setExtractingFactura] = useState(false);
+  const onSubirFactura = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setExtractingFactura(true);
+    try {
+      const b64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => { const s = String(r.result || ''); const i = s.indexOf(','); resolve(i >= 0 ? s.slice(i + 1) : s); };
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(f);
+      });
+      const data = await api.extractFactura(leadId, { name: f.name, mimeType: f.type || 'application/pdf', content: b64 });
+      const newMeses = (data.meses || []).map(v => v ? String(v) : '');
+      while (newMeses.length < 12) newMeses.push('');
+      const patch = { meses: newMeses.slice(0, 12) };
+      if (data.labels && Array.isArray(data.labels) && data.labels.length === 12) patch.mesLabels = data.labels;
+      updateActive(patch);
+      showMsg('✓ Datos extraídos de la factura' + (data.notes ? ` — ${data.notes}` : ''));
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+    setExtractingFactura(false);
+  };
+
   const descuentoPct = Number(active?.descuentoPct) || 0;
   const setDescuentoPct = (v) => updateActive({ descuentoPct: v === '' ? 0 : Math.max(0, Math.min(100, Number(v) || 0)) });
   useEffect(() => { setCalc(cotCalc(meses, batTotal, pricing, descuentoPct)); }, [meses, batTotal, pricing, descuentoPct]);
@@ -2627,7 +2653,18 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
 
       {/* kWh inputs */}
       <div style={{ background:'var(--surface)', border: isMobile ? 'none' : '1px solid var(--border)', borderRadius: isMobile ? 12 : 8, padding: isMobile ? '16px 16px' : '14px 16px', boxShadow: isMobile ? '0 1px 2px rgba(0,0,0,0.04)' : 'none' }}>
-        <div style={{ fontSize: isMobile ? 12 : 11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom: isMobile ? 14 : 10 }}>Consumo Mensual (kWh)</div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: isMobile ? 14 : 10, gap: 8, flexWrap:'wrap' }}>
+          <div style={{ fontSize: isMobile ? 12 : 11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px' }}>Consumo Mensual (kWh)</div>
+          <label style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, color:'#1a3c8f', cursor: extractingFactura ? 'default' : 'pointer', background:'rgba(26,60,143,0.08)', padding:'6px 12px', borderRadius:8, opacity: extractingFactura ? 0.6 : 1 }}>
+            {extractingFactura ? (
+              <span style={{ width:12, height:12, border:'2px solid #1a3c8f', borderTopColor:'transparent', borderRadius:'50%', display:'inline-block', animation:'spin 0.8s linear infinite' }} />
+            ) : (
+              <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            )}
+            {extractingFactura ? 'Leyendo factura…' : 'Subir factura (auto)'}
+            <input type="file" accept="application/pdf,image/*" onChange={onSubirFactura} disabled={extractingFactura} style={{ display:'none' }} />
+          </label>
+        </div>
         <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(4, 1fr)' : 'repeat(auto-fit, minmax(56px, 1fr))', gap: isMobile ? 10 : 7 }}>
           {mesLabels.map((m,i) => (
             <div key={i} style={{ minWidth:0 }}>
