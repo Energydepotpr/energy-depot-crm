@@ -58,6 +58,8 @@ export default function CotizarPage() {
   const [extracting, setExtracting] = useState(false);
   const [extractMsg, setExtractMsg] = useState('');
   const [bateriasList, setBateriasList] = useState(DEFAULT_BATERIAS);
+  const [session, setSession] = useState(null); // { lead_id, token, contact_name, quotations, ... }
+  const [welcomeShown, setWelcomeShown] = useState(false);
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
   const [selectedBatt, setSelectedBatt] = useState({}); // { name: qty }
 
@@ -69,7 +71,45 @@ export default function CotizarPage() {
         if (d.solar_pricing) setPricing({ ...DEFAULT_PRICING, ...d.solar_pricing });
       })
       .catch(() => {});
+
+    // Restaurar sesión desde localStorage
+    try {
+      const raw = localStorage.getItem('ed_cotizar_session');
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s?.lead_id && s?.token) {
+          fetch(`${API}/api/public/leads/${s.lead_id}/session?token=${encodeURIComponent(s.token)}`)
+            .then(r => r.json())
+            .then(d => {
+              if (d?.ok) {
+                setSession({ ...s, ...d });
+                if (d.contact_name) setName(d.contact_name);
+                if (d.email) setEmail(d.email);
+                if (d.phone) setPhone(d.phone);
+                if (d.city) setCity(d.city);
+                if (Array.isArray(d.meses) && d.meses.length) {
+                  const mm = Array(13).fill('');
+                  d.meses.slice(0,13).forEach((v,i) => { mm[i] = v ? String(v) : ''; });
+                  setMeses(mm);
+                }
+              } else {
+                localStorage.removeItem('ed_cotizar_session');
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    } catch {}
   }, []);
+
+  const cerrarSesion = () => {
+    try { localStorage.removeItem('ed_cotizar_session'); } catch {}
+    setSession(null);
+    setName(''); setEmail(''); setPhone(''); setCity('');
+    setMeses(Array(13).fill(''));
+    setSelectedBatt({});
+    setStep(1);
+  };
 
   const batPrecio = useMemo(() => Object.entries(selectedBatt).reduce((s, [name, qty]) => {
     const b = bateriasList.find(x => x.name === name);
@@ -179,7 +219,15 @@ export default function CotizarPage() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error');
-      setResult({ ...c, updated: data.updated, batPrecio, lead_id: data.lead_id });
+      // Guardar sesión cliente para próxima vez
+      if (data.lead_id && data.token) {
+        try {
+          localStorage.setItem('ed_cotizar_session', JSON.stringify({
+            lead_id: data.lead_id, token: data.token, name, email, phone,
+          }));
+        } catch {}
+      }
+      setResult({ ...c, updated: data.updated, batPrecio, lead_id: data.lead_id, token: data.token });
       setStep(3);
     } catch (e) { setErr(e.message); }
     finally { setSubmitting(false); }
@@ -203,9 +251,28 @@ export default function CotizarPage() {
 
         {step === 1 && (
           <div style={{ background: '#fff', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(15,42,92,0.06)', border: '1px solid #e2e8f0' }}>
+            {session && session.quotations && session.quotations.length > 0 && (
+              <div style={{ background: 'linear-gradient(135deg,#fef3c7,#fde68a)', border: '1px solid #fcd34d', borderRadius: 12, padding: 16, marginBottom: 18 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#78350f', marginBottom: 4 }}>👋 ¡Bienvenido de nuevo, {session.contact_name || ''}!</div>
+                <div style={{ fontSize: 12, color: '#78350f', marginBottom: 10 }}>Tienes {session.quotations.length} cotización{session.quotations.length === 1 ? '' : 'es'} previa{session.quotations.length === 1 ? '' : 's'}. Crea una nueva con baterías diferentes o sigue donde quedaste.</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                  {session.quotations.slice(-3).map(q => (
+                    <div key={q.id} style={{ background: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#78350f' }}>
+                      <strong>{q.name || 'Cotización'}</strong>
+                      {q.batteries && q.batteries.length > 0 && (
+                        <span style={{ color: '#a16207', marginLeft: 6 }}>· {q.batteries.map(b => `${b.qty > 1 ? b.qty + '× ' : ''}${b.name}`).join(', ')}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button onClick={cerrarSesion} style={{ background: 'transparent', border: '1px solid #92400e', color: '#92400e', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                  Empezar de cero (cerrar sesión)
+                </button>
+              </div>
+            )}
             <div style={{ fontSize: 11, fontWeight: 700, color: '#1a3c8f', letterSpacing: 2, marginBottom: 8 }}>PASO 1 DE 3</div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f2a5c', marginBottom: 8, lineHeight: 1.2 }}>Cuéntanos sobre ti</h1>
-            <p style={{ fontSize: 15, color: '#64748b', marginBottom: 18 }}>Tus datos para preparar la propuesta personalizada.</p>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f2a5c', marginBottom: 8, lineHeight: 1.2 }}>{session ? '¿Probar otra opción?' : 'Cuéntanos sobre ti'}</h1>
+            <p style={{ fontSize: 15, color: '#64748b', marginBottom: 18 }}>{session ? 'Tus datos están pre-llenados. Cambia las baterías para ver una nueva cotización.' : 'Tus datos para preparar la propuesta personalizada.'}</p>
 
             {/* Subir factura LUMA — auto-llenado */}
             <div style={{ background: 'linear-gradient(135deg,#eff6ff,#dbeafe)', border: '1px dashed #93c5fd', borderRadius: 12, padding: 16, marginBottom: 18 }}>
