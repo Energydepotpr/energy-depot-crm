@@ -371,6 +371,17 @@ export const api = {
   // Solar proposal
   leadPropuesta:     (id, quotationId) => req('GET', `/api/leads/${id}/propuesta${quotationId ? `?quotation_id=${encodeURIComponent(quotationId)}` : ''}`),
   extractFactura:    (id, file)   => req('POST',  `/api/leads/${id}/extract-factura`, { file }),
+
+  // Marketing campaigns / ROI
+  marketingDashboard:    ()          => req('GET',    '/api/marketing/dashboard'),
+  marketingCampaigns:    ()          => req('GET',    '/api/marketing-campaigns'),
+  marketingCampaign:     (id)        => req('GET',    `/api/marketing-campaigns/${id}`),
+  createMarketingCampaign:(d)        => req('POST',   '/api/marketing-campaigns', d),
+  updateMarketingCampaign:(id,d)     => req('PATCH',  `/api/marketing-campaigns/${id}`, d),
+  deleteMarketingCampaign:(id)       => req('DELETE', `/api/marketing-campaigns/${id}`),
+  uploadMarketingFile:   (id, file, notes) => req('POST', `/api/marketing-campaigns/${id}/files`, { file, notes }),
+  getMarketingFile:      (fileId)    => req('GET',    `/api/marketing-files/${fileId}`),
+  deleteMarketingFile:   (fileId)    => req('DELETE', `/api/marketing-files/${fileId}`),
   extractFacturaPublic: (file, apiBase) => fetch(`${apiBase}/api/public/extract-factura`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ file }) }).then(r => r.json()),
   saveSolarData:     (id, data) => req('PATCH', `/api/leads/${id}/solar`, data),
   generarContrato:   (id, data) => req('POST',  `/api/leads/${id}/contrato-solar`, data),
