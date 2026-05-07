@@ -214,6 +214,7 @@ export default function CotizarPage() {
         body: JSON.stringify({
           name, email, phonenumber: phone, city,
           meses, calc: c, batteries,
+          pagoLuz: c?.pagoLuma || 0,
           source: 'autocotizar-web',
         }),
       });
