@@ -2724,6 +2724,17 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
             {extractingFactura ? 'Leyendo factura…' : 'Subir factura (auto)'}
             <input type="file" accept="application/pdf,image/*" onChange={onSubirFactura} disabled={extractingFactura} style={{ display:'none' }} />
           </label>
+          <button onClick={() => {
+            const filled = meses.map(Number).filter(v => v > 0);
+            if (filled.length === 0) { showMsg('Llena al menos 1 mes primero'); return; }
+            const avg = Math.round(filled.reduce((a,b)=>a+b,0) / filled.length);
+            const next = meses.map(v => Number(v) > 0 ? v : String(avg));
+            setMeses(next);
+            showMsg(`✓ Meses faltantes llenados con promedio ${avg} kWh`);
+          }} style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, color:'#10b981', background:'rgba(16,185,129,0.10)', border:'none', padding:'6px 12px', borderRadius:8, cursor:'pointer' }}>
+            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-7 5l2 2 4-4"/></svg>
+            Auto-completar
+          </button>
         </div>
         <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(4, 1fr)' : 'repeat(auto-fit, minmax(56px, 1fr))', gap: isMobile ? 10 : 7 }}>
           {mesLabels.map((m,i) => (
