@@ -2473,7 +2473,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
     let newBatts;
     if (newQty === 0) newBatts = cur.filter(b => b.name !== battName);
     else if (found) newBatts = cur.map(b => b.name === battName ? { ...b, qty: newQty } : b);
-    else newBatts = [...cur, { name: battName, qty: newQty, unitPrice: battPrice }];
+    else newBatts = [...cur, { name: battName, qty: newQty, unitPrice: battPrice, description: BATERIAS_COT[i]?.description || '' }];
     updateActive({ batteries: newBatts });
   };
   const newQuotation = () => {
@@ -2769,6 +2769,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
                 <div style={{ minWidth:0, flex:1 }}>
                   <div style={{ fontSize: isMobile ? 14 : 11, fontWeight:700, color:active?'#1a3c8f':'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{b.name}</div>
                   <div style={{ fontSize: isMobile ? 12 : 10, color:'var(--muted)', marginTop:2 }}>{cotFmt(b.precio)}</div>
+                  {b.description && <div title={b.description} style={{ fontSize: isMobile ? 11 : 9.5, color:'var(--muted)', marginTop:3, lineHeight:1.35, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{b.description}</div>}
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap: isMobile ? 8 : 4 }}>
                   <button onClick={()=>setQ(i,-1)} disabled={batQty[i]===0} style={{ ...qbtn, opacity:batQty[i]===0?0.4:1 }}>−</button>

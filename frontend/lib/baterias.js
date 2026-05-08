@@ -18,7 +18,7 @@ export async function loadBaterias() {
       if (Array.isArray(parsed) && parsed.length) {
         return parsed
           .filter(b => b && b.name)
-          .map(b => ({ name: String(b.name), precio: Number(b.precio) || 0 }));
+          .map(b => ({ name: String(b.name), precio: Number(b.precio) || 0, description: b.description ? String(b.description) : '' }));
       }
     }
   } catch {}

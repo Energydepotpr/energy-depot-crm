@@ -722,6 +722,7 @@ function BateriasSolaresSection() {
   const [ok, setOk] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoPrecio, setNuevoPrecio] = useState('');
+  const [nuevaDesc, setNuevaDesc] = useState('');
 
   useEffect(() => {
     loadBaterias().then(b => { setList(b); setLoaded(true); });
@@ -760,8 +761,8 @@ function BateriasSolaresSection() {
     const name = nuevoNombre.trim();
     const precio = Number(nuevoPrecio) || 0;
     if (!name) return alert('Nombre requerido');
-    guardar([...list, { name, precio }]);
-    setNuevoNombre(''); setNuevoPrecio('');
+    guardar([...list, { name, precio, description: nuevaDesc.trim() }]);
+    setNuevoNombre(''); setNuevoPrecio(''); setNuevaDesc('');
   };
 
   const restaurar = () => {
@@ -776,49 +777,59 @@ function BateriasSolaresSection() {
       <div className="space-y-2 mb-4">
         {list.length === 0 && <p className="text-xs text-muted text-center py-3">No hay baterías. Agrega una abajo.</p>}
         {list.map((b, i) => (
-          <div key={i} className="flex items-center gap-2 px-3 py-2 bg-bg rounded-lg border border-border">
-            <div className="flex flex-col flex-shrink-0">
-              <button
-                onClick={() => mover(i, -1)}
-                disabled={i === 0}
-                className="text-xs text-muted hover:text-white transition-colors disabled:opacity-30"
-                style={{ lineHeight: 1, padding: '0 4px' }}
-                title="Subir"
-              >▲</button>
-              <button
-                onClick={() => mover(i, +1)}
-                disabled={i === list.length - 1}
-                className="text-xs text-muted hover:text-white transition-colors disabled:opacity-30"
-                style={{ lineHeight: 1, padding: '0 4px' }}
-                title="Bajar"
-              >▼</button>
-            </div>
-            <input
-              className="input text-xs flex-1"
-              value={b.name}
-              onChange={e => editar(i, 'name', e.target.value)}
-              onBlur={() => guardar(list)}
-              placeholder="Nombre"
-            />
-            <div className="flex items-center gap-1">
-              <span className="text-muted text-xs">$</span>
+          <div key={i} className="px-3 py-2 bg-bg rounded-lg border border-border">
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col flex-shrink-0">
+                <button
+                  onClick={() => mover(i, -1)}
+                  disabled={i === 0}
+                  className="text-xs text-muted hover:text-white transition-colors disabled:opacity-30"
+                  style={{ lineHeight: 1, padding: '0 4px' }}
+                  title="Subir"
+                >▲</button>
+                <button
+                  onClick={() => mover(i, +1)}
+                  disabled={i === list.length - 1}
+                  className="text-xs text-muted hover:text-white transition-colors disabled:opacity-30"
+                  style={{ lineHeight: 1, padding: '0 4px' }}
+                  title="Bajar"
+                >▼</button>
+              </div>
               <input
-                className="input text-xs"
-                style={{ width: 100, textAlign: 'right' }}
-                type="number"
-                value={b.precio}
-                onChange={e => editar(i, 'precio', e.target.value)}
+                className="input text-xs flex-1"
+                value={b.name}
+                onChange={e => editar(i, 'name', e.target.value)}
                 onBlur={() => guardar(list)}
-                placeholder="0"
+                placeholder="Nombre"
               />
+              <div className="flex items-center gap-1">
+                <span className="text-muted text-xs">$</span>
+                <input
+                  className="input text-xs"
+                  style={{ width: 100, textAlign: 'right' }}
+                  type="number"
+                  value={b.precio}
+                  onChange={e => editar(i, 'precio', e.target.value)}
+                  onBlur={() => guardar(list)}
+                  placeholder="0"
+                />
+              </div>
+              <button
+                onClick={() => eliminar(i)}
+                className="text-xs text-muted hover:text-danger transition-colors flex-shrink-0 px-2"
+                title="Eliminar"
+              >
+                ✕
+              </button>
             </div>
-            <button
-              onClick={() => eliminar(i)}
-              className="text-xs text-muted hover:text-danger transition-colors flex-shrink-0 px-2"
-              title="Eliminar"
-            >
-              ✕
-            </button>
+            <textarea
+              value={b.description || ''}
+              onChange={e => editar(i, 'description', e.target.value)}
+              onBlur={() => guardar(list)}
+              placeholder="Descripción (opcional): capacidad, garantía, características…"
+              rows={2}
+              style={{ width:'100%', marginTop:6, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, padding:'6px 9px', fontSize:11, color:'var(--text)', outline:'none', resize:'vertical', fontFamily:'inherit' }}
+            />
           </div>
         ))}
       </div>
@@ -847,6 +858,13 @@ function BateriasSolaresSection() {
             + Agregar
           </button>
         </div>
+        <textarea
+          value={nuevaDesc}
+          onChange={e => setNuevaDesc(e.target.value)}
+          placeholder="Descripción (opcional): capacidad, garantía, ciclos, etc."
+          rows={2}
+          style={{ width:'100%', marginTop:8, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, padding:'6px 9px', fontSize:11, color:'var(--text)', outline:'none', resize:'vertical', fontFamily:'inherit' }}
+        />
       </div>
 
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
