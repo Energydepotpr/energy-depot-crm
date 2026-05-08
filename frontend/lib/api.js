@@ -370,6 +370,7 @@ export const api = {
 
   // Solar proposal
   leadPropuesta:     (id, quotationId) => req('GET', `/api/leads/${id}/propuesta${quotationId ? `?quotation_id=${encodeURIComponent(quotationId)}` : ''}`),
+  leadShareLink:     (id, quotationId) => req('GET', `/api/leads/${id}/share-link${quotationId ? `?quotation_id=${encodeURIComponent(quotationId)}` : ''}`),
   extractFactura:    (id, file)   => req('POST',  `/api/leads/${id}/extract-factura`, { file }),
 
   // Marketing campaigns / ROI

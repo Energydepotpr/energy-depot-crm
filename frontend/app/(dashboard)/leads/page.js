@@ -969,6 +969,21 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     <SidebarEmailBtn leadId={lead.id} lead={lead} />
                     <button
                       onClick={async () => {
+                        try {
+                          const sd = lead.solar_data || {};
+                          const qid = sd.activeQuotationId;
+                          const r = await api.leadShareLink(lead.id, qid);
+                          if (!r?.url) throw new Error('Sin link');
+                          await navigator.clipboard.writeText(r.url);
+                          alert('✓ Link copiado al portapapeles:\n\n' + r.url + '\n\nMándaselo al cliente — verá la propuesta como página web.');
+                        } catch (e) { alert('Error: ' + e.message); }
+                      }}
+                      style={{ width:'100%', background:'transparent', color:'#0ea5e9', border:'1px solid #0ea5e9', borderRadius:8, padding:'8px 12px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                      Copiar link propuesta
+                    </button>
+                    <button
+                      onClick={async () => {
                         if (!confirm(`¿Eliminar este lead "${lead.title || lead.contact_name || ''}"? Esta acción no se puede deshacer.`)) return;
                         try {
                           await api.deleteLead(lead.id);
