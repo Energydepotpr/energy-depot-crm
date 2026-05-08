@@ -1,12 +1,12 @@
 'use client';
-import { use } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useParams } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-c4232.up.railway.app';
 
-export default function PropuestaPublicPage({ params }) {
-  const { id } = use(params);
+export default function PropuestaPublicPage() {
+  const params = useParams();
   const sp = useSearchParams();
+  const id = params?.id || '';
   const token = sp.get('token') || '';
   const q = sp.get('q') || '';
   const src = `${API}/api/public/leads/${id}/propuesta?token=${encodeURIComponent(token)}${q ? `&q=${encodeURIComponent(q)}` : ''}`;
