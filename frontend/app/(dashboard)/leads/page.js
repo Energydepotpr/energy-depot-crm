@@ -2391,7 +2391,9 @@ function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0) 
   const filled = last12.map(Number).filter(v=>v>0);
   if (!filled.length) return null;
   const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
-  const panels=Math.round(annCons*1.07/factorProduccion*1000/panelWatts), kw=parseFloat((panels*panelWatts/1000).toFixed(2));
+  let panels=Math.round(annCons*1.07/factorProduccion*1000/panelWatts);
+  if (panels % 2 !== 0) panels += 1; // siempre par
+  const kw=parseFloat((panels*panelWatts/1000).toFixed(2));
   const annProd=Math.round(kw*factorProduccion);
   // costBase = sistema FV completo (NO se descuenta). El descuento es una línea aparte.
   const costBase=Math.round(panels*panelPrice);

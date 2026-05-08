@@ -26,7 +26,8 @@ function calc(meses, batPrecio = 0, pricing = DEFAULT_PRICING) {
   if (!filled.length) return null;
   const avg = filled.reduce((a,b)=>a+b,0) / filled.length;
   const annCons = Math.round(avg * 12);
-  const panels = Math.round(annCons * 1.07 / pricing.factorProduccion * 1000 / pricing.panelWatts);
+  let panels = Math.round(annCons * 1.07 / pricing.factorProduccion * 1000 / pricing.panelWatts);
+  if (panels % 2 !== 0) panels += 1; // siempre par
   const kw = +(panels * pricing.panelWatts / 1000).toFixed(2);
   const annProd = Math.round(kw * pricing.factorProduccion);
   const costBase = Math.round(panels * pricing.panelPrice);
