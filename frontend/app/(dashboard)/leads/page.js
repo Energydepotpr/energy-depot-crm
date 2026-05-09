@@ -2390,7 +2390,7 @@ function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0) 
   const last12 = meses.length > 12 ? meses.slice(-12) : meses;
   const filled = last12.map(Number).filter(v=>v>0);
   if (!filled.length) return null;
-  const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*13);
+  const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
   let panels=Math.round(annCons*1.07/factorProduccion*1000/panelWatts);
   if (panels % 2 !== 0) panels += 1; // siempre par
   const kw=parseFloat((panels*panelWatts/1000).toFixed(2));
