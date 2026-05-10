@@ -777,7 +777,7 @@ function BateriasSolaresSection() {
       <div className="space-y-2 mb-4">
         {list.length === 0 && <p className="text-xs text-muted text-center py-3">No hay baterías. Agrega una abajo.</p>}
         {list.map((b, i) => (
-          <div key={i} className="px-3 py-2 bg-bg rounded-lg border border-border">
+          <div key={i} className="px-3 py-2 bg-bg rounded-lg border border-border" style={{ opacity: b.active === false ? 0.55 : 1 }}>
             <div className="flex items-center gap-2">
               <div className="flex flex-col flex-shrink-0">
                 <button
@@ -795,12 +795,29 @@ function BateriasSolaresSection() {
                   title="Bajar"
                 >▼</button>
               </div>
+              <button
+                onClick={() => guardar(list.map((x, j) => j === i ? { ...x, active: x.active === false } : x))}
+                title={b.active === false ? 'Activar (visible en cotizador)' : 'Desactivar (oculta en cotizador)'}
+                style={{
+                  width: 36, height: 20, borderRadius: 999,
+                  background: b.active === false ? '#475569' : '#10b981',
+                  border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0,
+                  transition: 'background 0.15s',
+                }}>
+                <span style={{
+                  position: 'absolute', top: 2, left: b.active === false ? 2 : 18,
+                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                  transition: 'left 0.15s',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                }} />
+              </button>
               <input
                 className="input text-xs flex-1"
                 value={b.name}
                 onChange={e => editar(i, 'name', e.target.value)}
                 onBlur={() => guardar(list)}
                 placeholder="Nombre"
+                style={{ textDecoration: b.active === false ? 'line-through' : 'none' }}
               />
               <div className="flex items-center gap-1">
                 <span className="text-muted text-xs">$</span>

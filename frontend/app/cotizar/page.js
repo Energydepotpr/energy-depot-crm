@@ -68,7 +68,9 @@ export default function CotizarPage() {
     fetch(API + '/api/public/solar-config')
       .then(r => r.json())
       .then(d => {
-        if (Array.isArray(d.solar_batteries) && d.solar_batteries.length) setBateriasList(d.solar_batteries);
+        if (Array.isArray(d.solar_batteries) && d.solar_batteries.length) {
+          setBateriasList(d.solar_batteries.filter(b => b.active !== false));
+        }
         if (d.solar_pricing) setPricing({ ...DEFAULT_PRICING, ...d.solar_pricing });
       })
       .catch(() => {});

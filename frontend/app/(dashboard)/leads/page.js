@@ -2410,7 +2410,10 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   const sd = lead?.solar_data || {};
   const [BATERIAS_COT, setBateriasList] = useState(DEFAULT_BATERIAS);
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
-  useEffect(() => { loadBaterias().then(setBateriasList); loadPricing().then(setPricing); }, []);
+  useEffect(() => {
+    loadBaterias().then(b => setBateriasList(b.filter(x => x.active !== false)));
+    loadPricing().then(setPricing);
+  }, []);
 
   // ── Multi-cotizaciones ──────────────────────────────────────────────────────
   const initQuotations = () => {
