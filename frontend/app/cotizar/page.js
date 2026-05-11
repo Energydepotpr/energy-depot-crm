@@ -63,6 +63,9 @@ export default function CotizarPage() {
   const [welcomeShown, setWelcomeShown] = useState(false);
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
   const [selectedBatt, setSelectedBatt] = useState({}); // { name: qty }
+  const [splitByBattery, setSplitByBattery] = useState(false); // Feature 1
+  const [editingQuotationId, setEditingQuotationId] = useState(null); // Feature 2: editar
+  const [results, setResults] = useState([]); // Feature 1: cotizaciones múltiples paso 3
   const DEFAULT_WELCOME = 'Tus datos para preparar la propuesta personalizada.';
   const [welcomeMsg, setWelcomeMsg] = useState(DEFAULT_WELCOME);
 
@@ -122,7 +125,35 @@ export default function CotizarPage() {
     setName(''); setEmail(''); setPhone(''); setCity('');
     setMeses(Array(13).fill(''));
     setSelectedBatt({});
+    setSplitByBattery(false);
+    setEditingQuotationId(null);
+    setResults([]);
     setStep(1);
+  };
+
+  // Feature 2: Cargar la última cotización para editarla
+  const editarUltimaCotizacion = () => {
+    const q = session?.quotations?.[session.quotations.length - 1];
+    if (!q) return;
+    setEditingQuotationId(q.id);
+    if (Array.isArray(q.meses) && q.meses.length) {
+      const mm = Array(13).fill('');
+      q.meses.slice(0, 13).forEach((v, i) => { mm[i] = v ? String(v) : ''; });
+      setMeses(mm);
+    }
+    const sb = {};
+    (q.batteries || []).forEach(b => { if (b?.qty > 0) sb[b.name] = b.qty; });
+    setSelectedBatt(sb);
+    setSplitByBattery(false);
+    setStep(2);
+  };
+
+  // Feature 2: Añadir nueva cotización (mantener meses, batería vacía)
+  const anadirNuevaCotizacion = () => {
+    setEditingQuotationId(null);
+    setSelectedBatt({});
+    setSplitByBattery(false);
+    setStep(2);
   };
 
   const batPrecio = useMemo(() => Object.entries(selectedBatt).reduce((s, [name, qty]) => {
@@ -135,28 +166,47 @@ export default function CotizarPage() {
   const [actionLoad, setActionLoad] = useState(null); // 'email'|'download'|null
   const [actionMsg, setActionMsg] = useState('');
 
+  const downloadBase64Pdf = (b64, filename) => {
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename || 'Propuesta.pdf'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   const propuestaAction = async (action) => {
     if (!result?.lead_id) return;
     setActionLoad(action);
     setActionMsg('');
     try {
+      // Multi-quotation: usar quotation_ids del result
+      const qIds = result.quotation_ids || [];
+      const body = { action, email };
+      if (qIds.length > 1) body.quotation_ids = qIds;
       const r = await fetch(`${API}/api/public/leads/${result.lead_id}/propuesta-action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, email }),
+        body: JSON.stringify(body),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error');
-      if (action === 'download' && data.pdf) {
-        const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
-        const blob = new Blob([bytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = data.filename || 'Propuesta.pdf'; a.click();
-        URL.revokeObjectURL(url);
-        setActionMsg('✓ PDF descargado');
+      if (action === 'download') {
+        if (Array.isArray(data.pdfs)) {
+          // Descarga secuencial de cada PDF
+          for (let i = 0; i < data.pdfs.length; i++) {
+            const p = data.pdfs[i];
+            downloadBase64Pdf(p.pdf, p.filename);
+            // pequeño delay para que el navegador no bloquee descargas múltiples
+            await new Promise(res => setTimeout(res, 350));
+          }
+          setActionMsg(`✓ ${data.pdfs.length} PDFs descargados`);
+        } else if (data.pdf) {
+          downloadBase64Pdf(data.pdf, data.filename);
+          setActionMsg('✓ PDF descargado');
+        }
       } else if (action === 'email') {
-        setActionMsg(`✓ Enviado a ${data.to}`);
+        setActionMsg(`✓ Enviado a ${data.to}${data.count ? ` (${data.count} adjuntos)` : ''}`);
       }
     } catch (e) { setActionMsg('Error: ' + e.message); }
     finally { setActionLoad(null); }
@@ -219,18 +269,53 @@ export default function CotizarPage() {
     if (!c) { setErr('Llena al menos un mes de consumo'); return; }
     setSubmitting(true);
     try {
-      const batteries = Object.entries(selectedBatt).map(([n, q]) => ({
+      const batteriesAll = Object.entries(selectedBatt).map(([n, q]) => ({
         name: n, qty: q, unitPrice: bateriasList.find(b => b.name === n)?.precio || 0,
       }));
+
+      // Feature 1: si splitByBattery → construir array de quotations (1 por batería + Solo Solar)
+      let payload = {
+        name, email, phonenumber: phone, city,
+        meses,
+        pagoLuz: c?.pagoLuma || 0,
+        source: 'autocotizar-web',
+      };
+      let multiResults = [];
+      if (splitByBattery && batteriesAll.length > 0) {
+        const quotations = [];
+        // 1 por cada batería
+        batteriesAll.forEach(b => {
+          const oneBatt = [{ name: b.name, qty: b.qty, unitPrice: b.unitPrice }];
+          const batPrecioOne = (b.unitPrice || 0) * (b.qty || 0);
+          const calcOne = calc(meses, batPrecioOne, pricing);
+          quotations.push({
+            name: `${name} — ${b.qty > 1 ? b.qty + '× ' : ''}${b.name}`,
+            batteries: oneBatt,
+            meses,
+            calc: calcOne,
+          });
+          multiResults.push({ ...calcOne, batPrecio: batPrecioOne, label: `${b.qty > 1 ? b.qty + '× ' : ''}${b.name}` });
+        });
+        // + Solo solar
+        const calcSolo = calc(meses, 0, pricing);
+        quotations.push({
+          name: `${name} — Solo Solar (sin batería)`,
+          batteries: [],
+          meses,
+          calc: calcSolo,
+        });
+        multiResults.push({ ...calcSolo, batPrecio: 0, label: 'Solo Solar (sin batería)' });
+        payload.quotations = quotations;
+      } else {
+        payload.calc = c;
+        payload.batteries = batteriesAll;
+        if (editingQuotationId) payload.quotation_id = editingQuotationId;
+      }
+
       const r = await fetch(API + '/api/public/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name, email, phonenumber: phone, city,
-          meses, calc: c, batteries,
-          pagoLuz: c?.pagoLuma || 0,
-          source: 'autocotizar-web',
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error');
@@ -242,7 +327,9 @@ export default function CotizarPage() {
           }));
         } catch {}
       }
-      setResult({ ...c, updated: data.updated, batPrecio, lead_id: data.lead_id, token: data.token });
+      setResults(multiResults);
+      setResult({ ...c, updated: data.updated, batPrecio, lead_id: data.lead_id, token: data.token, quotation_ids: data.quotation_ids || [] });
+      setEditingQuotationId(null);
       setStep(3);
     } catch (e) { setErr(e.message); }
     finally { setSubmitting(false); }
@@ -268,9 +355,9 @@ export default function CotizarPage() {
           <div style={{ background: '#fff', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(15,42,92,0.06)', border: '1px solid #e2e8f0' }}>
             {session && session.quotations && session.quotations.length > 0 && (
               <div style={{ background: 'linear-gradient(135deg,#fef3c7,#fde68a)', border: '1px solid #fcd34d', borderRadius: 12, padding: 16, marginBottom: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#78350f', marginBottom: 4 }}>👋 ¡Bienvenido de nuevo, {session.contact_name || ''}!</div>
-                <div style={{ fontSize: 12, color: '#78350f', marginBottom: 10 }}>Tienes {session.quotations.length} cotización{session.quotations.length === 1 ? '' : 'es'} previa{session.quotations.length === 1 ? '' : 's'}. Crea una nueva con baterías diferentes o sigue donde quedaste.</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#78350f', marginBottom: 4 }}>👋 ¡Bienvenido de nuevo, {session.contact_name || ''}!</div>
+                <div style={{ fontSize: 12, color: '#78350f', marginBottom: 12 }}>Tienes {session.quotations.length} cotización{session.quotations.length === 1 ? '' : 'es'} previa{session.quotations.length === 1 ? '' : 's'}. ¿Qué quieres hacer?</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
                   {session.quotations.slice(-3).map(q => (
                     <div key={q.id} style={{ background: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#78350f' }}>
                       <strong>{q.name || 'Cotización'}</strong>
@@ -280,9 +367,20 @@ export default function CotizarPage() {
                     </div>
                   ))}
                 </div>
-                <button onClick={cerrarSesion} style={{ background: 'transparent', border: '1px solid #92400e', color: '#92400e', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-                  Empezar de cero (cerrar sesión)
-                </button>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <button onClick={editarUltimaCotizacion} style={{ background: '#1a3c8f', color: '#fff', border: 'none', padding: '12px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>
+                    ✏️ Editar cotización actual
+                    <div style={{ fontSize: 11, fontWeight: 400, opacity: 0.85, marginTop: 2 }}>Modifica meses o baterías de tu última cotización</div>
+                  </button>
+                  <button onClick={anadirNuevaCotizacion} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '12px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>
+                    ➕ Añadir nueva cotización (otra batería)
+                    <div style={{ fontSize: 11, fontWeight: 400, opacity: 0.85, marginTop: 2 }}>Mantiene tu consumo guardado, cambia la batería</div>
+                  </button>
+                  <button onClick={cerrarSesion} style={{ background: 'transparent', border: '1px solid #92400e', color: '#92400e', padding: '10px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
+                    🔄 Empezar de cero
+                    <div style={{ fontSize: 11, fontWeight: 400, opacity: 0.85, marginTop: 2 }}>Borra todo y comienza una sesión nueva</div>
+                  </button>
+                </div>
               </div>
             )}
             <div style={{ fontSize: 11, fontWeight: 700, color: '#1a3c8f', letterSpacing: 2, marginBottom: 8 }}>PASO 1 DE 3</div>
@@ -366,6 +464,17 @@ export default function CotizarPage() {
                   Total baterías: <strong style={{ color: '#1a3c8f' }}>{fmt(batPrecio)}</strong>
                 </div>
               )}
+
+              {/* Feature 1: toggle múltiples cotizaciones */}
+              {Object.keys(selectedBatt).length >= 1 && !editingQuotationId && (
+                <label style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 10, background: splitByBattery ? 'rgba(16,185,129,0.08)' : '#f8fafc', border: '1px solid ' + (splitByBattery ? '#10b981' : '#e2e8f0'), borderRadius: 10, padding: '10px 12px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={splitByBattery} onChange={e => setSplitByBattery(e.target.checked)} style={{ marginTop: 2, accentColor: '#10b981' }} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: splitByBattery ? '#065f46' : '#0f2a5c' }}>Generar cotización separada por cada batería seleccionada</div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Recibirás {Object.keys(selectedBatt).length + 1} cotizaciones independientes ({Object.keys(selectedBatt).length} con batería + 1 solo solar) para comparar.</div>
+                  </div>
+                </label>
+              )}
             </div>
 
             {err && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 12, fontWeight: 500 }}>{err}</div>}
@@ -393,19 +502,41 @@ export default function CotizarPage() {
               {result.updated ? 'Actualizamos tu cotización con los datos nuevos.' : 'Recibimos tus datos. Un asesor te contactará pronto.'}
             </p>
 
-            <div style={{ background: 'linear-gradient(135deg, #1a3c8f, #0f2a5c)', borderRadius: 12, padding: 24, color: '#fff', marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.7, letterSpacing: 1, marginBottom: 4 }}>SISTEMA RECOMENDADO</div>
-              <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 4 }}>{result.kw} kW</div>
-              <div style={{ fontSize: 14, opacity: 0.85 }}>{result.panels} paneles · {result.annProd.toLocaleString()} kWh/año · {result.offset}% cobertura</div>
-            </div>
+            {results && results.length > 1 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+                <div style={{ fontSize: 13, color: '#64748b' }}>Generamos <strong style={{ color: '#1a3c8f' }}>{results.length} cotizaciones</strong> para que compares opciones.</div>
+                {results.map((rr, idx) => (
+                  <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#fff' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1a3c8f', marginBottom: 6, letterSpacing: 0.5 }}>OPCIÓN {idx + 1} · {rr.label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: '#0f2a5c', marginBottom: 4 }}>{rr.kw} kW</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>{rr.panels} paneles · {rr.annProd?.toLocaleString()} kWh/año · {rr.offset}% cobertura</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: rr.batPrecio > 0 ? '1fr 1fr 1fr' : '1fr 1fr', gap: 8 }}>
+                      <ResultCard label="LUMA actual" value={fmt(rr.pagoLuma) + '/mes'} color="#ef4444" sub="Hoy" />
+                      <ResultCard label="Solar" value={fmt(rr.pagoFV) + '/mes'} color="#10b981" sub="15 años" />
+                      {rr.batPrecio > 0 && (
+                        <ResultCard label="Solar + Batería" value={fmt(rr.pagoBat) + '/mes'} color="#1a3c8f" sub="Con respaldo" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div style={{ background: 'linear-gradient(135deg, #1a3c8f, #0f2a5c)', borderRadius: 12, padding: 24, color: '#fff', marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.7, letterSpacing: 1, marginBottom: 4 }}>SISTEMA RECOMENDADO</div>
+                  <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 4 }}>{result.kw} kW</div>
+                  <div style={{ fontSize: 14, opacity: 0.85 }}>{result.panels} paneles · {result.annProd.toLocaleString()} kWh/año · {result.offset}% cobertura</div>
+                </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: result.batPrecio > 0 ? '1fr 1fr 1fr' : '1fr 1fr', gap: 12, marginBottom: 20 }}>
-              <ResultCard label="Pago LUMA actual" value={fmt(result.pagoLuma) + '/mes'} color="#ef4444" sub="Lo que pagas hoy" />
-              <ResultCard label="Solar (sin batería)" value={fmt(result.pagoFV) + '/mes'} color="#10b981" sub="Financiado 15 años" />
-              {result.batPrecio > 0 && (
-                <ResultCard label="Solar + Batería" value={fmt(result.pagoBat) + '/mes'} color="#1a3c8f" sub="Con respaldo de energía" />
-              )}
-            </div>
+                <div style={{ display: 'grid', gridTemplateColumns: result.batPrecio > 0 ? '1fr 1fr 1fr' : '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                  <ResultCard label="Pago LUMA actual" value={fmt(result.pagoLuma) + '/mes'} color="#ef4444" sub="Lo que pagas hoy" />
+                  <ResultCard label="Solar (sin batería)" value={fmt(result.pagoFV) + '/mes'} color="#10b981" sub="Financiado 15 años" />
+                  {result.batPrecio > 0 && (
+                    <ResultCard label="Solar + Batería" value={fmt(result.pagoBat) + '/mes'} color="#1a3c8f" sub="Con respaldo de energía" />
+                  )}
+                </div>
+              </>
+            )}
 
             <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: 14, fontSize: 13, color: '#78350f', marginBottom: 16 }}>
               💡 Esto es una estimación. Un asesor te dará la cotización final con baterías, financiamiento y opciones específicas para tu hogar.
@@ -415,11 +546,11 @@ export default function CotizarPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <button onClick={() => propuestaAction('download')} disabled={!!actionLoad}
                 style={{ background: '#1a3c8f', color: '#fff', border: 'none', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: actionLoad ? 0.6 : 1 }}>
-                {actionLoad === 'download' ? 'Generando…' : '↓ Descargar PDF'}
+                {actionLoad === 'download' ? 'Generando…' : (results && results.length > 1 ? `↓ Descargar ${results.length} PDFs` : '↓ Descargar PDF')}
               </button>
               <button onClick={() => propuestaAction('email')} disabled={!!actionLoad || !email}
                 style={{ background: 'transparent', color: '#1a3c8f', border: '1px solid #1a3c8f', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: actionLoad || !email ? 0.6 : 1 }}>
-                {actionLoad === 'email' ? 'Enviando…' : `✉ Enviar a ${email || 'mi correo'}`}
+                {actionLoad === 'email' ? 'Enviando…' : (results && results.length > 1 ? `✉ Enviar todos a ${email || 'mi correo'}` : `✉ Enviar a ${email || 'mi correo'}`)}
               </button>
             </div>
             {actionMsg && (

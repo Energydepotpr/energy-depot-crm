@@ -3,6 +3,7 @@ const path        = require('path');
 const { pool }    = require('../services/db');
 const { getConfigValue } = require('../services/configService');
 const { buildHTML } = require('../templates/propuesta.html.js');
+const { buildModernEmail } = require('../templates/emailModerno');
 
 // ─── Solar formula (Energy Depot PR — 1460 kWh/kW/año, $2150/kW, 0.26 $/kWh) ──
 // months[] contiene kWh mensuales (lo que aparece en la factura LUMA)
@@ -65,6 +66,8 @@ async function createPublicLead(req, res) {
       fuente, referido, meses = [], batteries, pagoLuz,
       propiedad, ingresos, credito, sistema, calc: clientCalc,
       source,
+      quotation_id,        // si viene → REEMPLAZAR esa quotation (Feature 2: editar)
+      quotations: multiQuotations, // si viene array → crear N cotizaciones (Feature 1)
     } = req.body;
 
     if (!name) return res.status(400).json({ error: 'name requerido' });
@@ -99,20 +102,40 @@ async function createPublicLead(req, res) {
       }
     }
 
-    // Construir nombre de cotización: "Cliente — Batería"
-    const battSummary = Array.isArray(batteries) && batteries.length > 0
-      ? batteries.filter(b => b?.qty > 0).map(b => `${b.qty > 1 ? b.qty + '× ' : ''}${b.name}`).join(' · ') || 'Sin batería'
+    // Helper para resumen de batería
+    const battSummaryOf = (bs) => Array.isArray(bs) && bs.length > 0
+      ? (bs.filter(b => b?.qty > 0).map(b => `${b.qty > 1 ? b.qty + '× ' : ''}${b.name}`).join(' · ') || 'Sin batería')
       : 'Sin batería';
-    const quotationName = `${name} — ${battSummary}`;
 
-    // Crear quotation entry compatible con el formato del CRM
-    const newQuotation = {
-      id: 'q' + Math.random().toString(36).slice(2, 9),
-      name: quotationName,
-      createdAt: new Date().toISOString(),
-      meses: meses || [],
-      batteries: batteries || [],
-    };
+    const newId = () => 'q' + Math.random().toString(36).slice(2, 9);
+
+    // Construir lista de nuevas cotizaciones a guardar
+    let newQuotations;
+    if (Array.isArray(multiQuotations) && multiQuotations.length > 0) {
+      newQuotations = multiQuotations.map(q => {
+        const qBatts = q.batteries || [];
+        const qMeses = (Array.isArray(q.meses) && q.meses.length) ? q.meses : (meses || []);
+        const qCalc  = q.calc || calcSolar(qMeses) || clientCalc || null;
+        return {
+          id: newId(),
+          name: q.name || `${name} — ${battSummaryOf(qBatts)}`,
+          createdAt: new Date().toISOString(),
+          meses: qMeses,
+          batteries: qBatts,
+          calc: qCalc,
+        };
+      });
+    } else {
+      newQuotations = [{
+        id: newId(),
+        name: `${name} — ${battSummaryOf(batteries)}`,
+        createdAt: new Date().toISOString(),
+        meses: meses || [],
+        batteries: batteries || [],
+      }];
+    }
+    const newQuotation = newQuotations[newQuotations.length - 1]; // compat
+    const quotationName = newQuotation.name;
 
     const solarData = {
       meses,
@@ -132,7 +155,7 @@ async function createPublicLead(req, res) {
       telefono: phonenumber,
       submittedAt: new Date().toISOString(),
       source: source || 'cotizacion-web',
-      quotations: [newQuotation],
+      quotations: newQuotations,
       activeQuotationId: newQuotation.id,
     };
 
@@ -164,6 +187,17 @@ async function createPublicLead(req, res) {
         const oldRow = oldR.rows[0] || {};
         const oldSd = oldRow.solar_data || {};
         const oldQuotations = Array.isArray(oldSd.quotations) ? oldSd.quotations : [];
+        // Feature 2: si viene quotation_id y existe → REEMPLAZAR esa quotation
+        let mergedQuotations;
+        let mergedActiveId;
+        if (quotation_id && oldQuotations.find(q => q.id === quotation_id)) {
+          const replacement = { ...newQuotations[0], id: quotation_id };
+          mergedQuotations = oldQuotations.map(q => q.id === quotation_id ? replacement : q);
+          mergedActiveId = quotation_id;
+        } else {
+          mergedQuotations = [...oldQuotations, ...newQuotations];
+          mergedActiveId = newQuotation.id;
+        }
         const mergedSd = {
           ...oldSd,
           // Solo merge campos de identidad si el viejo NO los tenía (no sobrescribir)
@@ -179,8 +213,8 @@ async function createPublicLead(req, res) {
           pagoLuz: solarData.pagoLuz,
           submittedAt: solarData.submittedAt,
           source: oldSd.source || solarData.source,
-          quotations: [...oldQuotations, newQuotation],
-          activeQuotationId: newQuotation.id,
+          quotations: mergedQuotations,
+          activeQuotationId: mergedActiveId,
         };
         // Mantener el title viejo (no sobrescribir con el nuevo nombre del form)
         const keepTitle = oldRow.title || title;
@@ -218,7 +252,18 @@ async function createPublicLead(req, res) {
     const SECRET = process.env.PUBLIC_LEAD_SECRET || 'energy-depot-public-2026';
     const token = crypto.createHash('sha256').update(`${leadId}-${SECRET}`).digest('hex').slice(0, 32);
 
-    res.json({ ok: true, lead_id: leadId, token, updated });
+    // IDs reales que quedaron persistidos (replace mantiene id original; append usa nuevos)
+    const persistedR = await pool.query(`SELECT solar_data FROM leads WHERE id = $1`, [leadId]);
+    const persistedSd = persistedR.rows[0]?.solar_data || {};
+    const allIds = (persistedSd.quotations || []).map(q => q.id);
+    let quotation_ids;
+    if (quotation_id && allIds.includes(quotation_id)) {
+      quotation_ids = [quotation_id];
+    } else {
+      // últimas N (cantidad creada)
+      quotation_ids = allIds.slice(-newQuotations.length);
+    }
+    res.json({ ok: true, lead_id: leadId, token, updated, quotation_ids });
   } catch (err) {
     console.error('[publicLead] crear:', err.message);
     res.status(500).json({ error: 'Error interno' });
@@ -380,7 +425,7 @@ async function generarPropuestaPDF(req, res) {
 async function publicPropuestaAction(req, res) {
   try {
     const leadId = Number(req.params.id);
-    const { action, email } = req.body || {};
+    const { action, email, quotation_ids } = req.body || {};
     if (!leadId) return res.status(400).json({ error: 'lead_id requerido' });
     if (!['email','download'].includes(action)) return res.status(400).json({ error: 'action inválido' });
 
@@ -390,18 +435,60 @@ async function publicPropuestaAction(req, res) {
     const ageHours = (Date.now() - new Date(r.rows[0].created_at).getTime()) / 3600000;
     if (ageHours > 24) return res.status(403).json({ error: 'Acción no disponible para este lead' });
 
-    const data = await loadProposalData(leadId);
-    if (!data) return res.status(404).json({ error: 'Lead no encontrado' });
-
     const { generatePDF } = require('../services/puppeteerPool');
-    const html = buildHTML(data);
-    const pdfBuf = await generatePDF(html);
-
-    const base64 = Buffer.from(pdfBuf).toString('base64');
     const safe = s => String(s || '').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '-');
-    const clientePart = safe(data.nombre);
-    const bateriaPart = safe((data.batteries || []).filter(b => b?.qty > 0).map(b => `${b.qty > 1 ? b.qty + 'x' : ''}${b.name}`).join('-')) || 'Sin-bateria';
-    const filename = `Cotizacion-${clientePart || 'Cliente'}-${bateriaPart}.pdf`;
+    const buildPdfFor = async (qid) => {
+      const data = await loadProposalData(leadId, qid);
+      if (!data) return null;
+      const html = buildHTML(data);
+      const pdfBuf = await generatePDF(html);
+      const base64 = Buffer.from(pdfBuf).toString('base64');
+      const clientePart = safe(data.nombre);
+      const bateriaPart = safe((data.batteries || []).filter(b => b?.qty > 0).map(b => `${b.qty > 1 ? b.qty + 'x' : ''}${b.name}`).join('-')) || 'Sin-bateria';
+      const filename = `Cotizacion-${clientePart || 'Cliente'}-${bateriaPart}.pdf`;
+      return { pdf: base64, filename, data };
+    };
+
+    // Multi-quotation mode (Feature 1)
+    if (Array.isArray(quotation_ids) && quotation_ids.length > 1) {
+      const results = [];
+      for (const qid of quotation_ids) {
+        const r2 = await buildPdfFor(qid);
+        if (r2) results.push(r2);
+      }
+      if (!results.length) return res.status(404).json({ error: 'Sin cotizaciones' });
+
+      if (action === 'download') {
+        return res.json({ ok: true, pdfs: results.map(r2 => ({ pdf: r2.pdf, filename: r2.filename })) });
+      }
+      // email — un solo correo con N adjuntos
+      const firstData = results[0].data;
+      const to = (email || firstData.email || '').trim();
+      if (!to) return res.status(400).json({ error: 'email requerido' });
+      const { sendEmail } = require('../services/gmailService');
+      const autoBcc = await getConfigValue('email_auto_bcc', 'gil.diaz@energydepotpr.com');
+      const options = results.map((r2, i) => {
+        const batt = (r2.data?.baterias?.[0]?.name) || null;
+        return batt ? `Opción ${String.fromCharCode(65 + i)} — ${batt}` : `Opción ${String.fromCharCode(65 + i)} — Sistema solar`;
+      });
+      const mail = await buildModernEmail({ name: firstData.nombre, email: to, count: results.length, options, getConfigValue });
+      await sendEmail({
+        from: '"Energy Depot LLC" <info@energydepotpr.com>',
+        to,
+        bcc: autoBcc,
+        subject: mail.subject,
+        text: mail.text,
+        html: mail.html,
+        attachments: results.map(r2 => ({ filename: r2.filename, mimeType: 'application/pdf', content: r2.pdf })),
+      });
+      return res.json({ ok: true, sent: true, to, count: results.length });
+    }
+
+    // Single quotation (modo legacy / compat)
+    const onlyId = Array.isArray(quotation_ids) ? quotation_ids[0] : undefined;
+    const single = await buildPdfFor(onlyId);
+    if (!single) return res.status(404).json({ error: 'Lead no encontrado' });
+    const { pdf: base64, filename, data } = single;
 
     if (action === 'download') {
       return res.json({ ok: true, pdf: base64, filename });
@@ -416,18 +503,16 @@ async function publicPropuestaAction(req, res) {
     // TODO(empresa_info): merge config.empresa_info (JSON: name/phone/email/address...) sobre
     // los valores hardcoded de abajo ("Energy Depot LLC", "787-627-8585", "info@energydepotpr.com").
     // Por ahora se deja literal porque está embebido en el template HTML del email; refactor pendiente.
+    const battName = data?.baterias?.[0]?.name;
+    const singleOptions = battName ? [`Sistema solar + ${battName}`] : ['Tu propuesta solar personalizada'];
+    const mailSingle = await buildModernEmail({ name: data.nombre, email: to, count: 1, options: singleOptions, getConfigValue });
     await sendEmail({
       from: '"Energy Depot LLC" <info@energydepotpr.com>',
       to,
       bcc: autoBcc,
-      subject: `Tu propuesta solar — Energy Depot${data.nombre ? ' · ' + data.nombre : ''}`,
-      text: `Hola ${data.nombre || ''},\n\nAdjuntamos tu propuesta solar personalizada en PDF.\n\nCualquier duda contáctanos al 787-627-8585.\n\n— Energy Depot LLC`,
-      html: `<div style="font-family: Arial, sans-serif; max-width:560px; margin:0 auto; padding:24px;">
-        <h2 style="color:#1a3c8f; margin:0 0 12px;">Hola ${data.nombre || ''},</h2>
-        <p style="color:#374151; line-height:1.6;">Aquí tienes tu <strong>propuesta solar personalizada</strong> en PDF.</p>
-        <p style="color:#374151; line-height:1.6;">Si tienes preguntas, escríbenos a <a href="mailto:info@energydepotpr.com">info@energydepotpr.com</a> o llámanos al <strong>787-627-8585</strong>.</p>
-        <p style="margin-top:24px; color:#6b7280; font-size:13px;">— Energy Depot LLC</p>
-      </div>`,
+      subject: mailSingle.subject,
+      text: mailSingle.text,
+      html: mailSingle.html,
       attachments: [{ filename, mimeType: 'application/pdf', content: base64 }],
     });
 
@@ -461,7 +546,8 @@ async function publicLeadLookup(req, res) {
     const quotations = (sd.quotations || []).map(q => ({
       id: q.id, name: q.name, createdAt: q.createdAt,
       meses: q.meses || [],
-      batteries: (q.batteries || []).map(b => ({ name: b.name, qty: b.qty })),
+      batteries: (q.batteries || []).map(b => ({ name: b.name, qty: b.qty, unitPrice: b.unitPrice })),
+      calc: q.calc || null,
       descuentoPct: q.descuentoPct || 0,
     }));
     res.json({
