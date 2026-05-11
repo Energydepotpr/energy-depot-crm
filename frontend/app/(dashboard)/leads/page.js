@@ -151,6 +151,24 @@ function SidebarEmailBtn({ leadId, lead }) {
   const [files, setFiles] = useState([]); // { name, mime, base64 }
   const [loading, setLoading] = useState(false);
   const [attaching, setAttaching] = useState(false);
+  // Overrides desde el config table (Settings page). Si están vacíos se usa el default del archivo.
+  const [tplOverrides, setTplOverrides] = useState({}); // { email_tpl_modern_html, email_tpl_modern_subject, email_tpl_classic_html, email_tpl_classic_subject }
+
+  useEffect(() => {
+    if (!show) return;
+    api.get('/api/settings')
+      .then(d => {
+        if (d && typeof d === 'object') {
+          setTplOverrides({
+            email_tpl_modern_html:    d.email_tpl_modern_html    || '',
+            email_tpl_modern_subject: d.email_tpl_modern_subject || '',
+            email_tpl_classic_html:   d.email_tpl_classic_html   || '',
+            email_tpl_classic_subject:d.email_tpl_classic_subject|| '',
+          });
+        }
+      })
+      .catch(() => {});
+  }, [show]);
 
   useEffect(() => {
     if (show) {
@@ -180,9 +198,21 @@ function SidebarEmailBtn({ leadId, lead }) {
     const rawTitle = lead?.title || '';
     const titleName = rawTitle.replace(/^[A-Z]{2,3}-\d+\s*[—–-]\s*/, '').split(/\s*[—–]\s*/)[0].trim();
     const enriched = { ...lead, contact_name: lead?.contact_name || titleName };
-    setSubject(t.subject(enriched));
+
+    // Override desde config table (Settings). Solo se usa si la key existe y no está vacía.
+    const interp = (s) => String(s || '')
+      .replace(/\{\{\s*contact_name\s*\}\}/g, enriched.contact_name || '')
+      .replace(/\{\{\s*email\s*\}\}/g, enriched.contact_email || enriched.email || '');
+    const ovSubjectKey = key === 'cotizaciones_pdf' ? 'email_tpl_modern_subject'
+                      : key === 'cotizacion_clasica' ? 'email_tpl_classic_subject' : null;
+    const ovHtmlKey    = key === 'cotizaciones_pdf' ? 'email_tpl_modern_html'
+                      : key === 'cotizacion_clasica' ? 'email_tpl_classic_html' : null;
+    const ovSubject = ovSubjectKey && tplOverrides[ovSubjectKey] ? interp(tplOverrides[ovSubjectKey]) : null;
+    const ovHtml    = ovHtmlKey    && tplOverrides[ovHtmlKey]    ? interp(tplOverrides[ovHtmlKey])    : null;
+
+    setSubject(ovSubject || t.subject(enriched));
     setBody(t.text(enriched));
-    setBodyHtml(t.html(enriched));
+    setBodyHtml(ovHtml || t.html(enriched));
   };
 
   const onPickFiles = async (e) => {

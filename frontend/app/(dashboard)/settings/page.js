@@ -1,10 +1,11 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { api } from '../../../lib/api';
 import PermissionsPanel from './PermissionsPanel';
 import { loadBaterias, saveBaterias, DEFAULT_BATERIAS, loadPricing, savePricing, DEFAULT_PRICING } from '../../../lib/baterias';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
+import { EMAIL_TEMPLATES } from '../../../lib/email-templates';
 
 const DIAS = [
   { num: 1, label: 'Lun' }, { num: 2, label: 'Mar' }, { num: 3, label: 'Mié' },
@@ -896,6 +897,519 @@ function BateriasSolaresSection() {
   );
 }
 
+// ====== NUEVAS SECCIONES ======
+
+function useSetting(key, defaultValue) {
+  const [value, setValue] = useState(defaultValue);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    api.settings().then(c => {
+      if (c && c[key] !== undefined && c[key] !== null && c[key] !== '') {
+        setValue(c[key]);
+      }
+      setLoaded(true);
+    }).catch(() => setLoaded(true));
+  }, [key]);
+
+  const save = async (v) => {
+    setSaving(true); setOk(false);
+    try {
+      await api.saveSetting(key, String(v ?? value));
+      setOk(true);
+      setTimeout(() => setOk(false), 2000);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  };
+
+  return { value, setValue, save, loaded, saving, ok };
+}
+
+function EmpresaInfoSection() {
+  const DEFAULT = {
+    name: 'Energy Depot LLC',
+    phone: '787-627-8585',
+    email: 'info@energydepotpr.com',
+    address1: 'Global Plaza Suite 204',
+    address2: 'Cll John A. Ernot',
+    city: 'San Juan',
+    zip: '00920',
+    website: 'www.energydepotpr.com',
+  };
+  const [data, setData] = useState(DEFAULT);
+  const [loaded, setLoaded] = useState(false);
+  const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    api.settings().then(c => {
+      if (c?.empresa_info) {
+        try { setData({ ...DEFAULT, ...JSON.parse(c.empresa_info) }); } catch {}
+      }
+      setLoaded(true);
+    }).catch(() => setLoaded(true));
+  }, []);
+
+  const save = async (next) => {
+    try {
+      await api.saveSetting('empresa_info', JSON.stringify(next));
+      setOk(true); setTimeout(() => setOk(false), 2000);
+    } catch (e) { alert(e.message); }
+  };
+
+  const onBlur = () => save(data);
+  const set = (k, v) => setData(p => ({ ...p, [k]: v }));
+
+  if (!loaded) return null;
+
+  const fields = [
+    { k: 'name', label: 'Nombre legal' },
+    { k: 'phone', label: 'Teléfono' },
+    { k: 'email', label: 'Email', type: 'email' },
+    { k: 'address1', label: 'Dirección línea 1' },
+    { k: 'address2', label: 'Dirección línea 2' },
+    { k: 'city', label: 'Ciudad' },
+    { k: 'zip', label: 'ZIP' },
+    { k: 'website', label: 'Sitio web' },
+  ];
+
+  return (
+    <SeccionCard title="Información de la empresa" desc="Datos que aparecen en cotizaciones, contratos y correos.">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {fields.map(f => (
+          <div key={f.k}>
+            <label className="block text-xs text-muted mb-1">{f.label}</label>
+            <input
+              type={f.type || 'text'}
+              className="input text-sm w-full"
+              value={data[f.k] || ''}
+              onChange={e => set(f.k, e.target.value)}
+              onBlur={onBlur}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 text-[11px] text-muted">
+        {ok ? <span className="text-success">✓ Guardado</span> : 'Auto-guarda al salir del campo'}
+      </div>
+    </SeccionCard>
+  );
+}
+
+function AutoBccSection() {
+  const { value, setValue, save, loaded, ok } = useSetting('email_auto_bcc', 'gil.diaz@energydepotpr.com');
+  if (!loaded) return null;
+  return (
+    <SeccionCard title="Auto-BCC de correos" desc="Recibirás copia oculta de cada correo enviado desde el CRM.">
+      <input
+        type="email"
+        className="input text-sm w-full"
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onBlur={() => save()}
+        placeholder="correo@empresa.com"
+      />
+      <div className="mt-2 text-[11px] text-muted">
+        {ok ? <span className="text-success">✓ Guardado</span> : 'Auto-guarda al salir del campo'}
+      </div>
+    </SeccionCard>
+  );
+}
+
+function MensajeCotizadorSection() {
+  const { value, setValue, save, loaded, ok } = useSetting('cotizar_welcome_msg', 'Tus datos para preparar la propuesta personalizada.');
+  if (!loaded) return null;
+  return (
+    <SeccionCard title="Mensaje del autocotizador" desc="Este texto se muestra al cliente cuando abre el link de autocotización.">
+      <textarea
+        className="input text-sm w-full resize-none"
+        rows={4}
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onBlur={() => save()}
+      />
+      <div className="mt-2 text-[11px] text-muted">
+        {ok ? <span className="text-success">✓ Guardado</span> : 'Auto-guarda al salir del campo'}
+      </div>
+    </SeccionCard>
+  );
+}
+
+function PlantillasEmailSection() {
+  const TEMPLATES = [
+    {
+      id: 'modern',
+      label: 'Cotizaciones en PDF (moderno)',
+      subjectKey: 'email_tpl_modern_subject',
+      htmlKey: 'email_tpl_modern_html',
+      tpl: EMAIL_TEMPLATES.cotizaciones_pdf,
+    },
+    {
+      id: 'classic',
+      label: 'Cotización (tradicional)',
+      subjectKey: 'email_tpl_classic_subject',
+      htmlKey: 'email_tpl_classic_html',
+      tpl: EMAIL_TEMPLATES.cotizacion_clasica,
+    },
+  ];
+
+  const [tab, setTab] = useState('modern');
+  const [config, setConfig] = useState({});
+  const [loaded, setLoaded] = useState(false);
+  const [ok, setOk] = useState(null);
+
+  useEffect(() => {
+    api.settings().then(c => { setConfig(c || {}); setLoaded(true); }).catch(() => setLoaded(true));
+  }, []);
+
+  const get = (key, fallback) => config[key] ?? fallback;
+
+  const save = async (key, val) => {
+    try {
+      await api.saveSetting(key, val);
+      setConfig(p => ({ ...p, [key]: val }));
+      setOk(key); setTimeout(() => setOk(null), 2000);
+    } catch (e) { alert(e.message); }
+  };
+
+  if (!loaded) return null;
+  const active = TEMPLATES.find(t => t.id === tab);
+  const defSubject = active.tpl.subject({ contact_name: 'CLIENTE' });
+  const defHtml = active.tpl.html({ contact_name: 'CLIENTE' });
+
+  return (
+    <SeccionCard title="Plantillas de correo" desc="HTML que se envía con las cotizaciones. Usa {{cliente_nombre}} como variable.">
+      <div className="flex gap-1 mb-4 border-b border-border pb-3">
+        {TEMPLATES.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              tab === t.id ? 'bg-accent text-white' : 'text-muted hover:text-white bg-white/5'
+            }`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs text-muted mb-1">Asunto del correo</label>
+          <input
+            className="input text-sm w-full"
+            value={get(active.subjectKey, defSubject)}
+            onChange={e => setConfig(p => ({ ...p, [active.subjectKey]: e.target.value }))}
+            onBlur={e => save(active.subjectKey, e.target.value)}
+            placeholder={defSubject}
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-muted mb-1">HTML del correo</label>
+          <textarea
+            className="input text-xs w-full font-mono resize-none"
+            rows={18}
+            value={get(active.htmlKey, defHtml)}
+            onChange={e => setConfig(p => ({ ...p, [active.htmlKey]: e.target.value }))}
+            onBlur={e => save(active.htmlKey, e.target.value)}
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => {
+              if (!confirm('¿Restaurar al template original?')) return;
+              save(active.subjectKey, defSubject);
+              save(active.htmlKey, defHtml);
+            }}
+            className="text-[11px] text-muted hover:text-warning transition-colors">
+            Reset a default
+          </button>
+          <span className="text-[11px] text-muted">
+            {ok ? <span className="text-success">✓ Guardado</span> : 'Auto-guarda al salir del campo'}
+          </span>
+        </div>
+      </div>
+    </SeccionCard>
+  );
+}
+
+function PipelinesEditorSection() {
+  const [pipelines, setPipelines] = useState([]);
+  const [expanded, setExpanded] = useState(null);
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState(null);
+
+  const cargar = () => api.pipelines().then(p => setPipelines(Array.isArray(p) ? p : [])).catch(() => {});
+  useEffect(() => { cargar(); }, []);
+
+  const crearPipeline = async () => {
+    const n = nuevoNombre.trim();
+    if (!n) return;
+    try {
+      await api.createPipeline(n);
+      setNuevoNombre('');
+      cargar();
+    } catch (e) { alert(e.message); }
+  };
+
+  const renombrarPipeline = async (id, name) => {
+    if (!name?.trim()) return;
+    try { await api.updatePipeline(id, { name }); cargar(); }
+    catch (e) { alert(e.message); }
+  };
+
+  const eliminarPipeline = (id) => {
+    setConfirmDialog({
+      message: '¿Eliminar este pipeline? Se perderán todas sus etapas.',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try { await api.deletePipeline(id); cargar(); }
+        catch (e) { alert(e.message); }
+      },
+    });
+  };
+
+  const crearEtapa = async (pipelineId) => {
+    const name = prompt('Nombre de la nueva etapa:');
+    if (!name?.trim()) return;
+    try {
+      await api.createStage(pipelineId, { name: name.trim(), color: '#1a3c8f' });
+      cargar();
+    } catch (e) { alert(e.message); }
+  };
+
+  const actualizarEtapa = async (pipelineId, stageId, data) => {
+    try { await api.updateStage(pipelineId, stageId, data); cargar(); }
+    catch (e) { alert(e.message); }
+  };
+
+  const moverEtapa = async (pipeline, idx, delta) => {
+    const stages = pipeline.stages || [];
+    const j = idx + delta;
+    if (j < 0 || j >= stages.length) return;
+    const a = stages[idx], b = stages[j];
+    await actualizarEtapa(pipeline.id, a.id, { order_index: b.order_index ?? j });
+    await actualizarEtapa(pipeline.id, b.id, { order_index: a.order_index ?? idx });
+  };
+
+  const eliminarEtapa = (pipelineId, stageId) => {
+    setConfirmDialog({
+      message: '¿Eliminar esta etapa?',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try { await api.deleteStage(pipelineId, stageId); cargar(); }
+        catch (e) { alert(e.message); }
+      },
+    });
+  };
+
+  return (
+    <SeccionCard title="Pipelines y etapas" desc="Configura los flujos de trabajo y sus etapas.">
+      {confirmDialog && <ConfirmModal message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
+
+      <div className="space-y-2 mb-4">
+        {pipelines.length === 0 && <p className="text-xs text-muted text-center py-3">Sin pipelines aún</p>}
+        {pipelines.map(p => (
+          <div key={p.id} className="border border-border rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-bg">
+              <button onClick={() => setExpanded(expanded === p.id ? null : p.id)}
+                className="text-xs text-muted hover:text-white">
+                {expanded === p.id ? '▼' : '▶'}
+              </button>
+              <input
+                defaultValue={p.name}
+                onBlur={e => { if (e.target.value !== p.name) renombrarPipeline(p.id, e.target.value); }}
+                className="input text-xs flex-1"
+              />
+              <span className="text-[10px] text-muted whitespace-nowrap">{(p.stages || []).length} etapas</span>
+              <button onClick={() => eliminarPipeline(p.id)} className="text-xs text-muted hover:text-danger transition-colors">Eliminar</button>
+            </div>
+
+            {expanded === p.id && (
+              <div className="px-3 py-3 border-t border-border space-y-2">
+                {(p.stages || []).map((s, idx) => (
+                  <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 bg-surface rounded-lg border border-border">
+                    <div className="flex flex-col">
+                      <button onClick={() => moverEtapa(p, idx, -1)} disabled={idx === 0}
+                        className="text-xs text-muted hover:text-white disabled:opacity-30" style={{ lineHeight: 1, padding: '0 4px' }}>▲</button>
+                      <button onClick={() => moverEtapa(p, idx, +1)} disabled={idx === (p.stages.length - 1)}
+                        className="text-xs text-muted hover:text-white disabled:opacity-30" style={{ lineHeight: 1, padding: '0 4px' }}>▼</button>
+                    </div>
+                    <input type="color"
+                      defaultValue={s.color || '#1a3c8f'}
+                      onChange={e => actualizarEtapa(p.id, s.id, { color: e.target.value })}
+                      style={{ width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'pointer' }}
+                    />
+                    <input
+                      defaultValue={s.name}
+                      onBlur={e => { if (e.target.value !== s.name) actualizarEtapa(p.id, s.id, { name: e.target.value }); }}
+                      className="input text-xs flex-1"
+                    />
+                    <button onClick={() => eliminarEtapa(p.id, s.id)}
+                      className="text-xs text-muted hover:text-danger transition-colors px-2">✕</button>
+                  </div>
+                ))}
+                <button onClick={() => crearEtapa(p.id)} className="btn-ghost border border-border px-3 py-1.5 text-xs">
+                  + Nueva etapa
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <div className="text-xs text-muted mb-2">Nuevo pipeline</div>
+        <div className="flex gap-2">
+          <input className="input text-sm flex-1" placeholder="Nombre del pipeline"
+            value={nuevoNombre} onChange={e => setNuevoNombre(e.target.value)} />
+          <button onClick={crearPipeline} disabled={!nuevoNombre.trim()}
+            className="btn-primary px-4 py-2 text-xs disabled:opacity-50">
+            + Nuevo pipeline
+          </button>
+        </div>
+      </div>
+    </SeccionCard>
+  );
+}
+
+// ====== SECCIONES BOT IA (extraídas de page original) ======
+
+function BotAutomaticoSection({ botActivo, setBotActivo, guardar, ok }) {
+  return (
+    <SeccionCard title="Bot IA automático" desc="Responde automáticamente los SMS entrantes">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-slate-300">{botActivo ? 'Activo' : 'Inactivo'}</span>
+        <button
+          onClick={async () => { const n = !botActivo; setBotActivo(n); await guardar('bot_activo', n); }}
+          className={`relative w-11 h-6 rounded-full transition-colors ${botActivo ? 'bg-accent' : 'bg-white/10'}`}
+        >
+          <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all" style={{ left: botActivo ? '22px' : '2px' }} />
+        </button>
+      </div>
+      {ok === 'bot_activo' && <p className="text-success text-xs mt-2">Guardado</p>}
+    </SeccionCard>
+  );
+}
+
+function BotHorarioSection({ horaInicio, setHoraInicio, horaFin, setHoraFin, dias, setDias, guardar, guardando, ok }) {
+  const toggleDia = (num) => {
+    setDias(prev => prev.includes(num) ? prev.filter(d => d !== num) : [...prev, num].sort());
+  };
+  return (
+    <SeccionCard title="Horario del bot" desc="El bot solo responderá automáticamente en el horario configurado">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-muted mb-1">Hora inicio</label>
+            <input type="time" className="input" value={horaInicio} onChange={e => setHoraInicio(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">Hora fin</label>
+            <input type="time" className="input" value={horaFin} onChange={e => setHoraFin(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs text-muted mb-2">Días activos</label>
+          <div className="flex gap-1.5 flex-wrap">
+            {DIAS.map(d => (
+              <button key={d.num} onClick={() => toggleDia(d.num)}
+                className={`w-9 h-9 rounded-lg text-xs font-medium transition-colors ${
+                  dias.includes(d.num) ? 'bg-accent text-white' : 'bg-white/5 text-muted hover:text-white'
+                }`}
+              >{d.label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={async () => {
+              await guardar('bot_hora_inicio', horaInicio);
+              await guardar('bot_hora_fin', horaFin);
+              await guardar('bot_dias', dias.join(','));
+            }}
+            disabled={guardando !== null}
+            className="btn-primary px-4 py-2 text-sm disabled:opacity-50"
+          >
+            {guardando ? 'Guardando...' : 'Guardar horario'}
+          </button>
+          <button onClick={async () => {
+            setHoraInicio(''); setHoraFin(''); setDias([1,2,3,4,5,6,7]);
+            await guardar('bot_hora_inicio', '');
+            await guardar('bot_hora_fin', '');
+            await guardar('bot_dias', '1,2,3,4,5,6,7');
+          }} className="text-xs text-muted hover:text-white transition-colors">
+            Sin restricción horaria
+          </button>
+          {ok === 'bot_dias' && <span className="text-success text-xs">Guardado</span>}
+        </div>
+      </div>
+    </SeccionCard>
+  );
+}
+
+function BotPromptSection({ prompt, setPrompt, guardar, guardando, ok, promptTextareaRef, insertVar }) {
+  const PROMPT_TEMPLATES = [
+    { label: 'Solar', text: 'Eres un asistente de ventas de Energy Depot PR. Ayuda a clientes con preguntas sobre sistemas solares, baterías y financiamiento. Responde siempre en español.' },
+    { label: 'Ventas', text: 'Eres un agente de ventas profesional. Tu objetivo es calificar leads, resolver dudas sobre productos/servicios y guiar al cliente hacia una compra.' },
+    { label: 'Soporte', text: 'Eres un agente de soporte al cliente. Ayuda a resolver problemas, responde preguntas frecuentes y escala al equipo humano cuando sea necesario.' },
+  ];
+  return (
+    <SeccionCard title="Prompt del asistente IA" desc="Define la personalidad y comportamiento del bot">
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        <span className="text-[10px] text-muted self-center mr-1">Plantillas:</span>
+        {PROMPT_TEMPLATES.map(t => (
+          <button key={t.label} type="button"
+            onClick={() => setPrompt(t.text)}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-bg border border-border text-muted hover:text-accent hover:border-accent transition-colors">
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1 mb-2">
+        {['{{nombre}}', '{{telefono}}', '{{empresa}}', '{{pais}}', '{{fecha}}', '{{agente}}'].map(v => (
+          <button key={v} type="button"
+            onClick={() => insertVar(' ' + v)}
+            className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted hover:text-accent hover:border-accent transition-colors bg-bg font-mono">
+            {v}
+          </button>
+        ))}
+      </div>
+      <textarea
+        ref={promptTextareaRef}
+        rows={8}
+        value={prompt}
+        onChange={e => setPrompt(e.target.value)}
+        className="input resize-none font-mono text-xs"
+        placeholder="Eres un asistente de ventas de Energy Depot PR..."
+      />
+      <div className="flex justify-between items-center text-[10px] text-muted mt-1 mb-2">
+        <span>{prompt.length} caracteres {prompt.length > 800 ? <span className="text-yellow-400">(muy largo)</span> : prompt.length < 50 && prompt.length > 0 ? <span className="text-yellow-400">(muy corto)</span> : prompt.length > 0 ? <span className="text-green-400">✓ buena longitud</span> : ''}</span>
+        <button type="button" onClick={() => setPrompt('')} className="text-[10px] text-muted hover:text-danger transition-colors">Limpiar</button>
+      </div>
+      <div className="flex items-center gap-3 mt-3">
+        <button
+          onClick={() => guardar('prompt_sistema', prompt)}
+          disabled={guardando === 'prompt_sistema'}
+          className="btn-primary px-4 py-2 text-sm disabled:opacity-50"
+        >
+          {guardando === 'prompt_sistema' ? 'Guardando...' : 'Guardar prompt'}
+        </button>
+        {ok === 'prompt_sistema' && <span className="text-success text-xs">Guardado</span>}
+      </div>
+    </SeccionCard>
+  );
+}
+
+// ====== SHELL ======
+
+const TABS = [
+  { id: 'general',      label: 'General',       icon: '⚙' },
+  { id: 'cotizaciones', label: 'Cotizaciones',  icon: '☀' },
+  { id: 'bot',          label: 'Bot IA',        icon: '🤖' },
+  { id: 'comunicacion', label: 'Comunicación',  icon: '📨' },
+  { id: 'pipeline',     label: 'Pipeline',      icon: '🔧' },
+  { id: 'permisos',     label: 'Permisos',      icon: '👥' },
+];
+
 export default function SettingsPage() {
   const { lang } = useLang();
   const [config, setConfig] = useState({});
@@ -908,12 +1422,14 @@ export default function SettingsPage() {
   const [guardando, setGuardando] = useState(null);
   const [ok, setOk] = useState(null);
   const promptTextareaRef = useRef(null);
+  const [activeTab, setActiveTab] = useState('general');
+  const [search, setSearch] = useState('');
 
-  const PROMPT_TEMPLATES = [
-    { label: 'Turismo', text: 'Eres un asistente de ventas de Fix a Trip Puerto Rico, especializado en tours y experiencias. Responde siempre en español de forma amigable y profesional. Ayuda a los clientes con preguntas sobre disponibilidad, precios y reservas.' },
-    { label: 'Ventas', text: 'Eres un agente de ventas profesional. Tu objetivo es calificar leads, resolver dudas sobre productos/servicios y guiar al cliente hacia una compra. Sé conciso y orientado a resultados.' },
-    { label: 'Soporte', text: 'Eres un agente de soporte al cliente. Ayuda a resolver problemas, responde preguntas frecuentes y escala al equipo humano cuando sea necesario. Mantén siempre un tono empático y resolutivo.' },
-  ];
+  const filteredTabs = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return TABS;
+    return TABS.filter(t => t.label.toLowerCase().includes(q));
+  }, [search]);
 
   const insertVar = (v) => {
     const el = promptTextareaRef.current;
@@ -956,148 +1472,147 @@ export default function SettingsPage() {
     </div>
   );
 
+  const renderTab = () => {
+    switch (activeTab) {
+      case 'general':
+        return (
+          <div className="space-y-6">
+            <EmpresaInfoSection />
+          </div>
+        );
+      case 'cotizaciones':
+        return (
+          <div className="space-y-6">
+            <ParametrosSolaresSection />
+            <BateriasSolaresSection />
+            <MensajeCotizadorSection />
+          </div>
+        );
+      case 'bot':
+        return (
+          <div className="space-y-6">
+            <BotAutomaticoSection botActivo={botActivo} setBotActivo={setBotActivo} guardar={guardar} ok={ok} />
+            <BotHorarioSection horaInicio={horaInicio} setHoraInicio={setHoraInicio} horaFin={horaFin} setHoraFin={setHoraFin} dias={dias} setDias={setDias} guardar={guardar} guardando={guardando} ok={ok} />
+            <BotPromptSection prompt={prompt} setPrompt={setPrompt} guardar={guardar} guardando={guardando} ok={ok} promptTextareaRef={promptTextareaRef} insertVar={insertVar} />
+            <TestBotSection />
+          </div>
+        );
+      case 'comunicacion':
+        return (
+          <div className="space-y-6">
+            <QuickRepliesSection />
+            <PlantillasEmailSection />
+            <AutoBccSection />
+            <IntegracionesSection />
+          </div>
+        );
+      case 'pipeline':
+        return (
+          <div className="space-y-6">
+            <PipelinesEditorSection />
+            <AutomationsSection />
+            <CustomFieldsSection />
+          </div>
+        );
+      case 'permisos':
+        return (
+          <div className="space-y-6">
+            <PermissionsWrapper />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const activeMeta = TABS.find(x => x.id === activeTab) || TABS[0];
+
   return (
-    <div className="p-8 max-w-2xl space-y-6">
-      <h1 className="text-xl font-semibold text-white">{t('nav.settings', lang)}</h1>
-
-      {/* Bot toggle */}
-      <SeccionCard title="Bot IA automático" desc="Responde automáticamente los SMS entrantes">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-300">{botActivo ? 'Activo' : 'Inactivo'}</span>
-          <button
-            onClick={async () => { const n = !botActivo; setBotActivo(n); await guardar('bot_activo', n); }}
-            className={`relative w-11 h-6 rounded-full transition-colors ${botActivo ? 'bg-accent' : 'bg-white/10'}`}
-          >
-            <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all" style={{ left: botActivo ? '22px' : '2px' }} />
-          </button>
+    <div className="flex-col md:flex-row" style={{ display: 'flex', height: '100vh', background: 'var(--bg)' }}>
+      {/* Sidebar - desktop */}
+      <aside
+        className="hidden md:flex"
+        style={{
+          width: 240, flexShrink: 0, borderRight: '1px solid var(--border)',
+          background: 'var(--surface)', flexDirection: 'column', padding: '20px 12px',
+        }}
+      >
+        <div style={{ padding: '0 8px 12px' }}>
+          <h1 className="text-base font-semibold text-white" style={{ marginBottom: 12 }}>
+            {t('nav.settings', lang)}
+          </h1>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input text-xs w-full"
+            placeholder="Buscar sección..."
+            style={{ padding: '7px 10px' }}
+          />
         </div>
-        {ok === 'bot_activo' && <p className="text-success text-xs mt-2">Guardado</p>}
-      </SeccionCard>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 8 }}>
+          {filteredTabs.map(tb => {
+            const active = activeTab === tb.id;
+            return (
+              <button key={tb.id} onClick={() => setActiveTab(tb.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 10px', borderRadius: 8, border: 'none',
+                  background: active ? 'rgba(26, 60, 143, 0.18)' : 'transparent',
+                  color: active ? '#67e8f9' : 'var(--muted)',
+                  cursor: 'pointer', textAlign: 'left',
+                  fontSize: 13, fontWeight: active ? 600 : 500,
+                  borderLeft: active ? '2px solid #67e8f9' : '2px solid transparent',
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span style={{ width: 18, textAlign: 'center' }}>{tb.icon}</span>
+                <span>{tb.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
 
-      {/* Horario */}
-      <SeccionCard title="Horario del bot" desc="El bot solo responderá automáticamente en el horario configurado">
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-muted mb-1">Hora inicio</label>
-              <input type="time" className="input" value={horaInicio} onChange={e => setHoraInicio(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-xs text-muted mb-1">Hora fin</label>
-              <input type="time" className="input" value={horaFin} onChange={e => setHoraFin(e.target.value)} />
-            </div>
+      {/* Mobile tab bar */}
+      <div className="md:hidden" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--surface)', borderBottom: '1px solid var(--border)', width: '100%' }}>
+        <div style={{ padding: '12px 16px' }}>
+          <h1 className="text-base font-semibold text-white">{t('nav.settings', lang)}</h1>
+        </div>
+        <div style={{ display: 'flex', overflowX: 'auto', gap: 4, padding: '0 12px 10px', WebkitOverflowScrolling: 'touch' }}>
+          {TABS.map(tb => {
+            const active = activeTab === tb.id;
+            return (
+              <button key={tb.id} onClick={() => setActiveTab(tb.id)}
+                style={{
+                  flex: '0 0 auto', padding: '7px 12px', borderRadius: 999, border: '1px solid var(--border)',
+                  background: active ? '#1a3c8f' : 'transparent',
+                  color: active ? '#fff' : 'var(--muted)',
+                  fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', cursor: 'pointer',
+                }}>
+                {tb.icon} {tb.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Content panel */}
+      <main style={{ flex: 1, overflowY: 'auto', padding: '32px clamp(16px, 4vw, 40px)' }}>
+        <div style={{ maxWidth: 820, margin: '0 auto' }}>
+          <div className="hidden md:block" style={{ marginBottom: 24 }}>
+            <h2 className="text-xl font-semibold text-white" style={{ marginBottom: 4 }}>
+              <span style={{ marginRight: 8 }}>{activeMeta.icon}</span>{activeMeta.label}
+            </h2>
           </div>
-          <div>
-            <label className="block text-xs text-muted mb-2">Días activos</label>
-            <div className="flex gap-1.5">
-              {DIAS.map(d => (
-                <button key={d.num} onClick={() => toggleDia(d.num)}
-                  className={`w-9 h-9 rounded-lg text-xs font-medium transition-colors ${
-                    dias.includes(d.num) ? 'bg-accent text-white' : 'bg-white/5 text-muted hover:text-white'
-                  }`}
-                >{d.label}</button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={async () => {
-                await guardar('bot_hora_inicio', horaInicio);
-                await guardar('bot_hora_fin', horaFin);
-                await guardar('bot_dias', dias.join(','));
-              }}
-              disabled={guardando !== null}
-              className="btn-primary px-4 py-2 text-sm disabled:opacity-50"
-            >
-              {guardando ? 'Guardando...' : 'Guardar horario'}
-            </button>
-            <button onClick={async () => {
-              setHoraInicio(''); setHoraFin(''); setDias([1,2,3,4,5,6,7]);
-              await guardar('bot_hora_inicio', '');
-              await guardar('bot_hora_fin', '');
-              await guardar('bot_dias', '1,2,3,4,5,6,7');
-            }} className="text-xs text-muted hover:text-white transition-colors">
-              Sin restricción horaria
-            </button>
-            {ok === 'bot_dias' && <span className="text-success text-xs">Guardado</span>}
-          </div>
+          {renderTab()}
         </div>
-      </SeccionCard>
-
-      {/* Prompt */}
-      <SeccionCard title="Prompt del asistente IA" desc="Define la personalidad y comportamiento del bot">
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          <span className="text-[10px] text-muted self-center mr-1">Plantillas:</span>
-          {PROMPT_TEMPLATES.map(t => (
-            <button key={t.label} type="button"
-              onClick={() => setPrompt(t.text)}
-              className="text-[10px] px-2.5 py-1 rounded-full bg-bg border border-border text-muted hover:text-accent hover:border-accent transition-colors">
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-1 mb-2">
-          {['{{nombre}}', '{{telefono}}', '{{empresa}}', '{{pais}}', '{{fecha}}', '{{agente}}'].map(v => (
-            <button key={v} type="button"
-              onClick={() => insertVar(' ' + v)}
-              className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted hover:text-accent hover:border-accent transition-colors bg-bg font-mono">
-              {v}
-            </button>
-          ))}
-        </div>
-        <textarea
-          ref={promptTextareaRef}
-          rows={8}
-          value={prompt}
-          onChange={e => setPrompt(e.target.value)}
-          className="input resize-none font-mono text-xs"
-          placeholder="Eres un asistente de ventas de Energy Depot PR Puerto Rico. Responde siempre en español..."
-        />
-        <div className="flex justify-between items-center text-[10px] text-muted mt-1 mb-2">
-          <span>{prompt.length} caracteres {prompt.length > 800 ? <span className="text-yellow-400">(muy largo, puede aumentar costos)</span> : prompt.length < 50 && prompt.length > 0 ? <span className="text-yellow-400">(muy corto)</span> : prompt.length > 0 ? <span className="text-green-400">✓ buena longitud</span> : ''}</span>
-          <button type="button" onClick={() => setPrompt('')} className="text-[10px] text-muted hover:text-danger transition-colors">Limpiar</button>
-        </div>
-        <div className="flex items-center gap-3 mt-3">
-          <button
-            onClick={() => guardar('prompt_sistema', prompt)}
-            disabled={guardando === 'prompt_sistema'}
-            className="btn-primary px-4 py-2 text-sm disabled:opacity-50"
-          >
-            {guardando === 'prompt_sistema' ? 'Guardando...' : 'Guardar prompt'}
-          </button>
-          {ok === 'prompt_sistema' && <span className="text-success text-xs">Guardado</span>}
-        </div>
-        <p className="text-[10px] text-muted mt-2">Tip: usa las variables de arriba para personalizar el mensaje con datos del cliente.</p>
-      </SeccionCard>
-
-      {/* Integraciones */}
-      <IntegracionesSection />
-
-      {/* Quick replies */}
-      <QuickRepliesSection />
-
-      {/* Automatizaciones */}
-      <AutomationsSection />
-
-      {/* Custom fields */}
-      <CustomFieldsSection />
-
-      {/* Parámetros de cotización */}
-      <ParametrosSolaresSection />
-
-      {/* Baterías solares */}
-      <BateriasSolaresSection />
-
-      {/* Test bot */}
-      <TestBotSection />
-
-      {/* Permisos granulares — solo visible para admin */}
-      {config && (
-        <PermissionsWrapper />
-      )}
+      </main>
     </div>
   );
 }
+
 
 function PermissionsWrapper() {
   const [user, setUser] = useState(null);

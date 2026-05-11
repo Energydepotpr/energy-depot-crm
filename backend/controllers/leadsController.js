@@ -46,7 +46,7 @@ async function listar(req, res) {
       LEFT JOIN lead_tags lt ON lt.lead_id = l.id
       ${where}
       GROUP BY l.id, c.name, c.phone, ps.name, ps.color, p.name, u.name
-      ORDER BY l.updated_at DESC
+      ORDER BY l.created_at DESC
       LIMIT $${limitIdx} OFFSET $${offsetIdx}
     `, params);
 
@@ -161,7 +161,10 @@ async function crear(req, res) {
 
 async function actualizar(req, res) {
   try {
-    const { title, contact_id, pipeline_id, stage_id, value, assigned_to, lost_reason } = req.body;
+    const { title, contact_id, pipeline_id, stage_id, value, assigned_to, lost_reason, marketing_campaign_id } = req.body;
+    // assigned_to: si se envía explícitamente null/'' (presente en el body) → desasignar
+    const hasAssigned = Object.prototype.hasOwnProperty.call(req.body, 'assigned_to');
+    const hasCampaign = Object.prototype.hasOwnProperty.call(req.body, 'marketing_campaign_id');
     const result = await pool.query(
       `UPDATE leads SET
         title       = COALESCE($1, title),
@@ -169,8 +172,9 @@ async function actualizar(req, res) {
         pipeline_id = COALESCE($3, pipeline_id),
         stage_id    = COALESCE($4, stage_id),
         value       = COALESCE($5, value),
-        assigned_to = COALESCE($6, assigned_to),
+        assigned_to = ${hasAssigned ? '$6' : 'COALESCE($6, assigned_to)'},
         lost_reason = COALESCE($7, lost_reason),
+        marketing_campaign_id = ${hasCampaign ? '$9' : 'COALESCE($9, marketing_campaign_id)'},
         updated_at  = NOW()
        WHERE id = $8 RETURNING *`,
       [
@@ -181,7 +185,8 @@ async function actualizar(req, res) {
         value !== undefined && value !== '' ? Number(value) : null,
         assigned_to ? Number(assigned_to) : null,
         lost_reason || null,
-        req.params.id
+        req.params.id,
+        marketing_campaign_id ? Number(marketing_campaign_id) : null,
       ]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Lead no encontrado' });
@@ -196,7 +201,9 @@ async function actualizar(req, res) {
 async function moverEtapa(req, res) {
   try {
     const { stage_id, pipeline_id, lost_reason } = req.body;
-    const stageR = await pool.query('SELECT name FROM pipeline_stages WHERE id = $1', [stage_id]);
+    const sid = stage_id ? Number(stage_id) : null;
+    if (!sid) return res.status(400).json({ error: 'stage_id requerido' });
+    const stageR = await pool.query('SELECT name FROM pipeline_stages WHERE id = $1', [sid]);
     await pool.query(
       `UPDATE leads SET
         stage_id    = $1,
@@ -204,7 +211,7 @@ async function moverEtapa(req, res) {
         lost_reason = COALESCE($3, lost_reason),
         updated_at  = NOW()
        WHERE id = $4`,
-      [stage_id, pipeline_id || null, lost_reason || null, req.params.id]
+      [sid, pipeline_id || null, lost_reason || null, req.params.id]
     );
     await registrarActividad(req.params.id, req.user?.id || null, 'etapa_cambiada', stageR.rows[0]?.name || '');
     // Fire pipeline automations asynchronously

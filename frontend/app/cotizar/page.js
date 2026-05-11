@@ -63,8 +63,19 @@ export default function CotizarPage() {
   const [welcomeShown, setWelcomeShown] = useState(false);
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
   const [selectedBatt, setSelectedBatt] = useState({}); // { name: qty }
+  const DEFAULT_WELCOME = 'Tus datos para preparar la propuesta personalizada.';
+  const [welcomeMsg, setWelcomeMsg] = useState(DEFAULT_WELCOME);
 
   useEffect(() => {
+    fetch(API + '/api/public/config')
+      .then(r => r.json())
+      .then(d => {
+        if (d && typeof d.cotizar_welcome_msg === 'string' && d.cotizar_welcome_msg.trim()) {
+          setWelcomeMsg(d.cotizar_welcome_msg);
+        }
+      })
+      .catch(() => {});
+
     fetch(API + '/api/public/solar-config')
       .then(r => r.json())
       .then(d => {
@@ -276,7 +287,7 @@ export default function CotizarPage() {
             )}
             <div style={{ fontSize: 11, fontWeight: 700, color: '#1a3c8f', letterSpacing: 2, marginBottom: 8 }}>PASO 1 DE 3</div>
             <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f2a5c', marginBottom: 8, lineHeight: 1.2 }}>{session ? '¿Probar otra opción?' : 'Cuéntanos sobre ti'}</h1>
-            <p style={{ fontSize: 15, color: '#64748b', marginBottom: 18 }}>{session ? 'Tus datos están pre-llenados. Cambia las baterías para ver una nueva cotización.' : 'Tus datos para preparar la propuesta personalizada.'}</p>
+            <p style={{ fontSize: 15, color: '#64748b', marginBottom: 18 }}>{session ? 'Tus datos están pre-llenados. Cambia las baterías para ver una nueva cotización.' : welcomeMsg}</p>
 
             {/* Subir factura LUMA — auto-llenado */}
             <div style={{ background: 'linear-gradient(135deg,#eff6ff,#dbeafe)', border: '1px dashed #93c5fd', borderRadius: 12, padding: 16, marginBottom: 18 }}>

@@ -85,8 +85,8 @@ app.use(cors({
 }));
 
 // Body size limit
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Rate limit on login (max 10 attempts per minute per IP)
 const loginLimiter = rateLimit({
@@ -176,8 +176,12 @@ app.post('/api/public/sign/:token',  publicTokenLimiter, signatures.firmar);
 app.get('/api/recordings/:sid/audio', callRecording.proxyAudio);
 
 // Public: website cotizacion form → create lead (no auth)
-const { createPublicLead, generarPropuestaPDF, verPropuestaHTML } = require('./controllers/publicLeadController');
+const { createPublicLead, generarPropuestaPDF, verPropuestaHTML, publicPropuestaAction, publicLeadLookup, publicPropuestaHTML, getShareLink } = require('./controllers/publicLeadController');
 app.post('/api/public/leads', publicTokenLimiter, createPublicLead);
+app.post('/api/public/leads/:id/propuesta-action', publicTokenLimiter, publicPropuestaAction);
+app.get('/api/public/leads/:id/session', publicTokenLimiter, publicLeadLookup);
+app.get('/api/public/leads/:id/propuesta', publicTokenLimiter, publicPropuestaHTML);
+app.get('/api/leads/:id/share-link', authMiddleware, getShareLink);
 
 // Protected
 app.use('/api', authMiddleware);
@@ -480,6 +484,36 @@ app.post('/api/settings/seed', requireAdmin, async (req, res) => {
   try { res.json(await settings.seedDefaultConfig()); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
+// Public read-only solar config (baterías + pricing) para autocotizador externo
+// Public whitelist config (no-auth) — solo keys seguras para mostrar en /cotizar público
+app.get('/api/public/config', async (req, res) => {
+  try {
+    const WHITELIST = ['cotizar_welcome_msg', 'empresa_info'];
+    const { rows } = await dbPool.query(
+      `SELECT key, value FROM config WHERE key = ANY($1)`,
+      [WHITELIST]
+    );
+    const out = {};
+    rows.forEach(r => { out[r.key] = r.value; });
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/public/solar-config', async (req, res) => {
+  try {
+    const { rows } = await dbPool.query(`SELECT key, value FROM config WHERE key IN ('solar_batteries','solar_pricing')`);
+    const out = {};
+    rows.forEach(r => {
+      try { out[r.key] = typeof r.value === 'string' ? JSON.parse(r.value) : r.value; }
+      catch { out[r.key] = r.value; }
+    });
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 app.get('/api/settings',       requireAdmin, settings.obtener);
 app.post('/api/settings',      requireAdmin, settings.actualizar);
 app.post('/api/settings/test-bot', settings.testBot);
@@ -631,6 +665,21 @@ const finReports = require('./controllers/financialReportController');
 app.get('/api/reports/financial',        finReports.resumenFinanciero);
 app.get('/api/reports/financial/excel',  finReports.exportarExcel);
 
+const { extractFactura, extractFacturaPublic } = require('./controllers/extractFacturaController');
+app.post('/api/leads/:id/extract-factura', authMiddleware, extractFactura);
+app.post('/api/public/extract-factura', publicTokenLimiter, extractFacturaPublic);
+
+// Marketing campaigns (ROI tracking)
+const marketing = require('./controllers/marketingController');
+app.get(   '/api/marketing/dashboard',           marketing.dashboard);
+app.get(   '/api/marketing-campaigns',           marketing.list);
+app.post(  '/api/marketing-campaigns',           marketing.create);
+app.get(   '/api/marketing-campaigns/:id',       marketing.getOne);
+app.patch( '/api/marketing-campaigns/:id',       marketing.update);
+app.delete('/api/marketing-campaigns/:id',       marketing.remove);
+app.post(  '/api/marketing-campaigns/:id/files', marketing.uploadFile);
+app.get(   '/api/marketing-files/:fileId',       marketing.getFile);
+app.delete('/api/marketing-files/:fileId',       marketing.deleteFile);
 app.get('/api/leads/:id/propuesta', authMiddleware, generarPropuestaPDF);
 app.get('/api/leads/:id/propuesta/html', authMiddleware, verPropuestaHTML);
 app.post('/api/leads/:id/contrato-solar', authMiddleware, generarContratoSolar);
@@ -796,9 +845,31 @@ async function autoSyncEmails() {
 
 const FIFTEEN_MIN = 15 * 60 * 1000;
 
+// Backfill leads sin stage_id → asignar primera etapa del pipeline (corre al startup + cada hora)
+async function repairLeadsSinStage() {
+  try {
+    const r = await dbPool.query(`
+      UPDATE leads l
+      SET stage_id = (
+        SELECT s.id FROM pipeline_stages s
+        WHERE s.pipeline_id = COALESCE(l.pipeline_id, (SELECT id FROM pipelines ORDER BY position LIMIT 1))
+        ORDER BY s.position LIMIT 1
+      ),
+      pipeline_id = COALESCE(l.pipeline_id, (SELECT id FROM pipelines ORDER BY position LIMIT 1))
+      WHERE l.stage_id IS NULL
+      RETURNING id
+    `);
+    if (r.rowCount > 0) console.log(`[REPAIR] ${r.rowCount} leads sin stage_id arreglados`);
+  } catch (e) { console.error('[REPAIR] stages:', e.message); }
+}
+
 initDB()
   .then(() => {
     app.listen(PORT, () => console.log(`[SERVER] Energy Depot PR — Puerto ${PORT}`));
+    repairLeadsSinStage();
+    setInterval(repairLeadsSinStage, 5 * 60 * 1000); // cada 5 min
+    // Pre-warm Puppeteer browser para que el primer PDF sea instantáneo
+    try { require('./services/puppeteerPool').getBrowser().catch(() => {}); } catch {}
     // Run immediately on startup, then periodically
     checkLeadsInactivos();
     setInterval(checkLeadsInactivos, SIX_HOURS);

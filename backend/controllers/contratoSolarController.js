@@ -14,7 +14,7 @@ function logoB64() {
 }
 
 function buildContratoHTML({ nombre, direccion, ciudad, telefono, email, numCtaLuma, numContador,
-  precioTotal, modalidad, prontoDado, vendedor, fecha, sistemas }) {
+  precioTotal, subtotalBruto, descuentoPct, descuentoAmt, modalidad, prontoDado, vendedor, fecha, sistemas }) {
 
   const esEfectivo = modalidad === 'efectivo';
   const LOGO = logoB64();
@@ -62,7 +62,7 @@ function buildContratoHTML({ nombre, direccion, ciudad, telefono, email, numCtaL
 
   const clausulasInicio = [
     { n:'1', t:'Descripción del Sistema', d:`El Sistema SELF-ENERGY adquirido por el Comprador es aquél descrito en la Oferta de Cotización adjunta como Anejo 1${sistemas ? ': <strong>'+sistemas+'</strong>' : '.'}` },
-    { n:'2', t:'Precio', d:`El precio del Sistema SERE es la suma de <strong style="color:#1a3c8f">${fmt(precioTotal)}</strong>, más cualquier impuesto o cargo aplicable por ley según se desglosa en la Factura de Compra que forma parte integral de este Contrato como Anejo 2.` },
+    { n:'2', t:'Precio', d:`El precio del Sistema SERE es la suma de <strong style="color:#1a3c8f">${fmt(precioTotal)}</strong>${descuentoPct > 0 ? ` (precio bruto ${fmt(subtotalBruto)} con descuento aplicado del ${descuentoPct}% — ${fmt(descuentoAmt)})` : ''}, más cualquier impuesto o cargo aplicable por ley según se desglosa en la Factura de Compra que forma parte integral de este Contrato como Anejo 2.` },
   ].map(renderClausula).join('');
 
   const clausulasFinal = [
@@ -177,6 +177,10 @@ function buildContratoHTML({ nombre, direccion, ciudad, telefono, email, numCtaL
       <div style="font-size:12pt;font-weight:700;margin-top:2px">${vendedor || 'Gilberto J. Díaz Merced'}</div>
     </div>
     <div style="text-align:right">
+      ${descuentoPct > 0 ? `
+        <div style="font-size:8pt;color:#bfdbfe;text-decoration:line-through;margin-bottom:1px">${fmt(subtotalBruto)}</div>
+        <div style="font-size:9pt;color:#86efac;font-weight:700;margin-bottom:2px">Descuento ${descuentoPct}% &nbsp;(-${fmt(descuentoAmt)})</div>
+      ` : ''}
       <div style="font-size:8.5pt;color:#bfdbfe;letter-spacing:1.5px;text-transform:uppercase;font-weight:700">Precio Total</div>
       <div style="font-size:18pt;font-weight:900;letter-spacing:-0.5px;margin-top:2px">${fmt(precioTotal)}</div>
     </div>
@@ -259,13 +263,25 @@ async function generarContratoSolar(req, res) {
     const bat       = (sd.batteries||[])[0]?.name || '';
     const sistemas  = `${calc.panels||''} paneles solares 550W · ${calc.systemKw||''} kW DC${bat ? ' · Batería: '+bat : ''}`;
 
-    const precioTotal = Number(calc.costBase || lead.value || 0) +
+    const subtotalBruto = Number(calc.costBase || lead.value || 0) +
       (sd.batteries||[]).reduce((s,b) => s + (b.unitPrice||0)*(b.qty||1), 0);
+
+    // Descuento — desde la cotización activa o sd.descuentoPct
+    let descuentoPct = 0;
+    if (Array.isArray(sd.quotations) && sd.quotations.length > 0) {
+      const q = sd.quotations.find(x => x.id === sd.activeQuotationId) || sd.quotations[0];
+      descuentoPct = Number(q?.descuentoPct) || 0;
+    }
+    if (!descuentoPct) descuentoPct = Number(sd.descuentoPct) || 0;
+    descuentoPct = Math.max(0, Math.min(100, descuentoPct));
+    const descuentoAmt = Math.round(subtotalBruto * descuentoPct / 100);
+    const precioTotal = subtotalBruto - descuentoAmt;
 
     const html = buildContratoHTML({
       nombre, direccion, ciudad, telefono, email,
       numCtaLuma, numContador, vendedor,
-      precioTotal, modalidad,
+      precioTotal, subtotalBruto, descuentoPct, descuentoAmt,
+      modalidad,
       prontoDado: Number(prontoDado),
       fecha: fmtD(), sistemas,
     });

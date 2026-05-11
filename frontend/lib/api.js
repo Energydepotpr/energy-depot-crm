@@ -80,6 +80,8 @@ export const api = {
   // Pipelines
   pipelines:        ()                        => req('GET',    '/api/pipelines'),
   createPipeline:   (name)                    => req('POST',   '/api/pipelines', { name }),
+  updatePipeline:   (id, data)                => req('PUT',    `/api/pipelines/${id}`, data),
+  deletePipeline:   (id)                      => req('DELETE', `/api/pipelines/${id}`),
   createStage:      (pipelineId, data)        => req('POST',   `/api/pipelines/${pipelineId}/stages`, data),
   updateStage:      (pipelineId, stageId, d)  => req('PATCH',  `/api/pipelines/${pipelineId}/stages/${stageId}`, d),
   deleteStage:      (pipelineId, stageId)     => req('DELETE', `/api/pipelines/${pipelineId}/stages/${stageId}`),

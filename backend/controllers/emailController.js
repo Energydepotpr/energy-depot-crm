@@ -1,5 +1,6 @@
 'use strict';
 const { pool } = require('../services/db');
+const { getConfigValue } = require('../services/configService');
 
 // Ensure emails table exists
 async function ensureTable() {
@@ -114,216 +115,140 @@ async function listar(req, res) {
   }
 }
 
-// ─── SEND ─────────────────────────────────────────────────────────────────────
+// ─── SEND (Gmail API via Service Account) ────────────────────────────────────
 async function enviar(req, res) {
   try {
-    const { to_email, subject, body, body_html, contact_id, lead_id, account = 'operations' } = req.body;
+    const { to_email, cc, bcc, subject, body, body_html, contact_id, lead_id, attachments } = req.body;
     if (!to_email || !subject || (!body && !body_html)) {
       return res.status(400).json({ error: 'Faltan campos' });
     }
 
     const agentId = req.user?.id;
-    const smtpCfg = getSmtpConfig(account);
-    const fromEmail = smtpCfg.auth.user;
-    const fromName  = account === 'bookings' ? 'Fix A Trip Bookings' : 'Fix A Trip Operations';
+    const fromEmail = 'info@energydepotpr.com';
+    const fromName  = 'Energy Depot LLC';
 
     let sent = false;
     let sendError = null;
+    let messageId = null;
 
-    // Try SMTP first
-    if (smtpCfg.auth.pass) {
-      try {
-        const nodemailer = require('nodemailer');
-        const transporter = nodemailer.createTransport(smtpCfg);
-        await transporter.sendMail({
-          from: `"${fromName}" <${fromEmail}>`,
-          to: to_email,
-          subject,
-          text: body || undefined,
-          html: body_html || undefined,
-        });
-        sent = true;
-      } catch (e) {
-        sendError = e.message;
-        console.warn('[Email] SMTP error:', e.message);
-      }
-    }
+    try {
+      const { sendEmail } = require('../services/gmailService');
+      const atts = Array.isArray(attachments)
+        ? attachments
+            .filter((a) => a && a.content)
+            .map((a) => ({
+              filename: a.filename || 'attachment',
+              mimeType: a.mimeType || 'application/octet-stream',
+              content: a.content, // base64 string
+            }))
+        : [];
 
-    // Fallback: try SendGrid
-    if (!sent) {
-      try {
-        const { rows: cfg } = await pool.query(
-          `SELECT config FROM integrations WHERE id='sendgrid' AND is_active=true LIMIT 1`
-        );
-        if (cfg.length > 0) {
-          const config = typeof cfg[0].config === 'string' ? JSON.parse(cfg[0].config) : cfg[0].config;
-          const apiKey = config?.api_key;
-          if (apiKey) {
-            const content = [];
-            if (body)      content.push({ type: 'text/plain', value: body });
-            if (body_html) content.push({ type: 'text/html',  value: body_html });
-            const sgRes = await fetch('https://api.sendgrid.com/v3/mail/send', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                personalizations: [{ to: [{ email: to_email }] }],
-                from: { email: config.from_email || fromEmail, name: config.from_name || fromName },
-                subject,
-                content,
-              }),
-            });
-            if (sgRes.ok || sgRes.status === 202) sent = true;
-          }
-        }
-      } catch (e) {
-        console.warn('[Email] SendGrid fallback error:', e.message);
-      }
+      const AUTO_BCC = await getConfigValue('email_auto_bcc', 'gil.diaz@energydepotpr.com');
+      const bccList = bcc
+        ? (Array.isArray(bcc) ? [...bcc, AUTO_BCC] : [bcc, AUTO_BCC])
+        : AUTO_BCC;
+
+      const result = await sendEmail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to: to_email,
+        cc: cc || undefined,
+        bcc: bccList,
+        subject,
+        text: body || undefined,
+        html: body_html || undefined,
+        attachments: atts,
+      });
+      sent = true;
+      messageId = result.id;
+    } catch (e) {
+      sendError = e.message;
+      console.error('[Email] Gmail API error:', e.message);
     }
 
     // Save to DB
     const { rows } = await pool.query(
-      `INSERT INTO emails (from_name, from_email, to_email, subject, body, body_html, direction, read, contact_id, lead_id, agent_id, account)
-       VALUES ($1,$2,$3,$4,$5,$6,'outbound',true,$7,$8,$9,$10) RETURNING *`,
+      `INSERT INTO emails (from_name, from_email, to_email, subject, body, body_html, direction, read, contact_id, lead_id, agent_id, account, message_id)
+       VALUES ($1,$2,$3,$4,$5,$6,'outbound',true,$7,$8,$9,$10,$11) RETURNING *`,
       [fromName, fromEmail, to_email, subject, body || null, body_html || null,
-       contact_id || null, lead_id || null, agentId, account]
+       contact_id || null, lead_id || null, agentId, 'gmail', messageId]
     );
 
-    res.json({ ok: true, email: rows[0], sent, send_error: sendError });
+    if (!sent) return res.status(500).json({ ok: false, error: sendError, email: rows[0] });
+    res.json({ ok: true, email: rows[0], sent, message_id: messageId });
   } catch (err) {
     console.error('[ERROR]', err.message);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'Error interno del servidor: ' + err.message });
   }
 }
 
-// ─── SYNC (IMAP receive + sent) ───────────────────────────────────────────────
+// ─── SYNC via Gmail API ───────────────────────────────────────────────────────
 async function sincronizar(req, res) {
-  const account = req.query.account || 'operations';
-  const imapCfg = getImapConfig(account);
-
-  if (!imapCfg.auth.pass) {
-    return res.status(400).json({ error: `Sin contraseña configurada para ${account}` });
-  }
-
+  const USER = 'info@energydepotpr.com';
   try {
-    const { ImapFlow }     = require('imapflow');
-    const { simpleParser } = require('mailparser');
-    const client = new ImapFlow({ ...imapCfg, logger: false });
+    const { listMessages, getMessage } = require('../services/gmailService');
 
-    await client.connect();
+    // Load contacts for email matching
+    const contactsMap = {};
+    const contactsRows = await pool.query(`SELECT id, email FROM contacts WHERE email IS NOT NULL`).catch(() => ({ rows: [] }));
+    contactsRows.rows.forEach(r => { if (r.email) contactsMap[r.email.toLowerCase()] = r.id; });
 
     let savedInbox = 0;
-    let savedSent  = 0;
+    let savedSent = 0;
 
-    // Helper: sync one mailbox folder (fast: only last 30 days, batch dedup check)
-    async function syncFolder(folderName, direction) {
-      let lock;
-      try {
-        lock = await client.getMailboxLock(folderName);
-      } catch (e) {
-        console.warn(`[IMAP] folder "${folderName}" not found:`, e.message);
-        return 0;
-      }
+    async function syncLabel(labelId, direction) {
+      const ids = await listMessages({ user: USER, labelId, sinceDays: 30, max: 100 });
+      if (ids.length === 0) return 0;
+
+      // Pre-check which gmail ids are already saved
+      const existing = await pool.query(
+        `SELECT message_id FROM emails WHERE message_id = ANY($1)`,
+        [ids]
+      ).catch(() => ({ rows: [] }));
+      const known = new Set(existing.rows.map(r => r.message_id));
+
       let count = 0;
-      try {
-        // Only fetch last 30 days
-        const since = new Date();
-        since.setDate(since.getDate() - 30);
-        const uids = await client.search({ since }, { uid: true });
-        if (!uids || uids.length === 0) return 0;
+      for (const id of ids) {
+        if (known.has(id)) continue;
+        try {
+          const m = await getMessage({ user: USER, messageId: id });
+          const contactEmail = (direction === 'inbound' ? m.fromEmail : m.toEmail || '').toLowerCase();
+          const contactId = contactsMap[contactEmail] || null;
 
-        // Step 1: fetch envelopes only (fast, no body download)
-        const envelopes = [];
-        for await (const msg of client.fetch(uids, { uid: true, envelope: true }, { uid: true })) {
-          envelopes.push({ uid: msg.uid, messageId: msg.envelope?.messageId || null });
-        }
-
-        // Step 2: batch check which message_ids are already in DB
-        const knownIds = new Set();
-        const msgIds = envelopes.map(e => e.messageId).filter(Boolean);
-        if (msgIds.length > 0) {
-          const existing = await pool.query(
-            `SELECT message_id FROM emails WHERE message_id = ANY($1)`, [msgIds]
-          ).catch(() => ({ rows: [] }));
-          existing.rows.forEach(r => knownIds.add(r.message_id));
-        }
-
-        // Step 3: only download source for new messages
-        const newUids = envelopes
-          .filter(e => !e.messageId || !knownIds.has(e.messageId))
-          .map(e => e.uid);
-
-        if (newUids.length === 0) return 0;
-
-        // Batch-load all contacts emails for matching (avoid per-message queries)
-        const contactsMap = {};
-        const contactsRows = await pool.query(`SELECT id, email FROM contacts WHERE email IS NOT NULL`).catch(() => ({ rows: [] }));
-        contactsRows.rows.forEach(r => { if (r.email) contactsMap[r.email.toLowerCase()] = r.id; });
-
-        for await (const msg of client.fetch(newUids, { uid: true, source: true, envelope: true }, { uid: true })) {
-          let parsed;
-          try { parsed = await simpleParser(msg.source); }
-          catch (e) { continue; }
-
-          const messageId = msg.envelope?.messageId || parsed.messageId || null;
-          if (messageId && knownIds.has(messageId)) continue;
-
-          const fromAddr  = parsed.from?.value?.[0];
-          const fromEmail = fromAddr?.address || '';
-          const fromName  = fromAddr?.name    || fromEmail;
-          const toAddr    = parsed.to?.value?.[0];
-          const toEmail   = toAddr?.address   || imapCfg.auth.user;
-          const subject   = parsed.subject    || '(sin asunto)';
-          const date      = parsed.date       || new Date();
-          const bodyText  = parsed.text       || '';
-          const bodyHtml  = parsed.html       || null;
-          const isRead    = direction === 'outbound';
-
-          const contactEmail = (direction === 'inbound' ? fromEmail : toEmail).toLowerCase();
-          const contactId    = contactsMap[contactEmail] || null;
-
-          const insertResult = await pool.query(
+          const ins = await pool.query(
             `INSERT INTO emails (from_name, from_email, to_email, subject, body, body_html, direction, read, contact_id, account, message_id, created_at)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
              ON CONFLICT DO NOTHING RETURNING id`,
-            [fromName, fromEmail, toEmail, subject, bodyText.substring(0, 5000), bodyHtml,
-             direction, isRead, contactId, account, messageId, date]
+            [m.fromName, m.fromEmail, m.toEmail, m.subject,
+             (m.text || '').substring(0, 5000), m.html,
+             direction, direction === 'outbound', contactId,
+             'gmail', id, m.date]
           );
-
-          if (insertResult.rows.length > 0 && direction === 'inbound') {
-            const alertMsg = `De: ${fromName || fromEmail} — ${subject}`;
-            await pool.query(
-              `INSERT INTO alerts (title, message, seen, type) VALUES ($1,$2,false,'info')`,
-              [`Nuevo correo (${account}@fixatrippr.com)`, alertMsg]
-            ).catch(() => {});
+          if (ins.rows.length > 0) {
+            count++;
+            if (direction === 'inbound') {
+              await pool.query(
+                `INSERT INTO alerts (title, message, seen, type) VALUES ($1,$2,false,'info')`,
+                [`Nuevo correo (info@energydepotpr.com)`, `De: ${m.fromName || m.fromEmail} — ${m.subject}`]
+              ).catch(() => {});
+            }
           }
-          if (messageId) knownIds.add(messageId);
-          count++;
+        } catch (e) {
+          console.warn('[Gmail] msg', id, e.message);
         }
-      } finally {
-        lock.release();
       }
       return count;
     }
 
-    // Sync INBOX (inbound)
-    savedInbox = await syncFolder('INBOX', 'inbound');
+    savedInbox = await syncLabel('INBOX', 'inbound');
+    savedSent = await syncLabel('SENT', 'outbound');
 
-    // Sync Sent folder — try common folder names
-    const sentFolders = ['Sent', 'Sent Messages', 'Sent Items', 'INBOX.Sent'];
-    for (const folder of sentFolders) {
-      try {
-        const n = await syncFolder(folder, 'outbound');
-        savedSent += n;
-        if (n >= 0) break; // found a valid folder
-      } catch (e) { /* try next */ }
-    }
-
-    await client.logout();
-    res.json({ ok: true, saved: savedInbox + savedSent, inbox: savedInbox, sent: savedSent, account });
+    res.json({ ok: true, saved: savedInbox + savedSent, inbox: savedInbox, sent: savedSent });
+    return;
   } catch (err) {
-    console.error('[IMAP]', err.message);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('[Gmail sync]', err.message);
+    return res.status(500).json({ error: 'Error sincronizando: ' + err.message });
   }
+
 }
 
 // ─── MARK READ ────────────────────────────────────────────────────────────────
