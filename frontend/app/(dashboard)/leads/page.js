@@ -84,12 +84,21 @@ function SidebarContratoBtn({ leadId }) {
   const [show, setShow]         = useState(false);
   const [modalidad, setMod]     = useState('efectivo');
   const [pronto, setPronto]     = useState('');
+  const [numCtaLuma, setCtaLuma] = useState('');
+  const [numContador, setContador] = useState('');
+  const [direccionPostal, setDirPostal] = useState('');
   const [loading, setLoading]   = useState(false);
 
   const generar = async () => {
     setLoading(true);
     try {
-      const data = await api.generarContrato(leadId, { modalidad, prontoDado: Number(pronto)||0 });
+      const data = await api.generarContrato(leadId, {
+        modalidad,
+        prontoDado: Number(pronto)||0,
+        numCtaLuma: numCtaLuma.trim() || undefined,
+        numContador: numContador.trim() || undefined,
+        direccionPostal: direccionPostal.trim() || undefined,
+      });
       if (!data.pdf) throw new Error('Sin PDF');
       const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
       const blob  = new Blob([bytes], { type:'application/pdf' });
@@ -110,12 +119,12 @@ function SidebarContratoBtn({ leadId }) {
       </button>
       {show && (
         <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }} onClick={() => setShow(false)}>
-          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:28, width:340 }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize:15, fontWeight:700, color:'var(--text)', marginBottom:20 }}>📄 Generar Contrato Solar</div>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:28, width:380, maxHeight:'85vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize:15, fontWeight:700, color:'var(--text)', marginBottom:20 }}>Generar Contrato Solar</div>
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:8 }}>Modalidad de Pago</label>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                {[['efectivo','💵 Efectivo (50/50)'],['financiamiento','🏦 Financiamiento']].map(([v,l]) => (
+                {[['efectivo','Efectivo (50/50)'],['financiamiento','Financiamiento']].map(([v,l]) => (
                   <button key={v} onClick={() => setMod(v)} style={{ border: modalidad===v?'2px solid #10b981':'1px solid var(--border)', borderRadius:8, padding:'10px 8px', background: modalidad===v?'rgba(16,185,129,0.12)':'var(--bg)', cursor:'pointer', fontSize:12, fontWeight:600, color: modalidad===v?'#10b981':'var(--text)' }}>{l}</button>
                 ))}
               </div>
@@ -127,6 +136,21 @@ function SidebarContratoBtn({ leadId }) {
                   style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
               </div>
             )}
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Num. Cta AEE</label>
+              <input value={numCtaLuma} onChange={e => setCtaLuma(e.target.value)} placeholder="ej: 8557722000"
+                style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Num. Contador</label>
+              <input value={numContador} onChange={e => setContador(e.target.value)} placeholder="ej: 74359283"
+                style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Dirección Postal <span style={{ textTransform:'none', color:'#94a3b8', fontWeight:400 }}>(opcional)</span></label>
+              <textarea value={direccionPostal} onChange={e => setDirPostal(e.target.value)} placeholder={'PO Box 19062\nSan Juan, PR 00910-1062'} rows={2}
+                style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', fontFamily:'inherit', resize:'vertical' }} />
+            </div>
             <div style={{ display:'flex', gap:8, marginTop:20 }}>
               <button onClick={() => setShow(false)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'9px', fontSize:13, color:'var(--muted)', cursor:'pointer' }}>Cancelar</button>
               <button onClick={generar} disabled={loading} style={{ flex:2, background:'#10b981', border:'none', borderRadius:8, padding:'9px', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer', opacity:loading?0.6:1 }}>
@@ -2535,6 +2559,9 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   const [showContrato, setShowContrato] = useState(false);
   const [modalidad, setModalidad] = useState('efectivo');
   const [prontoDado, setProntoDado] = useState('');
+  const [contratoNumCtaLuma, setContratoCtaLuma] = useState('');
+  const [contratoNumContador, setContratoContador] = useState('');
+  const [contratoDirPostal, setContratoDirPostal] = useState('');
   const [msg, setMsg]             = useState('');
 
   const [extractingFactura, setExtractingFactura] = useState(false);
@@ -2624,7 +2651,13 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
     setContratoLoad(true);
     try {
       await guardar();
-      const data = await api.generarContrato(leadId, { modalidad, prontoDado: Number(prontoDado)||0 });
+      const data = await api.generarContrato(leadId, {
+        modalidad,
+        prontoDado: Number(prontoDado)||0,
+        numCtaLuma: contratoNumCtaLuma.trim() || undefined,
+        numContador: contratoNumContador.trim() || undefined,
+        direccionPostal: contratoDirPostal.trim() || undefined,
+      });
       if (!data.pdf) throw new Error('Sin PDF');
       const bytes = Uint8Array.from(atob(data.pdf), c=>c.charCodeAt(0));
       const blob  = new Blob([bytes],{type:'application/pdf'});
@@ -2719,12 +2752,12 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         {/* Modal contrato */}
         {showContrato && (
           <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }} onClick={()=>setShowContrato(false)}>
-            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:24, width:'calc(100vw - 32px)', maxWidth:360 }} onClick={e=>e.stopPropagation()}>
-              <div style={{ fontSize:15, fontWeight:700, color:'var(--text)', marginBottom:20 }}>📄 Generar Contrato Solar</div>
+            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:24, width:'calc(100vw - 32px)', maxWidth:400, maxHeight:'85vh', overflowY:'auto' }} onClick={e=>e.stopPropagation()}>
+              <div style={{ fontSize:15, fontWeight:700, color:'var(--text)', marginBottom:20 }}>Generar Contrato Solar</div>
               <div style={{ marginBottom:14 }}>
                 <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Modalidad de Pago</label>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                  {[['efectivo','💵 Efectivo (50/50)'],['financiamiento','🏦 Financiamiento']].map(([v,l])=>(
+                  {[['efectivo','Efectivo (50/50)'],['financiamiento','Financiamiento']].map(([v,l])=>(
                     <button key={v} onClick={()=>setModalidad(v)} style={{ border: modalidad===v?'2px solid #10b981':'1px solid var(--border)', borderRadius:8, padding:'10px 12px', background: modalidad===v?'rgba(16,185,129,0.12)':'var(--bg)', cursor:'pointer', fontSize:12, fontWeight:600, color: modalidad===v?'#10b981':'var(--text)' }}>{l}</button>
                   ))}
                 </div>
@@ -2735,6 +2768,18 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
                   <input type="number" value={prontoDado} onChange={e=>setProntoDado(e.target.value)} placeholder="ej: 5000" style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
                 </div>
               )}
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Num. Cta AEE</label>
+                <input value={contratoNumCtaLuma} onChange={e=>setContratoCtaLuma(e.target.value)} placeholder="ej: 8557722000" style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Num. Contador</label>
+                <input value={contratoNumContador} onChange={e=>setContratoContador(e.target.value)} placeholder="ej: 74359283" style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Dirección Postal <span style={{ textTransform:'none', color:'#94a3b8', fontWeight:400 }}>(opcional)</span></label>
+                <textarea value={contratoDirPostal} onChange={e=>setContratoDirPostal(e.target.value)} placeholder={'PO Box 19062\nSan Juan, PR 00910-1062'} rows={2} style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', fontFamily:'inherit', resize:'vertical' }} />
+              </div>
               <div style={{ display:'flex', gap:10, marginTop:20 }}>
                 <button onClick={()=>setShowContrato(false)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'9px', fontSize:13, color:'var(--muted)', cursor:'pointer' }}>Cancelar</button>
                 <button onClick={generarContrato} disabled={contratoLoad} style={{ flex:2, background:'#10b981', border:'none', borderRadius:8, padding:'9px', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer', opacity:contratoLoad?0.6:1 }}>
