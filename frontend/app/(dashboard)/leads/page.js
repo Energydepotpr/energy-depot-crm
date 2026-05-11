@@ -1134,25 +1134,27 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
         {/* Tabs */}
         <div className="flex border-b border-border flex-shrink-0 overflow-x-auto scrollbar-hide" style={{ display: isMobile ? 'none' : undefined }}>
           {[
-            { key: 'chat',      label: '💬', full: t('leads.tab.chat', lang), count: messages.length },
-            { key: 'notas',     label: '📝', full: t('leads.tab.notes', lang), count: notes.length },
-            { key: 'tareas',    label: '✓', full: t('leads.tab.tasks', lang), count: tasks.filter(tk => !tk.completed).length },
-            { key: 'llamadas',  label: '📞', full: t('leads.tab.calls', lang), count: callLogs.length },
-            { key: 'actividad', label: '📋', full: t('leads.tab.activity', lang), count: 0 },
-            { key: 'extra',     label: '＋', full: t('leads.tab.extra', lang), count: customFields.length },
-            { key: 'factura',   label: '🧾', full: 'Factura', count: leadInvoice ? 1 : 0 },
-            { key: 'contactos', label: '👥', full: t('leads.tab.contacts', lang), count: leadContacts.length },
-            { key: 'notas-int', label: '🔒', full: t('leads.tab.intNotes', lang), count: internalNotes.length },
-            { key: 'ai',        label: '🤖', full: t('leads.tab.ai', lang), count: 0 },
-            { key: 'cotizar',   label: '☀️', full: 'Cotizar', count: lead.solar_data?.calc ? 1 : 0 },
+            { key: 'chat',      full: t('leads.tab.chat', lang), count: messages.length },
+            { key: 'notas',     full: t('leads.tab.notes', lang), count: notes.length },
+            { key: 'tareas',    full: t('leads.tab.tasks', lang), count: tasks.filter(tk => !tk.completed).length },
+            { key: 'llamadas',  full: t('leads.tab.calls', lang), count: callLogs.length },
+            { key: 'actividad', full: t('leads.tab.activity', lang), count: 0 },
+            { key: 'extra',     full: t('leads.tab.extra', lang), count: customFields.length },
+            { key: 'factura',   full: 'Factura', count: leadInvoice ? 1 : 0 },
+            { key: 'contactos', full: t('leads.tab.contacts', lang), count: leadContacts.length },
+            { key: 'notas-int', full: t('leads.tab.intNotes', lang), count: internalNotes.length },
+            { key: 'ai',        full: t('leads.tab.ai', lang), count: 0 },
+            { key: 'cotizar',   full: 'Cotizar', count: lead.solar_data?.calc ? 1 : 0 },
           ].map(tab_item => (
             <button key={tab_item.key} onClick={() => setTab(tab_item.key)}
-              className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 flex flex-col items-center gap-0.5 ${
+              className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
                 tab === tab_item.key ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-white'
               }`}
             >
-              <span>{tab_item.label}</span>
-              <span style={{ fontSize: 9 }}>{tab_item.count > 0 ? tab_item.count : tab_item.full}</span>
+              <span>{tab_item.full}</span>
+              {tab_item.count > 0 && (
+                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: 'rgba(103,232,249,0.15)', color: 'var(--accent)' }}>{tab_item.count}</span>
+              )}
             </button>
           ))}
         </div>
