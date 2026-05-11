@@ -156,7 +156,7 @@ function SidebarEmailBtn({ leadId, lead }) {
 
   useEffect(() => {
     if (!show) return;
-    api.get('/api/settings')
+    api.settings()
       .then(d => {
         if (d && typeof d === 'object') {
           setTplOverrides({
