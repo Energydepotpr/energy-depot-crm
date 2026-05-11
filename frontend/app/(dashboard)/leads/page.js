@@ -1144,7 +1144,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             { key: 'contactos', full: t('leads.tab.contacts', lang), count: leadContacts.length },
             { key: 'notas-int', full: t('leads.tab.intNotes', lang), count: internalNotes.length },
             { key: 'ai',        full: t('leads.tab.ai', lang), count: 0 },
-            { key: 'cotizar',   full: 'Cotizar', count: lead.solar_data?.calc ? 1 : 0 },
+            { key: 'cotizar',   full: 'Cotizar', count: Array.isArray(lead.solar_data?.quotations) ? lead.solar_data.quotations.length : (lead.solar_data?.calc ? 1 : 0) },
           ].map(tab_item => (
             <button key={tab_item.key} onClick={() => setTab(tab_item.key)}
               className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
