@@ -2747,14 +2747,24 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
     <div style={{ padding: isMobile ? 14 : 16, display:'flex', flexDirection:'column', gap: isMobile ? 18 : 14, paddingBottom: isMobile ? 28 : 16 }}>
       {/* Tabs de cotizaciones */}
       <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', borderBottom:'1px solid var(--border)', paddingBottom:10, overflowX: isMobile ? 'auto' : undefined }}>
-        {quotations.map(q => (
-          <button key={q.id} onClick={()=>setActiveId(q.id)} style={{
-            background: q.id===activeId ? '#1a3c8f' : 'var(--bg)',
-            color: q.id===activeId ? '#fff' : 'var(--muted)',
-            border: q.id===activeId ? '1px solid #1a3c8f' : '1px solid var(--border)',
-            borderRadius:16, padding:'5px 12px', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap',
-          }}>{q.name}{q.id===activeId && quotations.length>1 ? ' ✓' : ''}</button>
-        ))}
+        {quotations.map(q => {
+          const isActive = q.id === activeId;
+          return (
+            <div key={q.id} style={{ display:'inline-flex', alignItems:'stretch', borderRadius:16, overflow:'hidden', border: isActive ? '1px solid #1a3c8f' : '1px solid var(--border)' }}>
+              <button onClick={()=>setActiveId(q.id)} style={{
+                background: isActive ? '#1a3c8f' : 'var(--bg)',
+                color: isActive ? '#fff' : 'var(--muted)',
+                border:'none', padding:'5px 10px 5px 12px', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap',
+              }}>{q.name}</button>
+              <button onClick={(e)=>{ e.stopPropagation(); deleteQuotation(q.id); }} title="Eliminar cotización" style={{
+                background: isActive ? '#1a3c8f' : 'var(--bg)',
+                color: isActive ? 'rgba(255,255,255,0.8)' : 'var(--muted)',
+                border:'none', borderLeft: isActive ? '1px solid rgba(255,255,255,0.25)' : '1px solid var(--border)',
+                padding:'5px 9px', fontSize:13, fontWeight:700, cursor:'pointer', lineHeight:1,
+              }}>×</button>
+            </div>
+          );
+        })}
         <button onClick={newQuotation} style={{
           background:'var(--bg)', color:'#1a3c8f', border:'1px dashed #1a3c8f',
           borderRadius:16, padding:'5px 12px', fontSize:12, fontWeight:700, cursor:'pointer',
