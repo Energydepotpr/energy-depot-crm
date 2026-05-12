@@ -30,7 +30,8 @@ function calc(meses, batPrecio = 0, pricing = DEFAULT_PRICING) {
   // redondeado al par próximo HACIA ARRIBA
   let panels = 2 * Math.ceil(((avg / 30 / 4.5) * 1000 / pricing.panelWatts) / 2);
   const kw = +(panels * pricing.panelWatts / 1000).toFixed(2);
-  const annProd = Math.round(kw * pricing.factorProduccion);
+  // Producción anual = paneles × 2.5 × 365 (fórmula Energy Depot)
+  const annProd = Math.round(panels * 2.5 * 365);
   const costBase = Math.round(panels * pricing.panelPrice);
   const sub = costBase + batPrecio;
   const pagoLuma = Math.round(avg * pricing.tarifaLuma);

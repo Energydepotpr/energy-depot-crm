@@ -19,7 +19,8 @@ function calcSolar(months, pricing) {
   // redondeado al par próximo HACIA ARRIBA
   let panels   = 2 * Math.ceil(((avgKwh / 30 / 4.5) * 1000 / p.panelWatts) / 2);
   const systemKw = parseFloat(((panels * p.panelWatts) / 1000).toFixed(2));
-  const annProd  = Math.round(systemKw * p.factorProduccion);
+  // Producción anual = paneles × 2.5 × 365 (fórmula Energy Depot)
+  const annProd  = Math.round(panels * 2.5 * 365);
   const costBase = Math.round(panels * p.panelPrice);
   const annualSavings = Math.round(avgKwh * p.tarifaLuma * 12);
   const roi      = annualSavings > 0 ? Math.round(costBase / annualSavings) : 0;
@@ -353,7 +354,7 @@ async function loadProposalData(leadId, quotationId) {
   const netCost    = subtotal;
   const annSav     = calc.annualSavings || 0;
   const roi        = calc.roi || 0;
-  const annProd    = calc.annProd || Math.round(systemKw * 1460);
+  const annProd    = calc.annProd || Math.round((calc.panels || 0) * 2.5 * 365);
   const annCons    = calc.annCons || (calc.avg || 0) * 12;
   const offset     = annCons > 0 ? Math.round(annProd / annCons * 100) : 0;
   const pagoFV     = costBase > 0 ? pagoMensual(costBase, 15, 6.5) : 0;

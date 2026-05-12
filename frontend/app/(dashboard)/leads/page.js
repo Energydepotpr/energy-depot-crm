@@ -2451,7 +2451,8 @@ function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0) 
   // redondeado al par próximo HACIA ARRIBA
   let panels = 2 * Math.ceil(((avg / 30 / 4.5) * 1000 / panelWatts) / 2);
   const kw=parseFloat((panels*panelWatts/1000).toFixed(2));
-  const annProd=Math.round(kw*factorProduccion);
+  // Producción anual = paneles × 2.5 × 365 (fórmula Energy Depot)
+  const annProd=Math.round(panels*2.5*365);
   // costBase = sistema FV completo (NO se descuenta). El descuento es una línea aparte.
   const costBase=Math.round(panels*panelPrice);
   const subPreDescuento=costBase+batPrecio;
