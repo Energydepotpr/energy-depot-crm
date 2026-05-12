@@ -2583,19 +2583,29 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
     setQuotations(prev => [...prev, { id, name: `Cotización ${prev.length+1}`, createdAt: new Date().toISOString(), meses: inheritedMeses, mesLabels: inheritedLabels, batteries: [] }]);
     setActiveId(id);
   };
-  const deleteQuotation = (id) => {
-    if (!confirm('¿Eliminar esta cotización? Esta acción no se puede deshacer.')) return;
-    const next = quotations.filter(q => q.id !== id);
-    if (next.length === 0) {
-      // Si era la única, crear una vacía para que el editor no rompa
+  const deleteQuotation = async (id) => {
+    const filtered = quotations.filter(q => q.id !== id);
+    let nextList, nextActive;
+    if (filtered.length === 0) {
       const newId = 'q' + Math.random().toString(36).slice(2, 9);
-      const blank = { id: newId, name: 'Cotización 1', createdAt: new Date().toISOString(), meses: Array(MESES_LEN).fill(''), batteries: [] };
-      setQuotations([blank]);
-      setActiveId(newId);
+      nextList = [{ id: newId, name: 'Cotización 1', createdAt: new Date().toISOString(), meses: Array(MESES_LEN).fill(''), batteries: [] }];
+      nextActive = newId;
     } else {
-      setQuotations(next);
-      if (activeId === id) setActiveId(next[0].id);
+      nextList = filtered;
+      nextActive = activeId === id ? filtered[0].id : activeId;
     }
+    setQuotations(nextList);
+    setActiveId(nextActive);
+    // Persiste al backend para que no reaparezca al recargar
+    try {
+      const sdNow = lead?.solar_data || {};
+      const cleaned = nextList.map(q => ({ ...q, batteries: (q.batteries || []).filter(b => BATERIAS_COT.some(c => c.name === b.name)) }));
+      await api.saveSolarData(leadId, {
+        solar_data: { ...sdNow, quotations: cleaned, activeQuotationId: nextActive },
+      });
+      showMsg('✓ Cotización eliminada');
+      if (onLeadUpdate) onLeadUpdate();
+    } catch (e) { showMsg('Error: ' + e.message); }
   };
   const renameActive = (newName) => updateActive({ name: newName });
 
