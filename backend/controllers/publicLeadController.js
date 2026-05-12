@@ -265,6 +265,52 @@ async function createPublicLead(req, res) {
       // últimas N (cantidad creada)
       quotation_ids = allIds.slice(-newQuotations.length);
     }
+
+    // ── Notificaciones: alert in-app + email a auto-BCC ─────────────────────
+    try {
+      const qCount = newQuotations.length;
+      const action = quotation_id ? 'editó' : (updated ? 'actualizó' : 'creó');
+      const battsLabel = (() => {
+        const lastQ = persistedSd.quotations?.slice(-1)[0];
+        const bs = lastQ?.batteries || [];
+        return bs.length ? bs.map(b => `${b.qty > 1 ? b.qty + '× ' : ''}${b.name}`).join(' + ') : 'Solo solar';
+      })();
+      const alertTitle = updated ? 'Cliente actualizó su autocotización' : 'Nueva autocotización desde la web';
+      const alertMsg = `${name || 'Cliente'}${email ? ' · ' + email : ''}${phonenumber ? ' · ' + phonenumber : ''} ${action} ${qCount > 1 ? qCount + ' cotizaciones' : '1 cotización'} (${battsLabel})`;
+      await pool.query(
+        `INSERT INTO alerts (title, message, lead_id, seen, type) VALUES ($1, $2, $3, false, $4)`,
+        [alertTitle, alertMsg, leadId, 'info']
+      );
+
+      // Email al equipo (auto-BCC de settings o default)
+      const notifyTo = await getConfigValue('email_auto_bcc', 'gil.diaz@energydepotpr.com');
+      if (notifyTo) {
+        const { sendEmail } = require('../services/gmailService');
+        const crmLink = `https://crm-energydepotpr.com/leads/${leadId}`;
+        await sendEmail({
+          from: '"Energy Depot CRM" <info@energydepotpr.com>',
+          to: notifyTo,
+          subject: `${updated ? '🔄' : '🆕'} Autocotización ${updated ? 'actualizada' : 'nueva'} — ${name || 'Cliente'}`,
+          text: `${alertMsg}\n\nVer en CRM: ${crmLink}`,
+          html: `
+<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
+  <h2 style="color:#1a3c8f;margin:0 0 12px;">${updated ? '🔄 Cotización actualizada' : '🆕 Nueva autocotización'}</h2>
+  <table style="font-size:14px;color:#374151;border-collapse:collapse;margin:12px 0;">
+    <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Cliente:</td><td style="padding:4px 0;font-weight:600;">${name || '-'}</td></tr>
+    ${email ? `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Email:</td><td style="padding:4px 0;">${email}</td></tr>` : ''}
+    ${phonenumber ? `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Teléfono:</td><td style="padding:4px 0;">${phonenumber}</td></tr>` : ''}
+    ${city ? `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Ciudad:</td><td style="padding:4px 0;">${city}</td></tr>` : ''}
+    <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Cotizaciones:</td><td style="padding:4px 0;font-weight:600;">${qCount}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Equipos:</td><td style="padding:4px 0;">${battsLabel}</td></tr>
+  </table>
+  <a href="${crmLink}" style="display:inline-block;background:#1a3c8f;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:700;margin-top:8px;">Ver lead en el CRM →</a>
+</div>`.trim(),
+        }).catch(e => console.error('[autocotizar email]', e.message));
+      }
+    } catch (e) {
+      console.error('[autocotizar notify]', e.message);
+    }
+
     res.json({ ok: true, lead_id: leadId, token, updated, quotation_ids });
   } catch (err) {
     console.error('[publicLead] crear:', err.message);
