@@ -2447,8 +2447,9 @@ function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0) 
   const filled = last12.map(Number).filter(v=>v>0);
   if (!filled.length) return null;
   const avg=filled.reduce((a,b)=>a+b,0)/filled.length, annCons=Math.round(avg*12);
-  let panels=Math.round(annCons/factorProduccion*1000/panelWatts);
-  if (panels % 2 !== 0) panels += 1; // siempre par
+  // Fórmula Energy Depot: paneles = (promedio mensual / 30 / 4.5) × 1000 / panelWatts,
+  // redondeado al par próximo HACIA ARRIBA
+  let panels = 2 * Math.ceil(((avg / 30 / 4.5) * 1000 / panelWatts) / 2);
   const kw=parseFloat((panels*panelWatts/1000).toFixed(2));
   const annProd=Math.round(kw*factorProduccion);
   // costBase = sistema FV completo (NO se descuenta). El descuento es una línea aparte.

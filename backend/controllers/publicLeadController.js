@@ -15,8 +15,9 @@ function calcSolar(months, pricing) {
   if (filled.length < 1) return null;
   const avgKwh   = filled.reduce((a, b) => a + b, 0) / filled.length;
   const annCons  = Math.round(avgKwh * 12);
-  let panels   = Math.round(annCons / p.factorProduccion * 1000 / p.panelWatts);
-  if (panels % 2 !== 0) panels += 1; // siempre par
+  // Fórmula Energy Depot: paneles = (promedio mensual / 30 / 4.5) × 1000 / panelWatts,
+  // redondeado al par próximo HACIA ARRIBA
+  let panels   = 2 * Math.ceil(((avgKwh / 30 / 4.5) * 1000 / p.panelWatts) / 2);
   const systemKw = parseFloat(((panels * p.panelWatts) / 1000).toFixed(2));
   const annProd  = Math.round(systemKw * p.factorProduccion);
   const costBase = Math.round(panels * p.panelPrice);

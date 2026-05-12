@@ -26,8 +26,9 @@ function calc(meses, batPrecio = 0, pricing = DEFAULT_PRICING) {
   if (!filled.length) return null;
   const avg = filled.reduce((a,b)=>a+b,0) / filled.length;
   const annCons = Math.round(avg * 12);
-  let panels = Math.round(annCons / pricing.factorProduccion * 1000 / pricing.panelWatts);
-  if (panels % 2 !== 0) panels += 1; // siempre par
+  // Fórmula Energy Depot: paneles = (promedio mensual / 30 / 4.5) × 1000 / panelWatts,
+  // redondeado al par próximo HACIA ARRIBA
+  let panels = 2 * Math.ceil(((avg / 30 / 4.5) * 1000 / pricing.panelWatts) / 2);
   const kw = +(panels * pricing.panelWatts / 1000).toFixed(2);
   const annProd = Math.round(kw * pricing.factorProduccion);
   const costBase = Math.round(panels * pricing.panelPrice);
