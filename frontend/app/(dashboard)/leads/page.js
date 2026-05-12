@@ -2462,6 +2462,9 @@ function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0) 
   return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, subPreDescuento, descuentoPct: dPct, descuentoAmt, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
 }
 
+// Marca extraída del primer token del nombre. Items de distinta marca → cotizaciones separadas.
+const getBattBrand = (n) => String(n || '').trim().split(/\s+/)[0] || 'Otro';
+
 function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   const sd = lead?.solar_data || {};
   const [BATERIAS_COT, setBateriasList] = useState(DEFAULT_BATERIAS);
@@ -2521,7 +2524,42 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
     .filter(b => BATERIAS_COT.some(c => c.name === b.name))
     .reduce((s,b)=>s+(b.qty||0)*(b.unitPrice||0),0);
 
+  // Marcas presentes en la cotización activa. >1 marca = mezcla inválida (regla Energy Depot).
+  const activeBrands = Array.from(new Set(
+    (active?.batteries || [])
+      .filter(b => (b.qty || 0) > 0 && BATERIAS_COT.some(c => c.name === b.name))
+      .map(b => getBattBrand(b.name))
+  ));
+  const mixedBrands = activeBrands.length > 1;
+
   const updateActive = (patch) => setQuotations(prev => prev.map(q => q.id === activeId ? { ...q, ...patch } : q));
+
+  // Divide la cotización activa en N cotizaciones (una por marca).
+  const autoSeparateByBrand = () => {
+    if (!mixedBrands) return;
+    const bats = (active?.batteries || []).filter(b => (b.qty || 0) > 0);
+    const byBrand = {};
+    bats.forEach(b => { const br = getBattBrand(b.name); (byBrand[br] = byBrand[br] || []).push(b); });
+    const brands = Object.keys(byBrand);
+    const baseName = (active?.name || 'Cotización').replace(/\s*—\s*(FranklinWH|Tesla|SolaX|BlueSun|Bluetti|Otro).*$/, '');
+    const newQs = brands.map((brand, i) => ({
+      id: i === 0 ? activeId : 'q' + Math.random().toString(36).slice(2, 9),
+      name: `${baseName} — ${brand}`,
+      createdAt: new Date().toISOString(),
+      meses: active?.meses || meses,
+      mesLabels: active?.mesLabels,
+      batteries: byBrand[brand],
+      descuentoPct: active?.descuentoPct || 0,
+    }));
+    setQuotations(prev => {
+      const idx = prev.findIndex(q => q.id === activeId);
+      if (idx < 0) return prev;
+      const next = [...prev];
+      next.splice(idx, 1, ...newQs);
+      return next;
+    });
+    showMsg(`✓ Separadas en ${brands.length} cotizaciones: ${brands.join(' · ')}`);
+  };
   const setMeses = (newM) => updateActive({ meses: typeof newM === 'function' ? newM(meses) : newM });
   const setQ = (i, delta) => {
     const battName = BATERIAS_COT[i].name;
@@ -2621,6 +2659,15 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
 
   const guardar = async () => {
     if (!calc) return;
+    // Bloquear si hay mezcla de marcas en alguna cotización
+    const mixed = quotations
+      .map(q => ({ name: q.name, brands: Array.from(new Set((q.batteries || []).filter(b => (b.qty || 0) > 0 && BATERIAS_COT.some(c => c.name === b.name)).map(b => getBattBrand(b.name)))) }))
+      .filter(x => x.brands.length > 1);
+    if (mixed.length) {
+      const detail = mixed.map(m => `• "${m.name}": ${m.brands.join(' + ')}`).join('\n');
+      const ok = confirm(`Hay cotizaciones con marcas mezcladas (no compatibles):\n\n${detail}\n\nLas marcas distintas no se pueden combinar en el mismo proyecto. Usá "Separar por marca" para dividirlas.\n\n¿Guardar igual? (no recomendado)`);
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       // Limpia baterías que ya no están en el catálogo
@@ -2837,7 +2884,23 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
 
       {/* Batería */}
       <div style={{ background:'var(--surface)', border: isMobile ? 'none' : '1px solid var(--border)', borderRadius: isMobile ? 12 : 8, padding: isMobile ? '16px 16px' : '14px 16px', boxShadow: isMobile ? '0 1px 2px rgba(0,0,0,0.04)' : 'none' }}>
-        <div style={{ fontSize: isMobile ? 12 : 11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom: isMobile ? 14 : 10 }}>Baterías</div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginBottom: isMobile ? 14 : 10, flexWrap:'wrap' }}>
+          <div style={{ fontSize: isMobile ? 12 : 11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px' }}>Baterías</div>
+          {activeBrands.length > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Marca{activeBrands.length>1?'s':''}: <strong style={{ color: mixedBrands ? '#ef4444' : '#10b981' }}>{activeBrands.join(' + ')}</strong></div>
+          )}
+        </div>
+        {mixedBrands && (
+          <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid #ef4444', borderRadius:8, padding:'10px 12px', marginBottom:12, display:'flex', alignItems:'flex-start', gap:10, flexWrap:'wrap' }}>
+            <div style={{ flex:1, minWidth:200 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#991b1b' }}>Marcas mezcladas en una cotización</div>
+              <div style={{ fontSize:11, color:'#991b1b', marginTop:2 }}>Los equipos de <strong>{activeBrands.join(' y ')}</strong> no se pueden combinar en el mismo proyecto. Separá en cotizaciones distintas.</div>
+            </div>
+            <button onClick={autoSeparateByBrand} style={{ background:'#ef4444', color:'#fff', border:'none', borderRadius:6, padding:'6px 12px', fontSize:12, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
+              Separar por marca
+            </button>
+          </div>
+        )}
         <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: isMobile ? 10 : 7 }}>
           {BATERIAS_COT.map((b,i) => {
             const active = batQty[i]>0;
