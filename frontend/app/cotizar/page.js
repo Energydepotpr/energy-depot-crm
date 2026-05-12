@@ -63,7 +63,10 @@ export default function CotizarPage() {
   const [welcomeShown, setWelcomeShown] = useState(false);
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
   const [selectedBatt, setSelectedBatt] = useState({}); // { name: qty }
-  const [splitByBattery, setSplitByBattery] = useState(false); // Feature 1
+  // Agrupación por marca: items de marcas distintas no se mezclan en el mismo proyecto.
+  // Brand se extrae del primer "token" del nombre (ej "FranklinWH S Expansion" → "FranklinWH",
+  // "Tesla PowerWall 3" → "Tesla", "SolaX ESS 10.24 kWh" → "SolaX").
+  const getBrand = (n) => String(n || '').trim().split(/\s+/)[0] || 'Otro';
   const [editingQuotationId, setEditingQuotationId] = useState(null); // Feature 2: editar
   const [results, setResults] = useState([]); // Feature 1: cotizaciones múltiples paso 3
   const DEFAULT_WELCOME = 'Tus datos para preparar la propuesta personalizada.';
@@ -273,7 +276,16 @@ export default function CotizarPage() {
         name: n, qty: q, unitPrice: bateriasList.find(b => b.name === n)?.precio || 0,
       }));
 
-      // Feature 1: si splitByBattery → construir array de quotations (1 por batería + Solo Solar)
+      // Agrupar baterías por marca. Distintas marcas → cotizaciones separadas.
+      // Misma marca → todas en 1 cotización.
+      const byBrand = {};
+      batteriesAll.forEach(b => {
+        const brand = getBrand(b.name);
+        if (!byBrand[brand]) byBrand[brand] = [];
+        byBrand[brand].push(b);
+      });
+      const brands = Object.keys(byBrand);
+
       let payload = {
         name, email, phonenumber: phone, city,
         meses,
@@ -281,30 +293,23 @@ export default function CotizarPage() {
         source: 'autocotizar-web',
       };
       let multiResults = [];
-      if (splitByBattery && batteriesAll.length > 0) {
+
+      // Si hay >1 marca → multi-cotización. Si hay 1 marca o ninguna → single.
+      if (brands.length > 1 && !editingQuotationId) {
         const quotations = [];
-        // 1 por cada batería
-        batteriesAll.forEach(b => {
-          const oneBatt = [{ name: b.name, qty: b.qty, unitPrice: b.unitPrice }];
-          const batPrecioOne = (b.unitPrice || 0) * (b.qty || 0);
-          const calcOne = calc(meses, batPrecioOne, pricing);
+        brands.forEach(brand => {
+          const batsBrand = byBrand[brand];
+          const batPrecioBrand = batsBrand.reduce((s, b) => s + (b.unitPrice || 0) * (b.qty || 0), 0);
+          const calcBrand = calc(meses, batPrecioBrand, pricing);
+          const label = batsBrand.map(b => `${b.qty > 1 ? b.qty + '× ' : ''}${b.name}`).join(' + ');
           quotations.push({
-            name: `${name} — ${b.qty > 1 ? b.qty + '× ' : ''}${b.name}`,
-            batteries: oneBatt,
+            name: `${name} — ${brand}`,
+            batteries: batsBrand.map(b => ({ name: b.name, qty: b.qty, unitPrice: b.unitPrice })),
             meses,
-            calc: calcOne,
+            calc: calcBrand,
           });
-          multiResults.push({ ...calcOne, batPrecio: batPrecioOne, label: `${b.qty > 1 ? b.qty + '× ' : ''}${b.name}` });
+          multiResults.push({ ...calcBrand, batPrecio: batPrecioBrand, label });
         });
-        // + Solo solar
-        const calcSolo = calc(meses, 0, pricing);
-        quotations.push({
-          name: `${name} — Solo Solar (sin batería)`,
-          batteries: [],
-          meses,
-          calc: calcSolo,
-        });
-        multiResults.push({ ...calcSolo, batPrecio: 0, label: 'Solo Solar (sin batería)' });
         payload.quotations = quotations;
       } else {
         payload.calc = c;
@@ -465,16 +470,17 @@ export default function CotizarPage() {
                 </div>
               )}
 
-              {/* Feature 1: toggle múltiples cotizaciones */}
-              {Object.keys(selectedBatt).length >= 1 && !editingQuotationId && (
-                <label style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 10, background: splitByBattery ? 'rgba(16,185,129,0.08)' : '#f8fafc', border: '1px solid ' + (splitByBattery ? '#10b981' : '#e2e8f0'), borderRadius: 10, padding: '10px 12px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={splitByBattery} onChange={e => setSplitByBattery(e.target.checked)} style={{ marginTop: 2, accentColor: '#10b981' }} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: splitByBattery ? '#065f46' : '#0f2a5c' }}>Generar cotización separada por cada batería seleccionada</div>
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Recibirás {Object.keys(selectedBatt).length + 1} cotizaciones independientes ({Object.keys(selectedBatt).length} con batería + 1 solo solar) para comparar.</div>
+              {/* Aviso de agrupación automática por marca */}
+              {(() => {
+                const brands = Array.from(new Set(Object.keys(selectedBatt).map(n => getBrand(n))));
+                if (brands.length < 2 || editingQuotationId) return null;
+                return (
+                  <div style={{ marginTop: 12, background: 'rgba(16,185,129,0.08)', border: '1px solid #10b981', borderRadius: 10, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#065f46' }}>Se generarán {brands.length} cotizaciones (una por marca)</div>
+                    <div style={{ fontSize: 11, color: '#065f46', marginTop: 2 }}>Los equipos de marcas distintas no se pueden combinar en el mismo proyecto. Cotizaciones separadas: <strong>{brands.join(' · ')}</strong></div>
                   </div>
-                </label>
-              )}
+                );
+              })()}
             </div>
 
             {err && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 12, fontWeight: 500 }}>{err}</div>}
