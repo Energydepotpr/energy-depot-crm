@@ -2584,11 +2584,18 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
     setActiveId(id);
   };
   const deleteQuotation = (id) => {
-    if (quotations.length <= 1) { showMsg('Debe quedar al menos una'); return; }
-    if (!confirm('¿Eliminar esta cotización?')) return;
+    if (!confirm('¿Eliminar esta cotización? Esta acción no se puede deshacer.')) return;
     const next = quotations.filter(q => q.id !== id);
-    setQuotations(next);
-    if (activeId === id) setActiveId(next[0].id);
+    if (next.length === 0) {
+      // Si era la única, crear una vacía para que el editor no rompa
+      const newId = 'q' + Math.random().toString(36).slice(2, 9);
+      const blank = { id: newId, name: 'Cotización 1', createdAt: new Date().toISOString(), meses: Array(MESES_LEN).fill(''), batteries: [] };
+      setQuotations([blank]);
+      setActiveId(newId);
+    } else {
+      setQuotations(next);
+      if (activeId === id) setActiveId(next[0].id);
+    }
   };
   const renameActive = (newName) => updateActive({ name: newName });
 
@@ -2763,12 +2770,10 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
             style={{ flex:1, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, padding:'6px 10px', fontSize:13, fontWeight:600, color:'var(--text)', outline:'none' }}
             placeholder="Nombre de la cotización"
           />
-          {quotations.length>1 && (
-            <button onClick={()=>deleteQuotation(active.id)} title="Eliminar esta cotización" style={{
-              background:'transparent', border:'1px solid var(--border)', borderRadius:6, padding:'5px 10px',
-              fontSize:13, color:'#ef4444', cursor:'pointer',
-            }}>🗑</button>
-          )}
+          <button onClick={()=>deleteQuotation(active.id)} title="Eliminar esta cotización" style={{
+            background:'transparent', border:'1px solid var(--border)', borderRadius:6, padding:'5px 10px',
+            fontSize:13, color:'#ef4444', cursor:'pointer',
+          }}>🗑</button>
         </div>
       )}
 
