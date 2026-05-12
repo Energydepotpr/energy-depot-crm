@@ -15,7 +15,7 @@ function calcSolar(months, pricing) {
   if (filled.length < 1) return null;
   const avgKwh   = filled.reduce((a, b) => a + b, 0) / filled.length;
   const annCons  = Math.round(avgKwh * 12);
-  let panels   = Math.round((annCons * 1.07) / p.factorProduccion * 1000 / p.panelWatts);
+  let panels   = Math.round(annCons / p.factorProduccion * 1000 / p.panelWatts);
   if (panels % 2 !== 0) panels += 1; // siempre par
   const systemKw = parseFloat(((panels * p.panelWatts) / 1000).toFixed(2));
   const annProd  = Math.round(systemKw * p.factorProduccion);
