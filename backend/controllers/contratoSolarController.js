@@ -65,12 +65,12 @@ function buildContratoHTML(d) {
 <meta charset="UTF-8"/>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  @page{size:Letter;margin:0}
+  @page{size:Letter;margin:16mm 14mm 18mm 14mm}
   body{font-family:'Times New Roman',Times,serif;color:#1f2937;background:#fff;font-size:11pt;line-height:1.5}
   .sans{font-family:'Plus Jakarta Sans',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
 
   /* ===== HEADER ===== */
-  .hero{background:linear-gradient(135deg,#0f2558 0%,#1a3c8f 100%);padding:26px 50px;display:flex;align-items:center;justify-content:space-between;color:#fff}
+  .hero{background:linear-gradient(135deg,#0f2558 0%,#1a3c8f 100%);padding:22px 24px;display:flex;align-items:center;justify-content:space-between;color:#fff;border-radius:10px}
   .hero .left{display:flex;align-items:center;gap:18px}
   .hero img{height:56px;width:auto;object-fit:contain;filter:brightness(1.1)}
   .hero .brand{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:20pt;font-weight:900;letter-spacing:1px}
@@ -81,7 +81,7 @@ function buildContratoHTML(d) {
   .band{background:#67e8f9;height:5px}
 
   /* ===== PAGE BLOCKS ===== */
-  .page{padding:26px 50px}
+  .page{padding:18px 0 0 0}
   .pagebreak{page-break-before:always}
 
   /* ===== INTRO ===== */
@@ -152,7 +152,7 @@ function buildContratoHTML(d) {
   .firmas .col .tt{font-size:9.5pt;color:#64748b}
 
   /* ===== FOOTER ===== */
-  .footer{background:#0f2558;color:#bfdbfe;padding:14px 50px;font-size:8pt;text-align:center;letter-spacing:0.4px;margin-top:30px;font-family:'Plus Jakarta Sans',-apple-system,sans-serif}
+  .footer{background:#0f2558;color:#bfdbfe;padding:14px 24px;font-size:8pt;text-align:center;letter-spacing:0.4px;margin-top:30px;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;border-radius:8px}
   .footer .name{font-weight:700;color:#fff;font-size:9pt;letter-spacing:1.5px;margin-bottom:4px}
   .footer .ver{margin-top:6px;color:#93c5fd;font-style:italic;font-size:7.5pt}
 </style>
@@ -631,7 +631,11 @@ async function generarContratoSolar(req, res) {
       esEfectivo
     });
 
-    const pdfBuf = await generatePDF(html, { format: 'Letter' });
+    const pdfBuf = await generatePDF(html, {
+      format: 'Letter',
+      printBackground: true,
+      margin: { top: '16mm', right: '14mm', bottom: '18mm', left: '14mm' },
+    });
 
     const base64 = Buffer.from(pdfBuf).toString('base64');
     const titulo = `Contrato Solar — ${nombre}`;
