@@ -388,6 +388,13 @@ export const api = {
   extractFacturaPublic: (file, apiBase) => fetch(`${apiBase}/api/public/extract-factura`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ file }) }).then(r => r.json()),
   saveSolarData:     (id, data) => req('PATCH', `/api/leads/${id}/solar`, data),
   generarContrato:   (id, data) => req('POST',  `/api/leads/${id}/contrato-solar`, data),
+  listContratosFirma:(id)       => req('GET',   `/api/leads/${id}/contratos-firma`),
+  downloadContratoFirma:(id)    => req('GET',   `/api/contratos-firma/${id}/pdf`),
+
+  // Appointments / Citas
+  appointments:         (params = '')   => req('GET',    `/api/appointments${params}`),
+  updateAppointment:    (id, data)      => req('PATCH',  `/api/appointments/${id}`, data),
+  deleteAppointment:    (id)            => req('DELETE', `/api/appointments/${id}`),
 
   // Reports
   downloadReport: (period = 30) => {

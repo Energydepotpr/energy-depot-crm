@@ -226,10 +226,33 @@ async function sincronizar(req, res) {
           if (ins.rows.length > 0) {
             count++;
             if (direction === 'inbound') {
-              await pool.query(
-                `INSERT INTO alerts (title, message, seen, type) VALUES ($1,$2,false,'info')`,
-                [`Nuevo correo (info@energydepotpr.com)`, `De: ${m.fromName || m.fromEmail} — ${m.subject}`]
-              ).catch(() => {});
+              // Buscar lead asociado al contacto (si existe) para deep-link en la alert
+              let leadIdForAlert = null;
+              if (contactId) {
+                try {
+                  const lr = await pool.query(
+                    `SELECT id FROM leads WHERE contact_id=$1 ORDER BY updated_at DESC LIMIT 1`,
+                    [contactId]
+                  );
+                  leadIdForAlert = lr.rows[0]?.id || null;
+                } catch (_) {}
+              }
+              if (leadIdForAlert) {
+                // Dispara helper compartido (dedup 5min + skip si remitente es agente)
+                const { notifyClientContact } = require('./webhookController');
+                notifyClientContact({
+                  leadId: leadIdForAlert,
+                  channel: 'email',
+                  contactName: m.fromName || m.fromEmail,
+                  preview: `${m.subject || ''} — ${(m.text || '').slice(0, 100)}`,
+                  contactEmail: (m.fromEmail || '').toLowerCase(),
+                }).catch(() => {});
+              } else {
+                await pool.query(
+                  `INSERT INTO alerts (title, message, seen, type) VALUES ($1,$2,false,'info')`,
+                  [`Nuevo correo (info@energydepotpr.com)`, `De: ${m.fromName || m.fromEmail} — ${m.subject}`]
+                ).catch(() => {});
+              }
             }
           }
         } catch (e) {

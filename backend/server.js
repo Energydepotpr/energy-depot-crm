@@ -29,7 +29,13 @@ const integrations  = require('./controllers/integrationsController');
 const automations   = require('./controllers/automationsController');
 const agentReport   = require('./controllers/agentReportController');
 const contracts     = require('./controllers/contractsController');
-const { generarContratoSolar } = require('./controllers/contratoSolarController');
+const {
+  generarContratoSolar,
+  getFirmaPublic,
+  postFirmaPublic,
+  listContratosFirma,
+  downloadContratoFirma,
+} = require('./controllers/contratoSolarController');
 const email         = require('./controllers/emailController');
 const menuLinks     = require('./controllers/menuLinksController');
 const translate     = require('./controllers/translateController');
@@ -172,6 +178,10 @@ app.get('/api/docs', apiDocs.getDocs);
 app.get('/api/public/sign/:token',   publicTokenLimiter, signatures.obtenerParaFirma);
 app.post('/api/public/sign/:token',  publicTokenLimiter, signatures.firmar);
 
+// Public — Firma de contrato solar (token aleatorio, sin auth)
+app.get('/api/public/firma/:token',  publicTokenLimiter, getFirmaPublic);
+app.post('/api/public/firma/:token', publicTokenLimiter, postFirmaPublic);
+
 // Public audio proxy (browser <audio> can't send JWT headers)
 app.get('/api/recordings/:sid/audio', callRecording.proxyAudio);
 
@@ -183,8 +193,18 @@ app.get('/api/public/leads/:id/session', publicTokenLimiter, publicLeadLookup);
 app.get('/api/public/leads/:id/propuesta', publicTokenLimiter, publicPropuestaHTML);
 app.get('/api/leads/:id/share-link', authMiddleware, getShareLink);
 
+// Public: agendar citas (sin auth, rate-limited)
+const appointmentsCtrl = require('./controllers/appointmentsController');
+app.get('/api/public/agendar/slots', publicTokenLimiter, appointmentsCtrl.getPublicSlots);
+app.post('/api/public/agendar',      publicTokenLimiter, appointmentsCtrl.createPublicAppointment);
+
 // Protected
 app.use('/api', authMiddleware);
+
+// Appointments (auth)
+app.get('/api/appointments',         appointmentsCtrl.listAppointments);
+app.patch('/api/appointments/:id',   appointmentsCtrl.updateAppointment);
+app.delete('/api/appointments/:id',  appointmentsCtrl.deleteAppointment);
 
 app.get('/api/me', auth.me);
 app.get('/api/stats', settings.stats);
@@ -683,6 +703,8 @@ app.delete('/api/marketing-files/:fileId',       marketing.deleteFile);
 app.get('/api/leads/:id/propuesta', authMiddleware, generarPropuestaPDF);
 app.get('/api/leads/:id/propuesta/html', authMiddleware, verPropuestaHTML);
 app.post('/api/leads/:id/contrato-solar', authMiddleware, generarContratoSolar);
+app.get('/api/leads/:id/contratos-firma', authMiddleware, listContratosFirma);
+app.get('/api/contratos-firma/:id/pdf',   authMiddleware, downloadContratoFirma);
 app.patch('/api/leads/:id/solar', authMiddleware, async (req, res) => {
   try {
     const { pool } = require('./services/db');

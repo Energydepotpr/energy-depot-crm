@@ -70,6 +70,91 @@ async function sendWelcomeEmail(contactEmail, contactName) {
   }
 }
 
+// ── Helper: notificar al equipo cuando un CLIENTE se comunica ────────────────
+// Crea una alert in-app + manda email al auto-BCC. Dedup 5 min por lead.
+// NO notifica si el `fromEmail` es un agente interno.
+const INTERNAL_EMAILS = new Set([
+  'info@energydepotpr.com',
+  'gil.diaz@energydepotpr.com',
+  'rock@energydepotpr.com',
+  'carla@energydepotpr.com',
+]);
+
+async function isAgentEmail(emailLower) {
+  if (!emailLower) return false;
+  if (INTERNAL_EMAILS.has(emailLower)) return true;
+  if (emailLower.endsWith('@energydepotpr.com')) return true;
+  try {
+    const r = await pool.query(`SELECT 1 FROM agents WHERE LOWER(email) = $1 LIMIT 1`, [emailLower]);
+    if (r.rows.length) return true;
+  } catch (_) { /* tabla puede no existir */ }
+  return false;
+}
+
+async function notifyClientContact({ leadId, channel, contactName, preview, contactEmail }) {
+  if (!leadId) return;
+  try {
+    // No notificar si el remitente es un agente interno
+    if (contactEmail && await isAgentEmail(contactEmail.toLowerCase())) {
+      return;
+    }
+
+    // Dedup 5 min
+    const dup = await pool.query(
+      `SELECT 1 FROM alerts WHERE lead_id = $1 AND type = 'info'
+         AND created_at > NOW() - INTERVAL '5 minutes' LIMIT 1`,
+      [leadId]
+    );
+    if (dup.rows.length) return;
+
+    const channelMap = {
+      sms:        { icon: '📩', label: 'Nuevo SMS de cliente' },
+      whatsapp:   { icon: '💬', label: 'Nuevo WhatsApp de cliente' },
+      email:      { icon: '📧', label: 'Email del cliente' },
+      web:        { icon: '📝', label: 'Formulario web' },
+    };
+    const meta = channelMap[channel] || { icon: '📨', label: 'Mensaje del cliente' };
+    const title = `${meta.icon} ${meta.label}`;
+    const previewShort = (preview || '').toString().replace(/\s+/g, ' ').trim().slice(0, 120);
+    const message = `${contactName || 'Cliente'} · ${previewShort}`.slice(0, 240);
+
+    await pool.query(
+      `INSERT INTO alerts (title, message, lead_id, seen, type) VALUES ($1,$2,$3,false,'info')`,
+      [title, message, leadId]
+    );
+
+    // Email al equipo
+    try {
+      const { getConfigValue } = require('../services/configService');
+      const notifyTo = await getConfigValue('email_auto_bcc', 'gil.diaz@energydepotpr.com');
+      if (notifyTo) {
+        const { sendEmail } = require('../services/gmailService');
+        const crmLink = `https://crm-energydepotpr.com/leads/${leadId}`;
+        await sendEmail({
+          from: '"Energy Depot CRM" <info@energydepotpr.com>',
+          to: notifyTo,
+          subject: title,
+          text: `${message}\n\nVer en CRM: ${crmLink}`,
+          html: `
+<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
+  <h2 style="color:#1a3c8f;margin:0 0 12px;">${title}</h2>
+  <table style="font-size:14px;color:#374151;border-collapse:collapse;margin:12px 0;">
+    <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Cliente:</td><td style="padding:4px 0;font-weight:600;">${contactName || '-'}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Canal:</td><td style="padding:4px 0;">${channel || '-'}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Mensaje:</td><td style="padding:4px 0;">${(previewShort || '-').replace(/</g, '&lt;')}</td></tr>
+  </table>
+  <a href="${crmLink}" style="display:inline-block;background:#1a3c8f;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:700;margin-top:8px;">Ver en CRM →</a>
+</div>`.trim(),
+        });
+      }
+    } catch (mailErr) {
+      console.warn('[notifyClientContact] email error (non-fatal):', mailErr.message);
+    }
+  } catch (e) {
+    console.warn('[notifyClientContact] error (non-fatal):', e.message);
+  }
+}
+
 // Migration: add media_urls column to messages if not exists
 (async () => {
   try {
@@ -157,6 +242,15 @@ async function procesarMensaje(from, body, sid, channel, mediaUrls = []) {
     body.slice(0, 100),
     '/inbox'
   ).catch(() => {});
+
+  // Notificación al equipo (alert + email) — cliente contactó
+  notifyClientContact({
+    leadId: lead.id,
+    channel,
+    contactName,
+    preview: body,
+    contactEmail: contacto.email || null,
+  }).catch(() => {});
 
   return { contacto, lead };
 }
@@ -546,6 +640,15 @@ async function webformWebhook(req, res) {
       [lead.id, `Nuevo formulario web — ${nameUsado}${emailLimpio ? ' | ' + emailLimpio : ''}${telefono ? ' | ' + telefono : ''}`]
     ).catch(() => {});
 
+    // Notificación al equipo (alert info + email) — cliente contactó vía web
+    notifyClientContact({
+      leadId: lead.id,
+      channel: 'web',
+      contactName: nameUsado,
+      preview: mensaje || textoMensaje,
+      contactEmail: emailLimpio || null,
+    }).catch(() => {});
+
     // Notificación por email a operations
     try {
       const nodemailer = require('nodemailer');
@@ -649,6 +752,15 @@ async function emailWebhook(req, res) {
       `INSERT INTO alerts (lead_id, type, message) VALUES ($1,'email',$2)`,
       [lead.id, `Email de ${nameFrom} (${emailFrom}): "${subject}"`]
     ).catch(() => {});
+
+    // Notificación al equipo (alert info + email) — cliente envió email
+    notifyClientContact({
+      leadId: lead.id,
+      channel: 'email',
+      contactName: nameFrom,
+      preview: `${subject} — ${textBody.slice(0, 100)}`,
+      contactEmail: emailFrom,
+    }).catch(() => {});
 
     console.log(`[EMAIL] Guardado — lead #${lead.id}`);
   } catch (err) {
@@ -1042,4 +1154,4 @@ async function perfexWebhook(req, res) {
   }
 }
 
-module.exports = { twilioWebhook, webformWebhook, emailWebhook, sendWelcomeEmail, zapierFareharborWebhook, leadsgogoWebhook, perfexWebhook };
+module.exports = { twilioWebhook, webformWebhook, emailWebhook, sendWelcomeEmail, zapierFareharborWebhook, leadsgogoWebhook, perfexWebhook, notifyClientContact };

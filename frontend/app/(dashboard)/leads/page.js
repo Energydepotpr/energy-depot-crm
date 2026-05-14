@@ -1236,6 +1236,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             { key: 'notas-int', full: t('leads.tab.intNotes', lang), count: internalNotes.length },
             { key: 'ai',        full: t('leads.tab.ai', lang), count: 0 },
             { key: 'cotizar',   full: 'Cotizar', count: Array.isArray(lead.solar_data?.quotations) ? lead.solar_data.quotations.length : (lead.solar_data?.calc ? 1 : 0) },
+            { key: 'citas',     full: '📅 Citas', count: 0 },
           ].map(tab_item => (
             <button key={tab_item.key} onClick={() => setTab(tab_item.key)}
               className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
@@ -2492,6 +2493,9 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           {/* ─── TAB: COTIZAR ─── */}
           {tab === 'cotizar' && <CotizarTab lead={lead} leadId={leadId} isMobile={isMobile} onLeadUpdate={() => api.lead(leadId).then(setLead).catch(()=>{})} />}
 
+          {/* ─── TAB: CITAS ─── */}
+          {tab === 'citas' && <CitasTab leadId={leadId} />}
+
         </div>{/* end Content */}
         </div>{/* end RIGHT Chat */}
         </div>{/* end body flex-row */}
@@ -2686,6 +2690,8 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   const [contratoNumCtaLuma, setContratoCtaLuma] = useState('');
   const [contratoNumContador, setContratoContador] = useState('');
   const [contratoDirPostal, setContratoDirPostal] = useState('');
+  const [sendClientEmail, setSendClientEmail] = useState(true);
+  const [signingUrl, setSigningUrl] = useState('');
   const [msg, setMsg]             = useState('');
 
   const [extractingFactura, setExtractingFactura] = useState(false);
@@ -2790,6 +2796,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         numCtaLuma: contratoNumCtaLuma.trim() || undefined,
         numContador: contratoNumContador.trim() || undefined,
         direccionPostal: contratoDirPostal.trim() || undefined,
+        sendClientEmail: !!sendClientEmail,
       });
       if (!data.pdf) throw new Error('Sin PDF');
       const bytes = Uint8Array.from(atob(data.pdf), c=>c.charCodeAt(0));
@@ -2797,8 +2804,8 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
       const url   = URL.createObjectURL(blob);
       const a     = document.createElement('a'); a.href=url; a.download=data.filename||`Contrato-${leadId}.pdf`; a.click();
       URL.revokeObjectURL(url);
-      setShowContrato(false);
-      showMsg('✓ Contrato generado y guardado');
+      if (data.signing_url) setSigningUrl(data.signing_url);
+      showMsg(`✓ Contrato generado${data.email_sent ? ' y enviado por email' : ''}`);
     } catch(e) { showMsg('Error: '+e.message); }
     finally { setContratoLoad(false); }
   };
@@ -2921,10 +2928,25 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
                 <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Dirección Postal <span style={{ textTransform:'none', color:'#94a3b8', fontWeight:400 }}>(opcional)</span></label>
                 <textarea value={contratoDirPostal} onChange={e=>setContratoDirPostal(e.target.value)} placeholder={'PO Box 19062\nSan Juan, PR 00910-1062'} rows={2} style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', fontFamily:'inherit', resize:'vertical' }} />
               </div>
+              <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, padding:'10px 12px', background:'rgba(26,60,143,0.06)', borderRadius:8, cursor:'pointer' }}>
+                <input type="checkbox" checked={sendClientEmail} onChange={e=>setSendClientEmail(e.target.checked)} />
+                <span style={{ fontSize:12, color:'var(--text)', fontWeight:600 }}>Enviar al cliente automáticamente por email</span>
+              </label>
+              {signingUrl && (
+                <div style={{ background:'rgba(16,185,129,0.10)', border:'1px solid #10b981', borderRadius:8, padding:'10px 12px', marginBottom:14 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'#047857', textTransform:'uppercase', letterSpacing:0.4, marginBottom:6 }}>Link de firma del cliente</div>
+                  <div style={{ fontSize:11, color:'#065f46', wordBreak:'break-all', marginBottom:8 }}>{signingUrl}</div>
+                  <div style={{ display:'flex', gap:6 }}>
+                    <button onClick={async()=>{ try{ await navigator.clipboard.writeText(signingUrl); showMsg('✓ Link copiado'); }catch(err){ alert(err.message); } }} style={{ background:'#10b981', color:'#fff', border:'none', borderRadius:6, padding:'5px 12px', fontSize:11, fontWeight:700, cursor:'pointer' }}>Copiar link</button>
+                    <a href={`https://wa.me/?text=${encodeURIComponent('Tu contrato Energy Depot para firma: ' + signingUrl)}`} target="_blank" rel="noopener noreferrer" style={{ background:'#25d366', color:'#fff', borderRadius:6, padding:'5px 12px', fontSize:11, fontWeight:700, textDecoration:'none' }}>WhatsApp</a>
+                    <a href={signingUrl} target="_blank" rel="noopener noreferrer" style={{ background:'transparent', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:6, padding:'5px 12px', fontSize:11, fontWeight:600, textDecoration:'none' }}>Abrir</a>
+                  </div>
+                </div>
+              )}
               <div style={{ display:'flex', gap:10, marginTop:20 }}>
-                <button onClick={()=>setShowContrato(false)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'9px', fontSize:13, color:'var(--muted)', cursor:'pointer' }}>Cancelar</button>
+                <button onClick={()=>{ setShowContrato(false); setSigningUrl(''); }} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'9px', fontSize:13, color:'var(--muted)', cursor:'pointer' }}>{signingUrl ? 'Cerrar' : 'Cancelar'}</button>
                 <button onClick={generarContrato} disabled={contratoLoad} style={{ flex:2, background:'#10b981', border:'none', borderRadius:8, padding:'9px', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer', opacity:contratoLoad?0.6:1 }}>
-                  {contratoLoad?'Generando…':'✓ Generar y Descargar'}
+                  {contratoLoad?'Generando…': (signingUrl ? '↻ Regenerar' : '✓ Generar y Descargar')}
                 </button>
               </div>
             </div>
@@ -4913,6 +4935,129 @@ export default function LeadsPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ─── Citas Tab ────────────────────────────────────────────────────────────────
+function CitasTab({ leadId }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null); // { id, notes }
+
+  const load = () => {
+    setLoading(true);
+    api.appointments(`?lead_id=${leadId}`).then(setItems).catch(() => setItems([])).finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, [leadId]);
+
+  const updateStatus = async (id, status) => {
+    try {
+      await api.updateAppointment(id, { status });
+      load();
+    } catch (e) { alert(e.message); }
+  };
+
+  const saveNotes = async (id, notes) => {
+    try {
+      await api.updateAppointment(id, { notes });
+      setEditing(null);
+      load();
+    } catch (e) { alert(e.message); }
+  };
+
+  const STATUS_COLORS = {
+    pending:   { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', label: 'Pendiente' },
+    confirmed: { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6', label: 'Confirmada' },
+    completed: { bg: 'rgba(16,185,129,0.15)', color: '#10b981', label: 'Completada' },
+    cancelled: { bg: 'rgba(239,68,68,0.15)',  color: '#ef4444', label: 'Cancelada' },
+    no_show:   { bg: 'rgba(107,114,128,0.20)',color: '#6b7280', label: 'No vino' },
+  };
+
+  if (loading) return <div style={{ padding: 20, color: 'var(--muted)' }}>Cargando citas...</div>;
+
+  if (items.length === 0) {
+    return (
+      <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>
+        <div style={{ fontSize: 38, marginBottom: 8 }}>📅</div>
+        <div style={{ fontSize: 14 }}>Aún no hay citas agendadas para este lead.</div>
+        <div style={{ fontSize: 12, marginTop: 6, opacity: 0.7 }}>
+          Comparte el link público: <code style={{ background: 'var(--surface2)', padding: '2px 8px', borderRadius: 4 }}>crm-energydepotpr.com/agendar</code>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {items.map(a => {
+        const st = STATUS_COLORS[a.status] || STATUS_COLORS.pending;
+        const fechaPr = a.scheduled_at_pr || '';
+        const [dPart, tPart] = fechaPr.split('T');
+        const fechaLegible = dPart ? `${dPart.split('-').reverse().join('/')} a las ${tPart}` : '—';
+        const typeLabel = a.type === 'llamada' ? '📞 Llamada' : '🏠 Visita';
+        return (
+          <div key={a.id} style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 12, padding: 16,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
+                  {fechaLegible} <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>(hora PR)</span>
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--muted)' }}>{typeLabel} · {a.reason_label}</div>
+                {a.reason_other && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, fontStyle: 'italic' }}>"{a.reason_other}"</div>}
+              </div>
+              <span style={{
+                background: st.bg, color: st.color, padding: '4px 10px',
+                borderRadius: 12, fontSize: 11, fontWeight: 700, flexShrink: 0,
+              }}>{st.label}</span>
+            </div>
+
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
+              {a.contact_name}{a.contact_email ? ' · ' + a.contact_email : ''}{a.contact_phone ? ' · ' + a.contact_phone : ''}
+            </div>
+
+            {editing?.id === a.id ? (
+              <div style={{ marginTop: 8 }}>
+                <textarea value={editing.notes} onChange={e => setEditing({ ...editing, notes: e.target.value })}
+                  placeholder="Notas..."
+                  style={{ width: '100%', minHeight: 60, padding: 10, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', resize: 'vertical' }}/>
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  <button onClick={() => saveNotes(a.id, editing.notes)} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Guardar</button>
+                  <button onClick={() => setEditing(null)} style={{ background: 'none', color: 'var(--muted)', border: '1px solid var(--border)', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              a.notes && (
+                <div style={{ background: 'var(--surface2)', padding: 10, borderRadius: 8, fontSize: 12, color: 'var(--text-dim)', marginBottom: 10, whiteSpace: 'pre-wrap' }}>
+                  {a.notes}
+                </div>
+              )
+            )}
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {a.status === 'pending' && (
+                <button onClick={() => updateStatus(a.id, 'confirmed')} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Confirmar</button>
+              )}
+              {(a.status === 'pending' || a.status === 'confirmed') && (
+                <>
+                  <button onClick={() => updateStatus(a.id, 'completed')} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Completar</button>
+                  <button onClick={() => updateStatus(a.id, 'no_show')} style={{ background: 'none', color: '#6b7280', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>No vino</button>
+                  <button onClick={() => { if (confirm('¿Cancelar esta cita?')) updateStatus(a.id, 'cancelled'); }} style={{ background: 'none', color: '#ef4444', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Cancelar</button>
+                </>
+              )}
+              {editing?.id !== a.id && (
+                <button onClick={() => setEditing({ id: a.id, notes: a.notes || '' })} style={{ background: 'none', color: 'var(--muted)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+                  {a.notes ? 'Editar nota' : '+ Agregar nota'}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

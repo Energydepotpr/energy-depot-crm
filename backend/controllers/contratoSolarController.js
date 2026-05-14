@@ -1,8 +1,59 @@
 'use strict';
-const fs   = require('fs');
-const path = require('path');
+const fs     = require('fs');
+const path   = require('path');
+const crypto = require('crypto');
 const { pool } = require('../services/db');
 const { generatePDF } = require('../services/puppeteerPool');
+const { sendEmail } = require('../services/gmailService');
+const { getConfigValue } = require('../services/configService');
+
+async function ensureContratosFirmaTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS contratos_firma (
+      id SERIAL PRIMARY KEY,
+      lead_id INT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      token VARCHAR(64) UNIQUE NOT NULL,
+      pdf_base64 TEXT NOT NULL,
+      contrato_data JSONB,
+      signature_base64 TEXT,
+      signed_at TIMESTAMP,
+      signed_ip VARCHAR(64),
+      signed_name VARCHAR(255),
+      created_at TIMESTAMP DEFAULT NOW(),
+      expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 days'
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_contratos_firma_lead  ON contratos_firma(lead_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_contratos_firma_token ON contratos_firma(token)`);
+}
+
+function frontendBase() {
+  return (process.env.FRONTEND_URL || 'http://localhost:3000').split(',')[0].trim().replace(/\/$/, '');
+}
+
+function emailHTMLContratoParaFirma({ cliente, signingUrl }) {
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937">
+    <div style="max-width:600px;margin:0 auto;background:#fff">
+      <div style="background:linear-gradient(135deg,#0f2558 0%,#1a3c8f 100%);padding:28px 32px;color:#fff">
+        <div style="font-size:11pt;color:#bfdbfe;letter-spacing:1.5px;text-transform:uppercase;font-weight:700">Energy Depot LLC</div>
+        <div style="font-size:20pt;font-weight:800;margin-top:6px">Tu contrato está listo para firma</div>
+      </div>
+      <div style="height:5px;background:#67e8f9"></div>
+      <div style="padding:30px 32px;font-size:11pt;line-height:1.6">
+        <p style="margin:0 0 14px">Hola <strong>${cliente}</strong>,</p>
+        <p style="margin:0 0 14px">Gracias por elegir <strong>Energy Depot</strong> para tu proyecto de energía renovable. Adjuntamos tu contrato como referencia y preparamos un enlace seguro para que puedas revisarlo y firmarlo electrónicamente desde tu teléfono o computadora.</p>
+        <div style="text-align:center;margin:26px 0">
+          <a href="${signingUrl}" style="display:inline-block;background:#1a3c8f;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;font-size:12pt">Revisar y firmar el contrato →</a>
+        </div>
+        <p style="margin:0 0 12px;font-size:10.5pt;color:#475569">Una vez firmes, recibirás automáticamente una copia del contrato firmado por email. Si tienes preguntas, responde a este correo o llámanos al (787) 627-8585.</p>
+        <p style="margin:18px 0 0;font-size:10.5pt">Saludos,<br/><strong>Equipo Energy Depot LLC</strong></p>
+      </div>
+      <div style="background:#0f2558;color:#bfdbfe;padding:14px 32px;font-size:9pt;text-align:center">
+        Global Plaza Suite 204 &middot; San Juan, PR 00920 &middot; (787) 627-8585 &middot; info@energydepotpr.com
+      </div>
+    </div>
+  </body></html>`;
+}
 
 const fmt  = n => `$ ${Number(n||0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 const fmtShort = (d = new Date()) => {
@@ -30,7 +81,8 @@ function buildContratoHTML(d) {
   const {
     nombre, direccionFisica, direccionPostal, telefono, email,
     ctaAee, numContador, vendedorAsignado, fechaCorta,
-    precioTotal, pronto, pct45a, pct45b, pct10, esEfectivo
+    precioTotal, pronto, pct45a, pct45b, pct10, esEfectivo,
+    signatureDataUrl, signedName, signedAt
   } = d;
   const LOGO = logoB64();
   const numContrato = `ED-${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-${Math.floor(Math.random()*9000+1000)}`;
@@ -538,10 +590,12 @@ function buildContratoHTML(d) {
       <div class="tt">CEO &middot; Energy Depot LLC</div>
     </div>
     <div class="col">
-      <div class="line"></div>
+      <div class="line" style="position:relative">
+        ${signatureDataUrl ? `<img src="${signatureDataUrl}" style="position:absolute;bottom:0;left:0;height:44px;max-width:100%;object-fit:contain"/>` : ''}
+      </div>
       <div class="lbl">Comprador</div>
-      <div class="nm">${esc(nombre)}</div>
-      <div class="tt">Cliente &middot; Comprador</div>
+      <div class="nm">${esc(signedName || nombre)}</div>
+      <div class="tt">Cliente &middot; Comprador${signedAt ? ` &middot; Firmado ${esc(signedAt)}` : ''}</div>
     </div>
   </div>
 
@@ -569,9 +623,11 @@ async function generarContratoSolar(req, res) {
       numCtaLuma = '',
       numContador = '',
       vendedor = 'Gilberto J. Díaz',
-      direccionPostal = ''
+      direccionPostal = '',
+      sendClientEmail = false
     } = req.body;
     const leadId = req.params.id;
+    await ensureContratosFirmaTable();
 
     const r = await pool.query(
       `SELECT l.*, c.name AS contact_name, c.email AS contact_email, c.phone AS contact_phone
@@ -649,11 +705,266 @@ async function generarContratoSolar(req, res) {
        `Modalidad: ${esEfectivo ? 'Efectivo' : 'Financiamiento'}${pronto ? ' · Pronto: $'+pronto.toLocaleString() : ''}`]
     );
 
-    res.json({ ok:true, contract_id: cr.rows[0].id, pdf: base64, filename: fname });
+    // --- Firma electrónica: crear registro contratos_firma ---
+    const token = crypto.createHash('sha256')
+      .update(crypto.randomBytes(32).toString('hex') + ':' + leadId + ':' + Date.now())
+      .digest('hex').slice(0, 64);
+
+    const contratoData = {
+      modalidad, prontoDado: pronto, numCtaLuma: ctaAee, numContador: numContadorFinal,
+      vendedor, direccionPostal: direccionPostalFinal,
+      precioTotal, pct45a, pct45b, pct10,
+      nombre, telefono, email, direccionFisica,
+    };
+
+    await pool.query(
+      `INSERT INTO contratos_firma (lead_id, token, pdf_base64, contrato_data)
+       VALUES ($1, $2, $3, $4)`,
+      [leadId, token, base64, contratoData]
+    );
+
+    const signingUrl = `${frontendBase()}/firmar/${token}`;
+
+    // --- Auto-envío al cliente ---
+    let emailSent = false;
+    let emailError = null;
+    if (sendClientEmail && email) {
+      try {
+        const from = await getConfigValue('email_from', 'info@energydepotpr.com');
+        const bcc  = await getConfigValue('email_auto_bcc', '');
+        await sendEmail({
+          from, to: email, bcc: bcc || undefined,
+          subject: `${nombre || 'Cliente'} — Contrato Energy Depot LLC para firma`,
+          html: emailHTMLContratoParaFirma({ cliente: nombre || 'Cliente', signingUrl }),
+          attachments: [{ filename: fname, content: base64, encoding: 'base64', contentType: 'application/pdf' }],
+        });
+        emailSent = true;
+      } catch (err) {
+        console.error('[contratoSolar email]', err.message);
+        emailError = err.message;
+      }
+    }
+
+    res.json({
+      ok: true,
+      contract_id: cr.rows[0].id,
+      pdf: base64,
+      filename: fname,
+      signing_url: signingUrl,
+      token,
+      email_sent: emailSent,
+      email_error: emailError,
+    });
   } catch (e) {
     console.error('[contratoSolar]', e.message);
     res.status(500).json({ error: e.message });
   }
 }
 
-module.exports = { generarContratoSolar };
+/* ============================================================
+   GET /api/public/firma/:token — HTML del contrato sin firma
+   ============================================================ */
+async function getFirmaPublic(req, res) {
+  try {
+    await ensureContratosFirmaTable();
+    const { token } = req.params;
+    const r = await pool.query(
+      `SELECT * FROM contratos_firma WHERE token = $1`, [token]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'Enlace no encontrado' });
+    const row = r.rows[0];
+    if (new Date(row.expires_at) < new Date()) {
+      return res.status(410).json({ error: 'Este enlace ha expirado' });
+    }
+    const cd = row.contrato_data || {};
+    const html = buildContratoHTML({
+      nombre: cd.nombre || '',
+      direccionFisica: cd.direccionFisica || '',
+      direccionPostal: cd.direccionPostal || '',
+      telefono: cd.telefono || '',
+      email: cd.email || '',
+      ctaAee: cd.numCtaLuma || '',
+      numContador: cd.numContador || '',
+      vendedorAsignado: cd.vendedor || '',
+      fechaCorta: fmtShort(new Date(row.created_at)),
+      precioTotal: cd.precioTotal || 0,
+      pronto: cd.prontoDado || 0,
+      pct45a: cd.pct45a || 0,
+      pct45b: cd.pct45b || 0,
+      pct10:  cd.pct10  || 0,
+      esEfectivo: cd.modalidad === 'efectivo',
+      signatureDataUrl: row.signature_base64 || null,
+      signedName: row.signed_name || null,
+      signedAt: row.signed_at ? new Date(row.signed_at).toLocaleString('es-PR') : null,
+    });
+    res.json({
+      ok: true,
+      html,
+      already_signed: !!row.signed_at,
+      signed_at: row.signed_at,
+      signed_name: row.signed_name,
+      cliente: cd.nombre || '',
+      expires_at: row.expires_at,
+    });
+  } catch (e) {
+    console.error('[getFirmaPublic]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+/* ============================================================
+   POST /api/public/firma/:token — guarda firma, regenera PDF, envía email
+   ============================================================ */
+async function postFirmaPublic(req, res) {
+  try {
+    await ensureContratosFirmaTable();
+    const { token } = req.params;
+    const { signature, signed_name } = req.body || {};
+    if (!signature || !String(signature).startsWith('data:image')) {
+      return res.status(400).json({ error: 'Firma inválida' });
+    }
+    if (!signed_name || !signed_name.trim()) {
+      return res.status(400).json({ error: 'Nombre requerido' });
+    }
+    const r = await pool.query(`SELECT * FROM contratos_firma WHERE token = $1`, [token]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'Enlace no encontrado' });
+    const row = r.rows[0];
+    if (new Date(row.expires_at) < new Date()) {
+      return res.status(410).json({ error: 'Este enlace ha expirado' });
+    }
+    if (row.signed_at) {
+      return res.status(409).json({ error: 'Este contrato ya fue firmado' });
+    }
+
+    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || null;
+    const signedAt = new Date();
+
+    await pool.query(
+      `UPDATE contratos_firma
+         SET signature_base64 = $1, signed_at = $2, signed_ip = $3, signed_name = $4
+       WHERE token = $5`,
+      [signature, signedAt, ip, signed_name.trim(), token]
+    );
+
+    // Regenerar PDF firmado
+    const cd = row.contrato_data || {};
+    const signedHtml = buildContratoHTML({
+      nombre: cd.nombre || '',
+      direccionFisica: cd.direccionFisica || '',
+      direccionPostal: cd.direccionPostal || '',
+      telefono: cd.telefono || '',
+      email: cd.email || '',
+      ctaAee: cd.numCtaLuma || '',
+      numContador: cd.numContador || '',
+      vendedorAsignado: cd.vendedor || '',
+      fechaCorta: fmtShort(new Date(row.created_at)),
+      precioTotal: cd.precioTotal || 0,
+      pronto: cd.prontoDado || 0,
+      pct45a: cd.pct45a || 0,
+      pct45b: cd.pct45b || 0,
+      pct10:  cd.pct10  || 0,
+      esEfectivo: cd.modalidad === 'efectivo',
+      signatureDataUrl: signature,
+      signedName: signed_name.trim(),
+      signedAt: signedAt.toLocaleString('es-PR'),
+    });
+    const pdfBuf = await generatePDF(signedHtml, {
+      format: 'Letter', printBackground: true,
+      margin: { top: '16mm', right: '14mm', bottom: '18mm', left: '14mm' },
+    });
+    const signedB64 = Buffer.from(pdfBuf).toString('base64');
+    const fname = `Contrato-Firmado-${(cd.nombre || 'cliente').replace(/\s+/g,'-')}-${signedAt.toISOString().slice(0,10)}.pdf`;
+
+    // Guardamos el PDF firmado reemplazando el anterior
+    await pool.query(`UPDATE contratos_firma SET pdf_base64 = $1 WHERE token = $2`, [signedB64, token]);
+
+    // Email al cliente + BCC
+    let emailSent = false;
+    let emailError = null;
+    try {
+      const from = await getConfigValue('email_from', 'info@energydepotpr.com');
+      const bcc  = await getConfigValue('email_auto_bcc', '');
+      const to   = cd.email;
+      if (to) {
+        await sendEmail({
+          from, to, bcc: bcc || undefined,
+          subject: `Contrato Energy Depot firmado — ${cd.nombre || 'Cliente'}`,
+          html: `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:11pt;line-height:1.6;color:#1f2937;max-width:600px">
+            <h2 style="color:#1a3c8f">¡Gracias! Hemos recibido tu firma.</h2>
+            <p>Hola <strong>${cd.nombre || 'Cliente'}</strong>, adjuntamos copia del contrato firmado para tus registros. Nuestro equipo continuará con los próximos pasos del proyecto y te mantendrá informado.</p>
+            <p style="margin-top:18px">Saludos,<br/><strong>Equipo Energy Depot LLC</strong><br/>(787) 627-8585</p>
+          </div>`,
+          attachments: [{ filename: fname, content: signedB64, encoding: 'base64', contentType: 'application/pdf' }],
+        });
+        emailSent = true;
+      }
+    } catch (err) {
+      console.error('[postFirmaPublic email]', err.message);
+      emailError = err.message;
+    }
+
+    res.json({ ok: true, signed_at: signedAt, email_sent: emailSent, email_error: emailError });
+  } catch (e) {
+    console.error('[postFirmaPublic]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+/* ============================================================
+   GET /api/leads/:id/contratos-firma — lista contratos del lead
+   ============================================================ */
+async function listContratosFirma(req, res) {
+  try {
+    await ensureContratosFirmaTable();
+    const leadId = req.params.id;
+    const r = await pool.query(
+      `SELECT id, token, signed_at, signed_name, created_at, expires_at,
+              (contrato_data->>'modalidad') AS modalidad,
+              (contrato_data->>'precioTotal')::numeric AS precio_total
+         FROM contratos_firma
+        WHERE lead_id = $1
+        ORDER BY created_at DESC`,
+      [leadId]
+    );
+    const base = frontendBase();
+    res.json({
+      ok: true,
+      contratos: r.rows.map(row => ({
+        ...row,
+        signing_url: `${base}/firmar/${row.token}`,
+        status: row.signed_at ? 'firmado' : (new Date(row.expires_at) < new Date() ? 'expirado' : 'pendiente'),
+      })),
+    });
+  } catch (e) {
+    console.error('[listContratosFirma]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+/* ============================================================
+   GET /api/contratos-firma/:id/pdf — descargar PDF (firmado o no)
+   ============================================================ */
+async function downloadContratoFirma(req, res) {
+  try {
+    const r = await pool.query(
+      `SELECT pdf_base64, signed_at, contrato_data FROM contratos_firma WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'No encontrado' });
+    const row = r.rows[0];
+    const cd  = row.contrato_data || {};
+    const fname = `Contrato${row.signed_at ? '-Firmado' : ''}-${(cd.nombre||'cliente').replace(/\s+/g,'-')}.pdf`;
+    res.json({ ok: true, pdf: row.pdf_base64, filename: fname, signed_at: row.signed_at });
+  } catch (e) {
+    console.error('[downloadContratoFirma]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+module.exports = {
+  generarContratoSolar,
+  getFirmaPublic,
+  postFirmaPublic,
+  listContratosFirma,
+  downloadContratoFirma,
+};
