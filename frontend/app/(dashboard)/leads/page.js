@@ -80,6 +80,87 @@ function SidebarField({ label, type = 'text', value, onChange, onBlur, placehold
   );
 }
 
+function ShareLinksBtn({ lead }) {
+  const [show, setShow] = useState(false);
+  const [links, setLinks] = useState([]); // [{ id, name, url, copied }]
+  const [loading, setLoading] = useState(false);
+
+  const open = async () => {
+    setShow(true);
+    setLoading(true);
+    try {
+      const sd = lead?.solar_data || {};
+      const qs = Array.isArray(sd.quotations) ? sd.quotations : [];
+      if (qs.length === 0) {
+        const r = await api.leadShareLink(lead.id);
+        setLinks([{ id: 'default', name: 'Propuesta', url: r.url, copied: false }]);
+      } else {
+        const out = [];
+        for (const q of qs) {
+          const r = await api.leadShareLink(lead.id, q.id);
+          out.push({ id: q.id, name: q.name || 'Cotización', url: r.url, copied: false });
+        }
+        setLinks(out);
+      }
+    } catch (e) { alert('Error generando links: ' + e.message); setShow(false); }
+    finally { setLoading(false); }
+  };
+
+  const copyOne = async (idx) => {
+    try {
+      await navigator.clipboard.writeText(links[idx].url);
+      setLinks(prev => prev.map((l, i) => i === idx ? { ...l, copied: true } : l));
+      setTimeout(() => setLinks(prev => prev.map((l, i) => i === idx ? { ...l, copied: false } : l)), 1800);
+    } catch (e) { alert('No se pudo copiar: ' + e.message); }
+  };
+
+  const copyAll = async () => {
+    const txt = links.map(l => `${l.name}: ${l.url}`).join('\n\n');
+    try { await navigator.clipboard.writeText(txt); alert('✓ Todos los links copiados'); }
+    catch (e) { alert('No se pudo copiar: ' + e.message); }
+  };
+
+  return (
+    <>
+      <button onClick={open}
+        style={{ width:'100%', background:'transparent', color:'#0ea5e9', border:'1px solid #0ea5e9', borderRadius:8, padding:'8px 12px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        Copiar link propuesta
+      </button>
+      {show && (
+        <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={()=>setShow(false)}>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:24, width:'100%', maxWidth:520, maxHeight:'85vh', overflowY:'auto' }} onClick={e=>e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+              <div style={{ fontSize:15, fontWeight:700, color:'var(--text)' }}>Links de propuesta para enviar</div>
+              <button onClick={()=>setShow(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', fontSize:20, lineHeight:1 }}>×</button>
+            </div>
+            <div style={{ fontSize:12, color:'var(--muted)', marginBottom:12 }}>Un link por cada cotización. Copialos y pegalos en WhatsApp, SMS o email.</div>
+            {loading && <div style={{ padding:'18px 0', color:'var(--muted)', fontSize:13 }}>Generando links…</div>}
+            {!loading && links.map((l, i) => (
+              <div key={l.id} style={{ border:'1px solid var(--border)', borderRadius:8, padding:'10px 12px', marginBottom:8, background:'var(--bg)' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--text)', marginBottom:4 }}>{l.name}</div>
+                <div style={{ fontSize:11, color:'var(--muted)', wordBreak:'break-all', marginBottom:8 }}>{l.url}</div>
+                <div style={{ display:'flex', gap:6 }}>
+                  <button onClick={()=>copyOne(i)} style={{ background: l.copied ? '#10b981' : '#0ea5e9', color:'#fff', border:'none', borderRadius:6, padding:'5px 12px', fontSize:11, fontWeight:700, cursor:'pointer' }}>
+                    {l.copied ? '✓ Copiado' : 'Copiar link'}
+                  </button>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(l.name + ': ' + l.url)}`} target="_blank" rel="noopener noreferrer" style={{ background:'#25d366', color:'#fff', border:'none', borderRadius:6, padding:'5px 12px', fontSize:11, fontWeight:700, cursor:'pointer', textDecoration:'none', display:'inline-block' }}>WhatsApp</a>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ background:'transparent', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:6, padding:'5px 12px', fontSize:11, fontWeight:600, cursor:'pointer', textDecoration:'none', display:'inline-block' }}>Abrir</a>
+                </div>
+              </div>
+            ))}
+            {!loading && links.length > 1 && (
+              <button onClick={copyAll} style={{ width:'100%', marginTop:8, background:'#1a3c8f', color:'#fff', border:'none', borderRadius:8, padding:'9px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                Copiar todos los links
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function SidebarContratoBtn({ leadId }) {
   const [show, setShow]         = useState(false);
   const [modalidad, setMod]     = useState('efectivo');
@@ -1021,21 +1102,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     </button>
                     <SidebarContratoBtn leadId={lead.id} />
                     <SidebarEmailBtn leadId={lead.id} lead={lead} />
-                    <button
-                      onClick={async () => {
-                        try {
-                          const sd = lead.solar_data || {};
-                          const qid = sd.activeQuotationId;
-                          const r = await api.leadShareLink(lead.id, qid);
-                          if (!r?.url) throw new Error('Sin link');
-                          await navigator.clipboard.writeText(r.url);
-                          alert('✓ Link copiado al portapapeles:\n\n' + r.url + '\n\nMándaselo al cliente — verá la propuesta como página web.');
-                        } catch (e) { alert('Error: ' + e.message); }
-                      }}
-                      style={{ width:'100%', background:'transparent', color:'#0ea5e9', border:'1px solid #0ea5e9', borderRadius:8, padding:'8px 12px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                      Copiar link propuesta
-                    </button>
+                    <ShareLinksBtn lead={lead} />
                     <button
                       onClick={async () => {
                         if (!confirm(`¿Eliminar este lead "${lead.title || lead.contact_name || ''}"? Esta acción no se puede deshacer.`)) return;
