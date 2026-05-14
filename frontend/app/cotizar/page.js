@@ -130,7 +130,7 @@ export default function CotizarPage() {
     setName(''); setEmail(''); setPhone(''); setCity('');
     setMeses(Array(13).fill(''));
     setSelectedBatt({});
-    setSplitByBattery(false);
+    
     setEditingQuotationId(null);
     setResults([]);
     setStep(1);
@@ -149,7 +149,7 @@ export default function CotizarPage() {
     const sb = {};
     (q.batteries || []).forEach(b => { if (b?.qty > 0) sb[b.name] = b.qty; });
     setSelectedBatt(sb);
-    setSplitByBattery(false);
+    
     setStep(2);
   };
 
@@ -157,7 +157,7 @@ export default function CotizarPage() {
   const anadirNuevaCotizacion = () => {
     setEditingQuotationId(null);
     setSelectedBatt({});
-    setSplitByBattery(false);
+    
     setStep(2);
   };
 
