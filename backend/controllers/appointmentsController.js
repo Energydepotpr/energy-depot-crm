@@ -192,14 +192,19 @@ async function createPublicAppointment(req, res) {
       }
     }
 
-    // Buscar / crear lead
+    // Buscar / crear lead — dedup amplio: contact_id O solar_data.email/telefono O contact_phone/contact_email
     let leadId = null;
-    if (contactId) {
+    {
       const existing = await pool.query(
-        `SELECT id FROM leads WHERE contact_id = $1
+        `SELECT id FROM leads
+         WHERE (
+           ($1::int IS NOT NULL AND contact_id = $1)
+           OR ($2 <> '' AND (solar_data->>'email' = $2 OR contact_email = $2))
+           OR ($3 <> '' AND (solar_data->>'telefono' = $3 OR contact_phone = $3))
+         )
            AND (lost_reason IS NULL OR lost_reason = '')
          ORDER BY created_at DESC LIMIT 1`,
-        [contactId]
+        [contactId, email || '', phone || '']
       );
       if (existing.rows[0]) leadId = existing.rows[0].id;
     }
