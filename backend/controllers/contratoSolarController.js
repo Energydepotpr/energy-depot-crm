@@ -134,7 +134,7 @@ function buildContratoHTML(d) {
 
   /* ===== PAGE BLOCKS ===== */
   .page{padding:18px 0 0 0}
-  .pagebreak{display:none}
+  .pagebreak{page-break-before:always}
 
   /* ===== INTRO ===== */
   h1.title{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:15pt;color:#1a3c8f;font-weight:800;margin-bottom:6px;line-height:1.2}
@@ -319,9 +319,7 @@ function buildContratoHTML(d) {
 
 </div>
 
-<!-- ============ PÁGINA 2 ============ -->
-<div class="pagebreak"></div>
-<div class="page">
+<!-- ============ PÁGINA 2 ============ --><div class="page">
 
   <!-- 4. Compraventa con Financiamiento -->
   <div class="clausula">
@@ -362,9 +360,7 @@ function buildContratoHTML(d) {
       </div>
   </div>
 
-  <!-- ============ PÁGINA 3 ============ -->
-<div class="pagebreak"></div>
-<div class="page">
+  <!-- ============ PÁGINA 3 ============ --><div class="page">
 
   <!-- 8. Mantenimiento -->
   <div class="clausula">
@@ -392,9 +388,7 @@ function buildContratoHTML(d) {
 
 </div>
 
-<!-- ============ PÁGINA 4 ============ -->
-<div class="pagebreak"></div>
-<div class="page">
+<!-- ============ PÁGINA 4 ============ --><div class="page">
 
   <p class="sub">No obstante, Energy Depot LLC podrá, a su entera discreción, ofrecer al heredero principal o nuevo titular del inmueble una evaluación técnica y opción de reinscripción de garantía bajo los siguientes términos:</p>
   <div class="sub-bullet">• Que el heredero solicite formalmente la reinscripción dentro de los noventa (90) días siguientes a la inscripción de la herencia.</div>
@@ -433,9 +427,7 @@ function buildContratoHTML(d) {
 
 </div>
 
-<!-- ============ PÁGINA 5 ============ -->
-<div class="pagebreak"></div>
-<div class="page">
+<!-- ============ PÁGINA 5 ============ --><div class="page">
 
   <!-- 12. Documentos y Facturas -->
   <div class="clausula">
@@ -485,9 +477,7 @@ function buildContratoHTML(d) {
       </div>
   </div>
 
-  <!-- ============ PÁGINA 6 ============ -->
-<div class="pagebreak"></div>
-<div class="page">
+  <!-- ============ PÁGINA 6 ============ --><div class="page">
 
   <!-- 17. Misceláneos -->
   <div class="clausula">
