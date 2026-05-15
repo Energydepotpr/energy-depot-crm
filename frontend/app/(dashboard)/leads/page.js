@@ -168,17 +168,34 @@ function SidebarContratoBtn({ leadId }) {
   const [numCtaLuma, setCtaLuma] = useState('');
   const [numContador, setContador] = useState('');
   const [direccionPostal, setDirPostal] = useState('');
+  const [pctA, setPctA] = useState(50); // efectivo: 50/50 | financ: 45/45/10
+  const [pctB, setPctB] = useState(50);
+  const [pctC, setPctC] = useState(0);
   const [loading, setLoading]   = useState(false);
 
+  // Reset defaults al cambiar modalidad
+  useEffect(() => {
+    if (modalidad === 'efectivo') { setPctA(50); setPctB(50); setPctC(0); }
+    else { setPctA(45); setPctB(45); setPctC(10); }
+  }, [modalidad]);
+
+  const sumPcts = Number(pctA) + Number(pctB) + (modalidad === 'financiamiento' ? Number(pctC) : 0);
+  const pctsValid = Math.abs(sumPcts - 100) < 0.01;
+
   const generar = async () => {
+    if (!pctsValid) { alert(`Los porcentajes deben sumar 100% (actual: ${sumPcts}%)`); return; }
     setLoading(true);
     try {
+      const pcts = modalidad === 'efectivo'
+        ? [Number(pctA), Number(pctB)]
+        : [Number(pctA), Number(pctB), Number(pctC)];
       const data = await api.generarContrato(leadId, {
         modalidad,
         prontoDado: Number(pronto)||0,
         numCtaLuma: numCtaLuma.trim() || undefined,
         numContador: numContador.trim() || undefined,
         direccionPostal: direccionPostal.trim() || undefined,
+        pcts,
       });
       if (!data.pdf) throw new Error('Sin PDF');
       const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
@@ -217,6 +234,28 @@ function SidebarContratoBtn({ leadId }) {
                   style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
               </div>
             )}
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span>% Desembolsos</span>
+                <span style={{ color: pctsValid ? '#10b981' : '#ef4444', fontWeight:700 }}>Suma: {sumPcts}%</span>
+              </label>
+              <div style={{ display:'grid', gridTemplateColumns: modalidad==='efectivo' ? '1fr 1fr' : '1fr 1fr 1fr', gap:6 }}>
+                <div>
+                  <input type="number" min="0" max="100" step="0.5" value={pctA} onChange={e=>setPctA(e.target.value)} style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', textAlign:'right' }} />
+                  <div style={{ fontSize:10, color:'var(--muted)', marginTop:3 }}>{modalidad==='efectivo' ? 'Al firmar' : 'Firma'}</div>
+                </div>
+                <div>
+                  <input type="number" min="0" max="100" step="0.5" value={pctB} onChange={e=>setPctB(e.target.value)} style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', textAlign:'right' }} />
+                  <div style={{ fontSize:10, color:'var(--muted)', marginTop:3 }}>{modalidad==='efectivo' ? 'Al concluir' : 'Instalación'}</div>
+                </div>
+                {modalidad==='financiamiento' && (
+                  <div>
+                    <input type="number" min="0" max="100" step="0.5" value={pctC} onChange={e=>setPctC(e.target.value)} style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', textAlign:'right' }} />
+                    <div style={{ fontSize:10, color:'var(--muted)', marginTop:3 }}>Certificación</div>
+                  </div>
+                )}
+              </div>
+            </div>
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Num. Cta AEE</label>
               <input value={numCtaLuma} onChange={e => setCtaLuma(e.target.value)} placeholder="ej: 8557722000"
@@ -2692,6 +2731,13 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   const [contratoDirPostal, setContratoDirPostal] = useState('');
   const [sendClientEmail, setSendClientEmail] = useState(true);
   const [signingUrl, setSigningUrl] = useState('');
+  const [pctA2, setPctA2] = useState(50);
+  const [pctB2, setPctB2] = useState(50);
+  const [pctC2, setPctC2] = useState(0);
+  useEffect(() => {
+    if (modalidad === 'efectivo') { setPctA2(50); setPctB2(50); setPctC2(0); }
+    else { setPctA2(45); setPctB2(45); setPctC2(10); }
+  }, [modalidad]);
   const [msg, setMsg]             = useState('');
 
   const [extractingFactura, setExtractingFactura] = useState(false);
@@ -2787,9 +2833,12 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   };
 
   const generarContrato = async () => {
+    const sumPcts2 = Number(pctA2) + Number(pctB2) + (modalidad === 'financiamiento' ? Number(pctC2) : 0);
+    if (Math.abs(sumPcts2 - 100) > 0.01) { showMsg(`Los % deben sumar 100 (actual: ${sumPcts2}%)`); return; }
     setContratoLoad(true);
     try {
       await guardar();
+      const pcts = modalidad === 'efectivo' ? [Number(pctA2), Number(pctB2)] : [Number(pctA2), Number(pctB2), Number(pctC2)];
       const data = await api.generarContrato(leadId, {
         modalidad,
         prontoDado: Number(prontoDado)||0,
@@ -2797,6 +2846,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         numContador: contratoNumContador.trim() || undefined,
         direccionPostal: contratoDirPostal.trim() || undefined,
         sendClientEmail: !!sendClientEmail,
+        pcts,
       });
       if (!data.pdf) throw new Error('Sin PDF');
       const bytes = Uint8Array.from(atob(data.pdf), c=>c.charCodeAt(0));
@@ -2916,6 +2966,30 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
                   <input type="number" value={prontoDado} onChange={e=>setProntoDado(e.target.value)} placeholder="ej: 5000" style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
                 </div>
               )}
+              <div style={{ marginBottom:14 }}>
+                {(() => { const sum = Number(pctA2)+Number(pctB2)+(modalidad==='financiamiento'?Number(pctC2):0); const ok = Math.abs(sum-100)<0.01; return (
+                  <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                    <span>% Desembolsos</span>
+                    <span style={{ color: ok ? '#10b981' : '#ef4444', fontWeight:700 }}>Suma: {sum}%</span>
+                  </label>
+                ); })()}
+                <div style={{ display:'grid', gridTemplateColumns: modalidad==='efectivo' ? '1fr 1fr' : '1fr 1fr 1fr', gap:6 }}>
+                  <div>
+                    <input type="number" min="0" max="100" step="0.5" value={pctA2} onChange={e=>setPctA2(e.target.value)} style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', textAlign:'right' }} />
+                    <div style={{ fontSize:10, color:'var(--muted)', marginTop:3 }}>{modalidad==='efectivo' ? 'Al firmar' : 'Firma'}</div>
+                  </div>
+                  <div>
+                    <input type="number" min="0" max="100" step="0.5" value={pctB2} onChange={e=>setPctB2(e.target.value)} style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', textAlign:'right' }} />
+                    <div style={{ fontSize:10, color:'var(--muted)', marginTop:3 }}>{modalidad==='efectivo' ? 'Al concluir' : 'Instalación'}</div>
+                  </div>
+                  {modalidad==='financiamiento' && (
+                    <div>
+                      <input type="number" min="0" max="100" step="0.5" value={pctC2} onChange={e=>setPctC2(e.target.value)} style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', textAlign:'right' }} />
+                      <div style={{ fontSize:10, color:'var(--muted)', marginTop:3 }}>Certificación</div>
+                    </div>
+                  )}
+                </div>
+              </div>
               <div style={{ marginBottom:14 }}>
                 <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Num. Cta AEE</label>
                 <input value={contratoNumCtaLuma} onChange={e=>setContratoCtaLuma(e.target.value)} placeholder="ej: 8557722000" style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />

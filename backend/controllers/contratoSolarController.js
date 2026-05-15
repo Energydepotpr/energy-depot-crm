@@ -81,7 +81,7 @@ function buildContratoHTML(d) {
   const {
     nombre, direccionFisica, direccionPostal, telefono, email,
     ctaAee, numContador, vendedorAsignado, fechaCorta,
-    precioTotal, pronto, pct45a, pct45b, pct10, esEfectivo,
+    precioTotal, pronto, pct45a, pct45b, pct10, pctLabels = ['','',''], esEfectivo,
     signatureDataUrl, signedName, signedAt
   } = d;
   const LOGO = logoB64();
@@ -93,14 +93,14 @@ function buildContratoHTML(d) {
   // Tabla de desembolsos (filas)
   const pagos = esEfectivo
     ? [
-        { monto: pct45a, pct: '50%', desc: 'Materiales y firma de contrato', when: 'Al firmar' },
-        { monto: pct45b, pct: '50%', desc: 'Instalación y certificación',     when: 'Al concluir' },
+        { monto: pct45a, pct: pctLabels[0] || '50%', desc: 'Materiales y firma de contrato', when: 'Al firmar' },
+        { monto: pct45b, pct: pctLabels[1] || '50%', desc: 'Instalación y certificación',     when: 'Al concluir' },
       ]
     : [
         ...(pronto > 0 ? [{ monto: pronto, pct: '—', desc: 'Pronto otorgado por cliente', when: 'Inicial' }] : []),
-        { monto: pct45a, pct: '45%', desc: 'Del balance a financiar al firmar el contrato', when: 'Al firmar' },
-        { monto: pct45b, pct: '45%', desc: 'Del balance al concluir la instalación del Sistema', when: 'Instalación' },
-        { monto: pct10,  pct: '10%', desc: 'Del balance pendiente al concluir la certificación del Sistema', when: 'Certificación' },
+        { monto: pct45a, pct: pctLabels[0] || '45%', desc: 'Del balance a financiar al firmar el contrato', when: 'Al firmar' },
+        { monto: pct45b, pct: pctLabels[1] || '45%', desc: 'Del balance al concluir la instalación del Sistema', when: 'Instalación' },
+        { monto: pct10,  pct: pctLabels[2] || '10%', desc: 'Del balance pendiente al concluir la certificación del Sistema', when: 'Certificación' },
       ];
 
   const pagosHTML = pagos.map(p => `
@@ -170,7 +170,8 @@ function buildContratoHTML(d) {
   .seccion-head{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:11pt;font-weight:800;color:#1a3c8f;text-transform:uppercase;letter-spacing:1.5px;margin:6px 0 14px;padding-bottom:6px;border-bottom:2px solid #1a3c8f}
 
   /* ===== CLÁUSULAS ===== */
-  .clausula{margin-bottom:14px;page-break-inside:avoid}
+  .clausula{margin-bottom:14px;page-break-inside:avoid;break-inside:avoid-page}
+  .sub, .sub-bullet, .texto, .clausula-row{page-break-inside:avoid;break-inside:avoid-page}
   .clausula-row{display:flex;align-items:flex-start;gap:12px}
   .clausula .num{flex-shrink:0;width:30px;height:30px;background:#1a3c8f;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11.5pt;font-family:'Plus Jakarta Sans',-apple-system,sans-serif}
   .clausula .body{flex:1}
@@ -624,7 +625,8 @@ async function generarContratoSolar(req, res) {
       numContador = '',
       vendedor = 'Gilberto J. Díaz',
       direccionPostal = '',
-      sendClientEmail = false
+      sendClientEmail = false,
+      pcts: pctsCustom = null  // [p1, p2, p3] suman 100 (financiamiento) o [p1, p2] suman 100 (efectivo)
     } = req.body;
     const leadId = req.params.id;
     await ensureContratosFirmaTable();
@@ -664,15 +666,28 @@ async function generarContratoSolar(req, res) {
     const pronto = Number(prontoDado) || 0;
     const balance = Math.max(0, precioTotal - pronto);
     let pct45a, pct45b, pct10;
+    let pctLabels = ['', '', ''];
+    const sanitize = (arr, n) => {
+      if (!Array.isArray(arr) || arr.length < n) return null;
+      const nums = arr.slice(0, n).map(x => Number(x) || 0);
+      const sum = nums.reduce((a,b)=>a+b, 0);
+      if (sum <= 0) return null;
+      // Normaliza para sumar 100 (tolera input tipo 50/50 o 0.5/0.5)
+      const factor = 100 / sum;
+      return nums.map(x => +(x * factor).toFixed(2));
+    };
     if (esEfectivo) {
-      // Efectivo 50/50 — repartimos el precio total (no descontamos pronto porque "efectivo" no lleva pronto separado)
-      pct45a = Math.round(precioTotal * 0.5);
+      const p = sanitize(pctsCustom, 2) || [50, 50];
+      pct45a = Math.round(precioTotal * p[0] / 100);
       pct45b = precioTotal - pct45a;
       pct10  = 0;
+      pctLabels = [`${Math.round(p[0])}%`, `${Math.round(p[1])}%`, ''];
     } else {
-      pct45a = Math.round(balance * 0.45);
-      pct45b = Math.round(balance * 0.45);
+      const p = sanitize(pctsCustom, 3) || [45, 45, 10];
+      pct45a = Math.round(balance * p[0] / 100);
+      pct45b = Math.round(balance * p[1] / 100);
       pct10  = balance - pct45a - pct45b;
+      pctLabels = [`${Math.round(p[0])}%`, `${Math.round(p[1])}%`, `${Math.round(p[2])}%`];
     }
 
     const html = buildContratoHTML({
@@ -683,7 +698,7 @@ async function generarContratoSolar(req, res) {
       ctaAee, numContador: numContadorFinal,
       vendedorAsignado: vendedor,
       fechaCorta: fmtShort(),
-      precioTotal, pronto, pct45a, pct45b, pct10,
+      precioTotal, pronto, pct45a, pct45b, pct10, pctLabels,
       esEfectivo
     });
 
