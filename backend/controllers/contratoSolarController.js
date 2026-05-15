@@ -169,7 +169,7 @@ function buildContratoHTML(d) {
   .preambulo .body p{margin-bottom:6pt}
   .preambulo .head{margin-bottom:6px}
 
-  .seccion-head{font-weight:700;color:#1f2937;text-align:center;text-transform:uppercase;font-size:11pt;margin:14px 0 12px;letter-spacing:1px}
+  .seccion-head{font-weight:700;color:#1f2937;text-align:center;text-transform:uppercase;font-size:11pt;margin:14px 0 12px;letter-spacing:1px;page-break-before:always;break-before:page}
 
   /* ===== CLÁUSULAS ===== */
   .clausula{margin-bottom:14px}
