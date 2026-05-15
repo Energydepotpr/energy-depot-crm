@@ -163,9 +163,10 @@ function buildContratoHTML(d) {
   .asignado .total{font-size:18pt;font-weight:900;letter-spacing:-0.5px;margin-top:2px}
 
   /* ===== PREÁMBULO + SECCIONES ===== */
-  .preambulo{background:#f8fafc;border-left:3px solid #1a3c8f;padding:14px 18px;margin-bottom:20px;border-radius:0 8px 8px 0}
+  .preambulo{background:#f8fafc;border-left:3px solid #1a3c8f;padding:14px 18px;margin-bottom:20px;border-radius:0 8px 8px 0;page-break-after:avoid;break-after:avoid-page}
   .preambulo .head{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:9pt;font-weight:700;color:#1a3c8f;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
   .preambulo .body{font-size:10.5pt;color:#374151;line-height:1.65;text-align:justify}
+  .preambulo p{page-break-inside:avoid;break-inside:avoid-page}
 
   .seccion-head{font-weight:700;color:#1f2937;text-align:center;text-transform:uppercase;font-size:11pt;margin:14px 0 12px;letter-spacing:1px}
 
@@ -201,15 +202,15 @@ function buildContratoHTML(d) {
   .reafirma{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;background:#f8fafc;border:1px dashed #1a3c8f;padding:14px 18px;margin:16px 0;font-size:10.5pt;color:#1a3c8f;font-weight:600;text-align:center;border-radius:8px}
 
   /* ===== FIRMAS ===== */
-  .firmas{display:flex;gap:40px;margin-top:50px;page-break-inside:avoid;font-family:'Plus Jakarta Sans',-apple-system,sans-serif}
-  .firmas .col{flex:1}
-  .firmas .line{border-bottom:2px solid #1a3c8f;height:46px}
-  .firmas .col .lbl{font-size:8.5pt;color:#64748b;letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-top:8px}
-  .firmas .col .nm{font-size:11pt;font-weight:700;color:#1a3c8f;margin-top:4px}
-  .firmas .col .tt{font-size:9.5pt;color:#64748b}
+  .firmas{display:flex;gap:80px;margin-top:90px;margin-bottom:60px;page-break-inside:avoid;font-family:'Plus Jakarta Sans',-apple-system,sans-serif}
+  .firmas .col{flex:1;min-width:0}
+  .firmas .line{border-bottom:2px solid #1a3c8f;height:60px}
+  .firmas .col .lbl{font-size:9pt;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-top:10px}
+  .firmas .col .nm{font-size:12pt;font-weight:700;color:#1a3c8f;margin-top:5px;white-space:nowrap;overflow:visible}
+  .firmas .col .tt{font-size:9.5pt;color:#64748b;margin-top:2px}
 
   /* ===== FOOTER ===== */
-  .footer{background:#0f2558;color:#bfdbfe;padding:14px 24px;font-size:8pt;text-align:center;letter-spacing:0.4px;margin-top:30px;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;border-radius:8px}
+  .footer{background:#0f2558;color:#bfdbfe;padding:16px 24px;font-size:8pt;text-align:center;letter-spacing:0.4px;margin-top:60px;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;border-radius:8px}
   .footer .name{font-weight:700;color:#fff;font-size:9pt;letter-spacing:1.5px;margin-bottom:4px}
   .footer .ver{margin-top:6px;color:#93c5fd;font-style:italic;font-size:7.5pt}
 </style>
@@ -515,6 +516,7 @@ function buildContratoHTML(d) {
       <div class="lbl">Comprador</div>
       <div class="nm">${esc(signedName || nombre)}</div>
       <div class="tt">Cliente &middot; Comprador${signedAt ? ` &middot; Firmado ${esc(signedAt)}` : ''}</div>
+    </div>
   </div>
 
   <!-- ============ FOOTER ============ -->
