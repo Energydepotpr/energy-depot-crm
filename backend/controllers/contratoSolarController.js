@@ -174,9 +174,10 @@ function buildContratoHTML(d) {
   /* Texto 100% continuo — solo NO partir tabla de pagos y firmas finales */
   table.pagos, .firmas{page-break-inside:avoid;break-inside:avoid-page}
   body, p, .texto, .sub, .sub-bullet, .clausula, .clausula-row{orphans:1;widows:1}
-  .clausula-row{display:flex;align-items:flex-start;gap:12px}
-  .clausula .num{flex-shrink:0;width:30px;height:30px;background:#1a3c8f;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11.5pt;font-family:'Plus Jakarta Sans',-apple-system,sans-serif}
-  .clausula .body{flex:1}
+  .clausula-row{display:block}
+  .clausula-row::after{content:"";display:block;clear:both}
+  .clausula .num{float:left;width:30px;height:30px;background:#1a3c8f;color:#fff;border-radius:6px;text-align:center;line-height:30px;font-weight:800;font-size:11.5pt;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;margin-right:12px;margin-bottom:4px}
+  .clausula .body{display:block;margin-left:42px}
   .clausula .titulo{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-weight:700;color:#1a3c8f;font-size:11pt;margin-bottom:5px}
   .clausula .texto{font-size:10.5pt;color:#374151;line-height:1.6;text-align:justify}
   .sub{margin:6px 0 6px 42px;font-size:10pt;color:#374151;line-height:1.6;text-align:justify}
