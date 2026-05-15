@@ -653,6 +653,9 @@ async function generarContratoSolar(req, res) {
       modalidad, prontoDado: pronto, numCtaLuma: ctaAee, numContador: numContadorFinal,
       vendedor, direccionPostal: direccionPostalFinal,
       precioTotal, pct45a, pct45b, pct10,
+      pcts: esEfectivo
+        ? [Number(pctLabels[0]?.replace('%','')) || 50, Number(pctLabels[1]?.replace('%','')) || 50]
+        : [Number(pctLabels[0]?.replace('%','')) || 45, Number(pctLabels[1]?.replace('%','')) || 45, Number(pctLabels[2]?.replace('%','')) || 10],
       nombre, telefono, email, direccionFisica,
     };
 
@@ -881,9 +884,7 @@ async function listContratosFirma(req, res) {
     await ensureContratosFirmaTable();
     const leadId = req.params.id;
     const r = await pool.query(
-      `SELECT id, token, signed_at, signed_name, created_at, expires_at,
-              (contrato_data->>'modalidad') AS modalidad,
-              (contrato_data->>'precioTotal')::numeric AS precio_total
+      `SELECT id, token, signed_at, signed_name, created_at, expires_at, contrato_data
          FROM contratos_firma
         WHERE lead_id = $1
         ORDER BY created_at DESC`,

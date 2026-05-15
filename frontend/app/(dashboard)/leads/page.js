@@ -5178,7 +5178,7 @@ function ContratosTab({ leadId, lead, onUpdated }) {
     setLoading(true);
     try {
       const d = await api.listContratosFirma(leadId);
-      setItems(d?.items || d || []);
+      setItems(d?.contratos || d?.items || d || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -5217,18 +5217,19 @@ function ContratosTab({ leadId, lead, onUpdated }) {
   };
 
   const abrirEditor = (c) => {
-    // Precarga form con contrato_config actual del lead
-    const cc = lead?.solar_data?.contrato_config || {};
+    // Precarga form con los datos GUARDADOS de este contrato específico
+    const cd = c.contrato_data || lead?.solar_data?.contrato_config || {};
+    const m = cd.modalidad || 'efectivo';
     setForm({
-      modalidad: cc.modalidad || 'efectivo',
-      prontoDado: cc.prontoDado || '',
-      numCtaLuma: cc.numCtaLuma || '',
-      numContador: cc.numContador || '',
-      direccionPostal: cc.direccionPostal || '',
-      vendedor: cc.vendedor || 'Gilberto J. Díaz',
-      pctA: cc.pcts?.[0] || (cc.modalidad === 'financiamiento' ? 45 : 50),
-      pctB: cc.pcts?.[1] || (cc.modalidad === 'financiamiento' ? 45 : 50),
-      pctC: cc.pcts?.[2] || (cc.modalidad === 'financiamiento' ? 10 : 0),
+      modalidad: m,
+      prontoDado: cd.prontoDado || '',
+      numCtaLuma: cd.numCtaLuma || '',
+      numContador: cd.numContador || '',
+      direccionPostal: cd.direccionPostal || '',
+      vendedor: cd.vendedor || 'Gilberto J. Díaz',
+      pctA: cd.pcts?.[0] ?? (m === 'financiamiento' ? 45 : 50),
+      pctB: cd.pcts?.[1] ?? (m === 'financiamiento' ? 45 : 50),
+      pctC: cd.pcts?.[2] ?? (m === 'financiamiento' ? 10 : 0),
     });
     setEditing(c);
   };
@@ -5315,6 +5316,20 @@ function ContratosTab({ leadId, lead, onUpdated }) {
                 </div>
                 {statusBadge(c)}
               </div>
+              {c.contrato_data && (
+                <div style={{ marginTop:10, padding:'8px 10px', background:'var(--bg)', borderRadius:6, fontSize:11, color:'var(--text)', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'6px 14px' }}>
+                  {c.contrato_data.modalidad && <div><span style={{ color:'var(--muted)' }}>Modalidad:</span> <strong>{c.contrato_data.modalidad === 'efectivo' ? 'Efectivo' : 'Financiamiento'}</strong></div>}
+                  {c.contrato_data.precioTotal != null && <div><span style={{ color:'var(--muted)' }}>Precio total:</span> <strong>${Number(c.contrato_data.precioTotal).toLocaleString()}</strong></div>}
+                  {Number(c.contrato_data.prontoDado) > 0 && <div><span style={{ color:'var(--muted)' }}>Pronto:</span> <strong>${Number(c.contrato_data.prontoDado).toLocaleString()}</strong></div>}
+                  {c.contrato_data.numCtaLuma && <div><span style={{ color:'var(--muted)' }}>Cta AEE:</span> <strong>{c.contrato_data.numCtaLuma}</strong></div>}
+                  {c.contrato_data.numContador && <div><span style={{ color:'var(--muted)' }}>Contador:</span> <strong>{c.contrato_data.numContador}</strong></div>}
+                  {c.contrato_data.vendedor && <div><span style={{ color:'var(--muted)' }}>Vendedor:</span> <strong>{c.contrato_data.vendedor}</strong></div>}
+                  {Array.isArray(c.contrato_data.pcts) && c.contrato_data.pcts.length > 0 && (
+                    <div><span style={{ color:'var(--muted)' }}>%:</span> <strong>{c.contrato_data.pcts.map(p => `${p}%`).join(' / ')}</strong></div>
+                  )}
+                  {c.contrato_data.direccionPostal && <div style={{ gridColumn:'1 / -1' }}><span style={{ color:'var(--muted)' }}>Dir. postal:</span> <strong>{c.contrato_data.direccionPostal}</strong></div>}
+                </div>
+              )}
               <div style={{ display:'flex', gap:6, marginTop:10, flexWrap:'wrap' }}>
                 <button onClick={() => descargar(c.id)} style={{ background:'#1a3c8f', color:'#fff', border:'none', borderRadius:6, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer' }}>↓ Descargar PDF</button>
                 {!c.signed_at && c.signing_url && (
