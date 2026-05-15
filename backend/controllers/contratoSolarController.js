@@ -174,10 +174,10 @@ function buildContratoHTML(d) {
   /* Texto 100% continuo — solo NO partir tabla de pagos y firmas finales */
   table.pagos, .firmas{page-break-inside:avoid;break-inside:avoid-page}
   body, p, .texto, .sub, .sub-bullet, .clausula, .clausula-row{orphans:1;widows:1}
+  /* Sin float ni flex — todo block normal para que el texto pagine libre */
   .clausula-row{display:block}
-  .clausula-row::after{content:"";display:block;clear:both}
-  .clausula .num{float:left;width:30px;height:30px;background:#1a3c8f;color:#fff;border-radius:6px;text-align:center;line-height:30px;font-weight:800;font-size:11.5pt;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;margin-right:12px;margin-bottom:4px}
-  .clausula .body{display:block;margin-left:42px}
+  .clausula .num{display:inline-block;background:#1a3c8f;color:#fff;border-radius:4px;padding:2px 8px;font-weight:800;font-size:10pt;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;margin-right:8px;vertical-align:baseline}
+  .clausula .body{display:block;margin-top:4px}
   .clausula .titulo{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-weight:700;color:#1a3c8f;font-size:11pt;margin-bottom:5px}
   .clausula .texto{font-size:10.5pt;color:#374151;line-height:1.6;text-align:justify}
   .sub{margin:6px 0 6px 42px;font-size:10pt;color:#374151;line-height:1.6;text-align:justify}
@@ -257,8 +257,6 @@ function buildContratoHTML(d) {
         <div class="row"><span class="k">Correo:</span><span>${esc(email) || '—'}</span></div>
         <div class="row"><span class="k">Cta AEE:</span><span>${esc(ctaAee) || '—'}</span></div>
         <div class="row"><span class="k">Contador:</span><span>${esc(numContador) || '—'}</span></div>
-      </div>
-    </div>
   </div>
 
   <!-- ASIGNADO + PRECIO -->
@@ -287,32 +285,19 @@ function buildContratoHTML(d) {
 
   <!-- 1. Descripción -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">1</div>
-      <div class="body">
-        <div class="titulo">Descripción del Sistema Energía Renovable</div>
+    <div class="titulo"><span class="num">1</span> Descripción del Sistema Energía Renovable</div>
         <div class="texto">El Sistema SELF-ENERGY adquirido por el Comprador del Vendedor es aquél sistema descrito en la cotización de Sistema SELF-ENERGY suscrito por el Vendedor y Comprador que se hace formar parte integral de este Contrato como su Exhibit I (Factura).</div>
-      </div>
-    </div>
   </div>
 
   <!-- 2. Precio -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">2</div>
-      <div class="body">
-        <div class="titulo">Precio</div>
+    <div class="titulo"><span class="num">2</span> Precio</div>
         <div class="texto">El precio del Sistema SERE es la suma de <strong style="color:#1a3c8f">${fmt(precioTotal)}</strong>, más cualquier otro impuesto o cargo aplicable por ley según se desglosa en la Factura de Compra de Sistema SELF-ENERGY que se hace formar parte integral de este Contrato como su <strong><u>Exhibit II</u></strong> (el &ldquo;Precio de Compraventa&rdquo;). El Precio de Compraventa incluye los gastos y costos asociados con la compraventa del Sistema SELF-ENERGY y su instalación. El Precio de Compraventa no incluye los costos o gastos asociados con la remoción o relocalización de sistemas de aires acondicionado, cisternas, plantas eléctricas, antenas, calentadores solares y/o cualquieras otros equipos u obstrucciones, los cuales serán responsabilidad exclusiva del Comprador.</div>
-      </div>
-    </div>
   </div>
 
   <!-- 3. Desembolso del Precio de Compraventa -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">3</div>
-      <div class="body">
-        <div class="titulo">Desembolso del Precio de Compraventa</div>
+    <div class="titulo"><span class="num">3</span> Desembolso del Precio de Compraventa</div>
         <div class="texto">Los desembolsos del Precio de Compraventa <strong>${fmt(precioTotal)}</strong> será(n) realizado(s) por <strong>${esc(nombre)}</strong> de la siguiente forma:</div>
       </div>
     </div>
@@ -340,10 +325,7 @@ function buildContratoHTML(d) {
 
   <!-- 4. Compraventa con Financiamiento -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">4</div>
-      <div class="body">
-        <div class="titulo">Compraventa con Financiamiento</div>
+    <div class="titulo"><span class="num">4</span> Compraventa con Financiamiento</div>
         <div class="texto">Sólo aplicable cuando medie financiamiento para la compra del Sistema SELF-ENERGY, según adelantado por el Comprador en el Preacuerdo de Compraventa de Sistema SELF-ENERGY.</div>
       </div>
     </div>
@@ -353,21 +335,13 @@ function buildContratoHTML(d) {
 
   <!-- 5. Derecho de Acceso -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">5</div>
-      <div class="body">
-        <div class="titulo">Derecho de Acceso</div>
+    <div class="titulo"><span class="num">5</span> Derecho de Acceso</div>
         <div class="texto">El Comprador proveerá acceso al personal del Vendedor a las facilidades donde se ubicará el Sistema SELF-ENERGY (las &ldquo;Facilidades&rdquo;) para que éstos puedan ejecutar sus obligaciones bajo este Contrato, incluyendo, sin limitarse, a la instalación, evaluación, inspección, certificación, validación y/o cualquier otra acción necesaria para la operación del Sistema SELF-ENERGY. Con la firma del presente Contrato, el Comprador le Concede al Vendedor un derecho de acceso a las Facilidades para cumplir con sus obligaciones. De igual forma, el Comprador dará acceso a las Facilidades al personal de LUMA Energy o PREPA y/o cualquier agencia gubernamental para que éstos puedan ejecutar sus deberes conforme a la ley y reglamentación aplicable a la generación de energía eléctrica con Sistemas SELF-ENERGY. El Comprador también autoriza el acceso al personal técnico de Energy Depot LLC posterior a la instalación, cuando sea necesario para mantenimiento, inspección, actualización o evaluación del desempeño del Sistema.</div>
-      </div>
-    </div>
   </div>
 
   <!-- 6. Instalación y Permisos -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">6</div>
-      <div class="body">
-        <div class="titulo">Instalación y Permisos</div>
+    <div class="titulo"><span class="num">6</span> Instalación y Permisos</div>
         <div class="texto">El Vendedor será responsable de la instalación del Sistema SELF-ENERGY en las Facilidades del Comprador identificadas en este acuerdo de Compraventa de Sistema SELF-ENERGY. La instalación del Sistema Fotovoltaico comenzará con la obtención de los permisos y endosos necesarios requeridos por ley, si algunos, para la instalación de Sistemas SELF-ENERGY, incluyendo, sin limitarse, al endoso de los planos del diseño eléctrico por LUMA Energy o PREPA. El comienzo de la instalación además estará sujeta al cumplimiento por el Comprador del derecho de acceso requerido en la Sección 5 de este Contrato. El Comprador se obliga a suscribir todo y cualquier documento necesario para la obtención por conducto del Vendedor de cualquier permiso o endoso requerido para la instalación del Sistema SELF-ENERGY en las Facilidades del Comprador y la interconexión del mismo con LUMA Energy o PREPA.</div>
       </div>
     </div>
@@ -377,38 +351,24 @@ function buildContratoHTML(d) {
 
   <!-- 6-A. Modificaciones Técnicas -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num" style="font-size:9pt">6-A</div>
-      <div class="body">
-        <div class="titulo">Modificaciones Técnicas y Sustitución de Equipos</div>
-        <div class="texto">Energy Depot LLC podrá realizar ajustes técnicos o sustituciones de componentes en el diseño, equipos o materiales del Sistema, siempre que dichas modificaciones no reduzcan la capacidad nominal de generación contratada. Estos cambios podrán efectuarse por razones de disponibilidad, cumplimiento de normativas eléctricas, seguridad o mejoras tecnológicas, y no constituirán incumplimiento contractual, siempre y cuando se mantenga la capacidad de producción pactada.</div>
-      </div>
-    </div>
+    <div class="titulo"><span class="num" style="font-size:9pt">6-A</span> Modificaciones Técnicas y Sustitución de Equipos</div>
+    <div class="texto">Energy Depot LLC podrá realizar ajustes técnicos o sustituciones de componentes en el diseño, equipos o materiales del Sistema, siempre que dichas modificaciones no reduzcan la capacidad nominal de generación contratada. Estos cambios podrán efectuarse por razones de disponibilidad, cumplimiento de normativas eléctricas, seguridad o mejoras tecnológicas, y no constituirán incumplimiento contractual, siempre y cuando se mantenga la capacidad de producción pactada.</div>
   </div>
 
   <!-- 7. Relevo -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">7</div>
-      <div class="body">
-        <div class="titulo">Relevo</div>
+    <div class="titulo"><span class="num">7</span> Relevo</div>
         <div class="texto">El Comprador reconoce que la permisilogía de la instalación y certificación por parte de LUMA Energy o PREPA del Sistema SELF-ENERGY depende de la evaluación favorable y endosos por la LUMA Energy o PREPA y otras agencias gubernamentales por lo que releva y exonera al Vendedor de cualquier demora, atraso o costos de mejora estructural solicitada por LUMA Energy o PREPA para la aceptación y cumplimiento de sus obligaciones bajo el presente Contrato de este proyecto para su interconexión en el programa de Medición.</div>
       </div>
-    </div>
   </div>
 
-</div>
-
-<!-- ============ PÁGINA 3 ============ -->
+  <!-- ============ PÁGINA 3 ============ -->
 <div class="pagebreak"></div>
 <div class="page">
 
   <!-- 8. Mantenimiento -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">8</div>
-      <div class="body">
-        <div class="titulo">Mantenimiento</div>
+    <div class="titulo"><span class="num">8</span> Mantenimiento</div>
         <div class="texto">El Comprador reconoce que será exclusivamente responsable de la operación, mantenimiento y reparación del Sistema SELF-ENERGY, excepto que aplique cualquier situación cubierta por la garantía limitada del Sistema SELF-ENERGY ofrecida por el Vendedor. El Comprador será exclusivamente responsable de cualquier mantenimiento, reparación y/o requisito necesario (i.e. seguros, etc.) para la aprobación de cualquier Acuerdo de Interconexión, Acuerdo de Medición Neta y/o cualquier otro acuerdo suscrito con LUMA Energy o PREPA relacionado al Sistema SELF-ENERGY (colectivamente, los &ldquo;Acuerdos Energéticos&rdquo;). El Comprador reconoce que los Acuerdos Energéticos son a un término definido y que su renovación depende del cumplimiento por el Comprador de una serie de requisitos establecidos por ley, reglamento y/o en los propios Acuerdos Energéticos. Será responsabilidad exclusiva del Comprador el cumplimiento con dichos Acuerdo Energéticos y los requisitos necesarios para su renovación. Por lo menos tres (3) meses previos al vencimiento de cualquiera de los Acuerdo Energéticos, el Comprador podrá notificar al Vendedor que desea que el Vendedor le refiera, a costo exclusivo del Comprador, un profesional para que lo asista o ayude en la renovación de cualquiera de los Acuerdos Energéticos.</div>
       </div>
     </div>
@@ -417,10 +377,7 @@ function buildContratoHTML(d) {
 
   <!-- 9. Garantía Limitada -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">9</div>
-      <div class="body">
-        <div class="titulo">Garantía Limitada</div>
+    <div class="titulo"><span class="num">9</span> Garantía Limitada</div>
         <div class="texto">Energy Depot LLC garantiza la labor de instalación por un período de quince (15) años, cubriendo únicamente defectos atribuibles a la instalación original. La garantía no cubre daños causados por terceros, fenómenos naturales, modificaciones no autorizadas, mal uso del sistema o fallas en la red eléctrica externa. Las garantías de los equipos individuales se regirán por los términos y condiciones establecidos por el fabricante de cada componente. El Comprador reconoce que cualquier alteración o reparación realizada sin autorización escrita de Energy Depot LLC anulará esta garantía.</div>
       </div>
     </div>
@@ -458,21 +415,13 @@ function buildContratoHTML(d) {
 
   <!-- 10. Facilidades -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">10</div>
-      <div class="body">
-        <div class="titulo">Facilidades</div>
+    <div class="titulo"><span class="num">10</span> Facilidades</div>
         <div class="texto">El Comprador presentara al Vendedor que <strong>__X___</strong> es titular de la Facilidades identificadas con la localización donde se instalará el Sistema SELF-ENERGY o ________ posee autorización legal por escrito del titular de las Facilidades para la instalación del Sistema SELF-ENERGY. El Comprador releva, exonera y se compromete a proveer defensa al Vendedor con respecto a cualquier reclamación que se presente contra el Vendedor relacionado a la falta de autorización por el dueño o titular de las Facilidades para la instalación del Sistema SELF-ENERGY.</div>
-      </div>
-    </div>
   </div>
 
   <!-- 11. Autorización para Documentación Visual y Mercadeo -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">11</div>
-      <div class="body">
-        <div class="titulo">Autorización para Documentación Visual y Mercadeo</div>
+    <div class="titulo"><span class="num">11</span> Autorización para Documentación Visual y Mercadeo</div>
         <div class="texto">El Comprador autoriza expresamente a Energy Depot LLC y a sus representantes a grabar, fotografiar y documentar todo el proceso de instalación, inspección, y finalización del Sistema de Energía Renovable, con fines de:</div>
       </div>
     </div>
@@ -490,21 +439,13 @@ function buildContratoHTML(d) {
 
   <!-- 12. Documentos y Facturas -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">12</div>
-      <div class="body">
-        <div class="titulo">Documentos y Facturas</div>
+    <div class="titulo"><span class="num">12</span> Documentos y Facturas</div>
         <div class="texto">El Comprador proveerá copia al Vendedor de los Acuerdos Energéticos, así como cualquier otro contrato o acuerdo suscrito con relación al Sistema SELF-ENERGY, así como de copia de las facturas de consumo de energía eléctrica para las Facilidades por un periodo de doce (12) meses luego de instalado el Sistema SELF-ENERGY.</div>
-      </div>
-    </div>
   </div>
 
   <!-- 13. Notificaciones -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">13</div>
-      <div class="body">
-        <div class="titulo">Notificaciones</div>
+    <div class="titulo"><span class="num">13</span> Notificaciones</div>
         <div class="texto">Todas las notificaciones, requerimientos, instrucciones y otras comunicaciones requeridos bajo este Contrato se harán por escrito y serán enviados por correo certificado con acuse de recibo, correo electrónico con acuse de recibo o facsímile o entregadas a la mano a la parte a las siguientes direcciones de las partes que surgen en el encabezamiento.</div>
       </div>
     </div>
@@ -513,10 +454,7 @@ function buildContratoHTML(d) {
 
   <!-- 14. Cancelación del Proyecto -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">14</div>
-      <div class="body">
-        <div class="titulo">Cancelación del Proyecto y Aplicación de Pagos</div>
+    <div class="titulo"><span class="num">14</span> Cancelación del Proyecto y Aplicación de Pagos</div>
         <div class="texto">En caso de cancelación voluntaria del proyecto por parte del Comprador, o si el contrato se termina antes de completarse por causas ajenas a Energy Depot LLC, cualquier cantidad recibida como pronto, pago parcial o desembolso inicial, ya sea directamente del Comprador o de una institución financiera, se aplicará a los costos incurridos hasta la fecha de cancelación, incluyendo, sin limitarse a:</div>
       </div>
     </div>
@@ -531,10 +469,7 @@ function buildContratoHTML(d) {
 
   <!-- 15. Remedios y Resolución de Controversias -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">15</div>
-      <div class="body">
-        <div class="titulo">Remedios y Resolución de Controversias</div>
+    <div class="titulo"><span class="num">15</span> Remedios y Resolución de Controversias</div>
         <div class="texto">En adición a cualquier remedio provisto por ley y/o cualquier remedio específico establecido en las demás secciones de este Contrato, en caso de incumplimiento por el Comprador de cualesquiera de sus obligaciones bajo este Contrato, el Vendedor podrá, además:</div>
       </div>
     </div>
@@ -545,29 +480,18 @@ function buildContratoHTML(d) {
 
   <!-- 16. Fuerza Mayor -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">16</div>
-      <div class="body">
-        <div class="titulo">Fuerza Mayor</div>
+    <div class="titulo"><span class="num">16</span> Fuerza Mayor</div>
         <div class="texto">Ninguna de las partes será responsable por el incumplimiento de sus obligaciones contractuales cuando dicho incumplimiento sea resultado directo de eventos fuera de su control razonable, incluyendo, pero sin limitarse a, desastres naturales, eventos climáticos severos (huracanes categoría 3 o más), actos de gobierno, interrupciones en la cadena de suministro, pandemias, huelgas o fallas de terceros como LUMA Energy o PREPA. En tales casos, el plazo de cumplimiento se extenderá por el tiempo que dure la causa de fuerza mayor, sin penalidades para Energy Depot LLC.</div>
       </div>
-    </div>
   </div>
 
-</div>
-
-<!-- ============ PÁGINA 6 ============ -->
+  <!-- ============ PÁGINA 6 ============ -->
 <div class="pagebreak"></div>
 <div class="page">
 
   <!-- 17. Misceláneos -->
   <div class="clausula">
-    <div class="clausula-row">
-      <div class="num">17</div>
-      <div class="body">
-        <div class="titulo">Misceláneos</div>
-      </div>
-    </div>
+    <div class="titulo"><span class="num">17</span> Misceláneos</div>
     <p class="sub"><span class="letra">a.</span> <span class="sub-titulo">Enmiendas.</span> Este Acuerdo únicamente podrá ser enmendado, modificado o cedido mediante el consentimiento por escrito de las partes.</p>
     <p class="sub"><span class="letra">b.</span> <span class="sub-titulo">Ley Aplicable.</span> Este Contrato se regirá e interpretará conforme a las leyes del Estado Libre Asociado de Puerto Rico, incluyendo el Código Civil vigente y la Ley de Arbitraje Comercial, y cualquier disposición aplicable al comercio y contratos privados.</p>
     <p class="sub"><span class="letra">c.</span> <span class="sub-titulo">Cláusula de Cesión y Subcontratación.</span> Energy Depot LLC podrá delegar o subcontratar partes del proyecto a profesionales certificados en Puerto Rico, sin que ello implique modificación del presente contrato ni liberación de sus responsabilidades.</p>
@@ -600,12 +524,9 @@ function buildContratoHTML(d) {
       <div class="lbl">Comprador</div>
       <div class="nm">${esc(signedName || nombre)}</div>
       <div class="tt">Cliente &middot; Comprador${signedAt ? ` &middot; Firmado ${esc(signedAt)}` : ''}</div>
-    </div>
   </div>
 
-</div>
-
-<!-- ============ FOOTER ============ -->
+  <!-- ============ FOOTER ============ -->
 <div class="footer">
   <div class="name">ENERGY DEPOT LLC</div>
   <div>Global Plaza Suite 204 &middot; San Juan, PR 00920 &middot; (787) 627-8585 &middot; info@energydepotpr.com &middot; energydepotpr.com</div>
