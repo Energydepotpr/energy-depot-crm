@@ -740,6 +740,30 @@ async function generarContratoSolar(req, res) {
       [leadId, token, base64, contratoData]
     );
 
+    // --- Persistir config del contrato en solar_data.contrato_config ---
+    try {
+      const contratoConfig = {
+        modalidad,
+        prontoDado: pronto,
+        pcts: esEfectivo
+          ? [Number(pctLabels[0].replace('%','')) || 0, Number(pctLabels[1].replace('%','')) || 0]
+          : [Number(pctLabels[0].replace('%','')) || 0, Number(pctLabels[1].replace('%','')) || 0, Number(pctLabels[2].replace('%','')) || 0],
+        numCtaLuma: ctaAee,
+        numContador: numContadorFinal,
+        direccionPostal: direccionPostalFinal,
+        vendedor,
+        updatedAt: new Date().toISOString(),
+      };
+      await pool.query(
+        `UPDATE leads
+            SET solar_data = jsonb_set(COALESCE(solar_data, '{}'::jsonb), '{contrato_config}', $1::jsonb, true)
+          WHERE id = $2`,
+        [JSON.stringify(contratoConfig), leadId]
+      );
+    } catch (errCfg) {
+      console.error('[contratoSolar saveConfig]', errCfg.message);
+    }
+
     const signingUrl = `${frontendBase()}/firmar/${token}`;
 
     // --- Auto-envío al cliente ---

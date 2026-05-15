@@ -161,7 +161,7 @@ function ShareLinksBtn({ lead }) {
   );
 }
 
-function SidebarContratoBtn({ leadId }) {
+function SidebarContratoBtn({ leadId, lead }) {
   const [show, setShow]         = useState(false);
   const [modalidad, setMod]     = useState('efectivo');
   const [pronto, setPronto]     = useState('');
@@ -178,6 +178,26 @@ function SidebarContratoBtn({ leadId }) {
     if (modalidad === 'efectivo') { setPctA(50); setPctB(50); setPctC(0); }
     else { setPctA(45); setPctB(45); setPctC(10); }
   }, [modalidad]);
+
+  // Precargar inputs desde solar_data.contrato_config cuando se abre el modal
+  useEffect(() => {
+    if (!show) return;
+    const cfg = lead?.solar_data?.contrato_config;
+    if (!cfg) return;
+    if (cfg.modalidad) setMod(cfg.modalidad);
+    if (cfg.prontoDado !== undefined && cfg.prontoDado !== null) setPronto(String(cfg.prontoDado || ''));
+    if (cfg.numCtaLuma) setCtaLuma(cfg.numCtaLuma);
+    if (cfg.numContador) setContador(cfg.numContador);
+    if (cfg.direccionPostal) setDirPostal(cfg.direccionPostal);
+    if (Array.isArray(cfg.pcts)) {
+      // Defer pcts setting until after modalidad-effect runs
+      setTimeout(() => {
+        if (cfg.pcts[0] !== undefined) setPctA(Number(cfg.pcts[0]) || 0);
+        if (cfg.pcts[1] !== undefined) setPctB(Number(cfg.pcts[1]) || 0);
+        if (cfg.pcts[2] !== undefined) setPctC(Number(cfg.pcts[2]) || 0);
+      }, 0);
+    }
+  }, [show, lead]);
 
   const sumPcts = Number(pctA) + Number(pctB) + (modalidad === 'financiamiento' ? Number(pctC) : 0);
   const pctsValid = Math.abs(sumPcts - 100) < 0.01;
@@ -281,6 +301,102 @@ function SidebarContratoBtn({ leadId }) {
         </div>
       )}
     </>
+  );
+}
+
+function ContratosListPanel({ leadId }) {
+  const [contratos, setContratos] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancel = false;
+    if (!leadId) return;
+    api.listContratosFirma(leadId)
+      .then(d => { if (!cancel) setContratos(d?.contratos || []); })
+      .catch(() => { if (!cancel) setContratos([]); });
+    return () => { cancel = true; };
+  }, [leadId, reloadKey]);
+
+  const fmtFecha = (iso) => {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('es-PR', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch { return iso; }
+  };
+
+  const badge = (status) => {
+    const map = {
+      firmado:   { bg:'rgba(16,185,129,0.15)', color:'#10b981', label:'Firmado' },
+      pendiente: { bg:'rgba(245,158,11,0.15)', color:'#f59e0b', label:'Pendiente firma' },
+      expirado:  { bg:'rgba(148,163,184,0.2)', color:'#94a3b8', label:'Expirado' },
+    };
+    const s = map[status] || map.pendiente;
+    return (
+      <span style={{ background:s.bg, color:s.color, padding:'2px 8px', borderRadius:10, fontSize:10, fontWeight:700 }}>
+        {s.label}
+      </span>
+    );
+  };
+
+  const descargar = async (id) => {
+    try {
+      const d = await api.downloadContratoFirma(id);
+      if (!d?.pdf) throw new Error('Sin PDF');
+      const bytes = Uint8Array.from(atob(d.pdf), c => c.charCodeAt(0));
+      const blob  = new Blob([bytes], { type:'application/pdf' });
+      const url   = URL.createObjectURL(blob);
+      const a     = document.createElement('a');
+      a.href = url; a.download = d.filename || `Contrato-${id}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { alert('Error: ' + e.message); }
+  };
+
+  const copiarLink = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Link de firma copiado');
+    } catch { alert(url); }
+  };
+
+  if (contratos === null) return null;
+
+  return (
+    <div style={{ marginTop: 4, padding: 10, background:'var(--surface2)', border:'1px solid var(--border)', borderRadius: 8 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px' }}>
+          Contratos generados
+        </div>
+        <button onClick={() => setReloadKey(k => k + 1)} title="Recargar"
+          style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize: 11 }}>↻</button>
+      </div>
+      {contratos.length === 0 ? (
+        <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle:'italic' }}>Sin contratos generados todavía.</div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap: 6 }}>
+          {contratos.map(c => (
+            <div key={c.id} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius: 6, padding: 8 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color:'var(--text)' }}>{fmtFecha(c.created_at)}</div>
+                {badge(c.status)}
+              </div>
+              <div style={{ display:'flex', gap: 6, flexWrap:'wrap' }}>
+                <button onClick={() => descargar(c.id)}
+                  style={{ flex:1, background:'#1a3c8f', color:'#fff', border:'none', borderRadius: 5, padding:'5px 8px', fontSize: 10, fontWeight:700, cursor:'pointer' }}>
+                  ⬇ Descargar PDF
+                </button>
+                {c.status === 'pendiente' && c.signing_url && (
+                  <button onClick={() => copiarLink(c.signing_url)}
+                    style={{ flex:1, background:'#67e8f9', color:'#0c4a6e', border:'none', borderRadius: 5, padding:'5px 8px', fontSize: 10, fontWeight:700, cursor:'pointer' }}>
+                    🔗 Copiar link
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1139,7 +1255,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                       <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                       Propuesta PDF
                     </button>
-                    <SidebarContratoBtn leadId={lead.id} />
+                    <SidebarContratoBtn leadId={lead.id} lead={lead} />
+                    <ContratosListPanel leadId={lead.id} />
                     <SidebarEmailBtn leadId={lead.id} lead={lead} />
                     <ShareLinksBtn lead={lead} />
                     <button
@@ -2738,6 +2855,26 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
     if (modalidad === 'efectivo') { setPctA2(50); setPctB2(50); setPctC2(0); }
     else { setPctA2(45); setPctB2(45); setPctC2(10); }
   }, [modalidad]);
+
+  // Precargar inputs del modal de contrato desde solar_data.contrato_config
+  useEffect(() => {
+    if (!showContrato) return;
+    const cfg = lead?.solar_data?.contrato_config;
+    if (!cfg) return;
+    if (cfg.modalidad) setModalidad(cfg.modalidad);
+    if (cfg.prontoDado !== undefined && cfg.prontoDado !== null) setProntoDado(String(cfg.prontoDado || ''));
+    if (cfg.numCtaLuma) setContratoCtaLuma(cfg.numCtaLuma);
+    if (cfg.numContador) setContratoContador(cfg.numContador);
+    if (cfg.direccionPostal) setContratoDirPostal(cfg.direccionPostal);
+    if (Array.isArray(cfg.pcts)) {
+      setTimeout(() => {
+        if (cfg.pcts[0] !== undefined) setPctA2(Number(cfg.pcts[0]) || 0);
+        if (cfg.pcts[1] !== undefined) setPctB2(Number(cfg.pcts[1]) || 0);
+        if (cfg.pcts[2] !== undefined) setPctC2(Number(cfg.pcts[2]) || 0);
+      }, 0);
+    }
+  }, [showContrato, lead]);
+
   const [msg, setMsg]             = useState('');
 
   const [extractingFactura, setExtractingFactura] = useState(false);
