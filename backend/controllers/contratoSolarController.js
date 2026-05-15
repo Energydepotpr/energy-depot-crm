@@ -167,7 +167,7 @@ function buildContratoHTML(d) {
   .preambulo .head{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:9pt;font-weight:700;color:#1a3c8f;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
   .preambulo .body{font-size:10.5pt;color:#374151;line-height:1.65;text-align:justify}
 
-  .seccion-head{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:11pt;font-weight:800;color:#1a3c8f;text-transform:uppercase;letter-spacing:1.5px;margin:6px 0 14px;padding-bottom:6px;border-bottom:2px solid #1a3c8f}
+  .seccion-head{font-weight:700;color:#1f2937;text-align:center;text-transform:uppercase;font-size:11pt;margin:14px 0 12px;letter-spacing:1px}
 
   /* ===== CLÁUSULAS ===== */
   .clausula{margin-bottom:14px}
@@ -175,15 +175,16 @@ function buildContratoHTML(d) {
   table.pagos, .firmas{page-break-inside:avoid;break-inside:avoid-page}
   body, p, .texto, .sub, .sub-bullet, .clausula, .clausula-row{orphans:1;widows:1}
   /* Sin float ni flex — todo block normal para que el texto pagine libre */
+  /* Cláusulas 1-17: TEXTO PLANO serif (sin chips ni colores brand) */
   .clausula-row{display:block}
-  .clausula .num{display:inline-block;background:#1a3c8f;color:#fff;border-radius:4px;padding:2px 8px;font-weight:800;font-size:10pt;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;margin-right:8px;vertical-align:baseline}
-  .clausula .body{display:block;margin-top:4px}
-  .clausula .titulo{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-weight:700;color:#1a3c8f;font-size:11pt;margin-bottom:5px}
-  .clausula .texto{font-size:10.5pt;color:#374151;line-height:1.6;text-align:justify}
-  .sub{margin:6px 0 6px 42px;font-size:10pt;color:#374151;line-height:1.6;text-align:justify}
-  .sub .letra{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;color:#0891b2;font-weight:800}
-  .sub-titulo{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;color:#1a3c8f;font-weight:700}
-  .sub-bullet{margin:4px 0 4px 56px;font-size:10pt;color:#374151;line-height:1.55}
+  .clausula .num{display:inline;font-weight:700;color:#1f2937;margin-right:4px}
+  .clausula .body{display:inline}
+  .clausula .titulo{display:inline;font-weight:700;color:#1f2937;font-size:11pt}
+  .clausula .texto{display:block;margin-top:4px;font-size:11pt;color:#1f2937;line-height:1.55;text-align:justify}
+  .sub{margin:6px 0 6px 24px;font-size:10.5pt;color:#1f2937;line-height:1.55;text-align:justify}
+  .sub .letra{font-weight:700;color:#1f2937}
+  .sub-titulo{font-weight:700;color:#1f2937}
+  .sub-bullet{margin:4px 0 4px 40px;font-size:10.5pt;color:#1f2937;line-height:1.5}
 
   /* ===== TABLA DESEMBOLSOS ===== */
   .pagos-wrap{margin-left:42px;margin-top:8px;margin-bottom:6px}
