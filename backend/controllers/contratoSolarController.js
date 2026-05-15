@@ -171,7 +171,8 @@ function buildContratoHTML(d) {
 
   /* ===== CLÁUSULAS ===== */
   .clausula{margin-bottom:14px;page-break-inside:avoid;break-inside:avoid-page}
-  .sub, .sub-bullet, .texto, .clausula-row{page-break-inside:avoid;break-inside:avoid-page}
+  .sub, .sub-bullet, .texto, .clausula-row, .preambulo, p, li{page-break-inside:avoid;break-inside:avoid-page}
+  body, p, .texto, .sub, .sub-bullet, .preambulo .body{orphans:3;widows:3}
   .clausula-row{display:flex;align-items:flex-start;gap:12px}
   .clausula .num{flex-shrink:0;width:30px;height:30px;background:#1a3c8f;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11.5pt;font-family:'Plus Jakarta Sans',-apple-system,sans-serif}
   .clausula .body{flex:1}
