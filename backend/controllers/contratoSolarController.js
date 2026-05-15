@@ -163,10 +163,11 @@ function buildContratoHTML(d) {
   .asignado .total{font-size:18pt;font-weight:900;letter-spacing:-0.5px;margin-top:2px}
 
   /* ===== PREÁMBULO + SECCIONES ===== */
-  .preambulo{background:#f8fafc;border-left:3px solid #1a3c8f;padding:14px 18px;margin-bottom:20px;border-radius:0 8px 8px 0;page-break-after:avoid;break-after:avoid-page}
+  .preambulo{background:#f8fafc;border-left:3px solid #1a3c8f;padding:12px 16px;margin-bottom:20px;border-radius:0 8px 8px 0;page-break-inside:avoid;break-inside:avoid-page;page-break-after:avoid;break-after:avoid-page}
   .preambulo .head{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:9pt;font-weight:700;color:#1a3c8f;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
-  .preambulo .body{font-size:10.5pt;color:#374151;line-height:1.65;text-align:justify}
-  .preambulo p{page-break-inside:avoid;break-inside:avoid-page}
+  .preambulo .body{font-size:9pt;color:#374151;line-height:1.5;text-align:justify}
+  .preambulo .body p{margin-bottom:6pt}
+  .preambulo .head{margin-bottom:6px}
 
   .seccion-head{font-weight:700;color:#1f2937;text-align:center;text-transform:uppercase;font-size:11pt;margin:14px 0 12px;letter-spacing:1px}
 
