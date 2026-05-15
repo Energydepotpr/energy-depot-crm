@@ -171,9 +171,9 @@ function buildContratoHTML(d) {
 
   /* ===== CLÁUSULAS ===== */
   .clausula{margin-bottom:14px}
-  /* Solo elementos atómicos (no-divisibles) — el resto fluye libre para no dejar páginas vacías */
-  .clausula-row, table.pagos, .firmas, .partes, .hero, .pagos-wrap{page-break-inside:avoid;break-inside:avoid-page}
-  body, p, .texto, .sub, .sub-bullet{orphans:2;widows:2}
+  /* Texto 100% continuo — solo NO partir tabla de pagos y firmas finales */
+  table.pagos, .firmas{page-break-inside:avoid;break-inside:avoid-page}
+  body, p, .texto, .sub, .sub-bullet, .clausula, .clausula-row{orphans:1;widows:1}
   .clausula-row{display:flex;align-items:flex-start;gap:12px}
   .clausula .num{flex-shrink:0;width:30px;height:30px;background:#1a3c8f;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11.5pt;font-family:'Plus Jakarta Sans',-apple-system,sans-serif}
   .clausula .body{flex:1}
