@@ -258,6 +258,8 @@ function buildContratoHTML(d) {
         <div class="row"><span class="k">Correo:</span><span>${esc(email) || '—'}</span></div>
         <div class="row"><span class="k">Cta AEE:</span><span>${esc(ctaAee) || '—'}</span></div>
         <div class="row"><span class="k">Contador:</span><span>${esc(numContador) || '—'}</span></div>
+      </div>
+    </div>
   </div>
 
   <!-- ASIGNADO + PRECIO -->
@@ -299,9 +301,7 @@ function buildContratoHTML(d) {
   <!-- 3. Desembolso del Precio de Compraventa -->
   <div class="clausula">
     <div class="titulo"><span class="num">3</span> Desembolso del Precio de Compraventa</div>
-        <div class="texto">Los desembolsos del Precio de Compraventa <strong>${fmt(precioTotal)}</strong> será(n) realizado(s) por <strong>${esc(nombre)}</strong> de la siguiente forma:</div>
-      </div>
-    </div>
+    <div class="texto">Los desembolsos del Precio de Compraventa <strong>${fmt(precioTotal)}</strong> será(n) realizado(s) por <strong>${esc(nombre)}</strong> de la siguiente forma:</div>
     <div class="pagos-wrap">
       <table class="pagos">
         <thead>
