@@ -1393,6 +1393,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             { key: 'ai',        full: t('leads.tab.ai', lang), count: 0 },
             { key: 'cotizar',   full: 'Cotizar', count: Array.isArray(lead.solar_data?.quotations) ? lead.solar_data.quotations.length : (lead.solar_data?.calc ? 1 : 0) },
             { key: 'citas',     full: '📅 Citas', count: 0 },
+            { key: 'contratos', full: '📄 Contratos', count: 0 },
           ].map(tab_item => (
             <button key={tab_item.key} onClick={() => setTab(tab_item.key)}
               className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
@@ -2651,6 +2652,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
 
           {/* ─── TAB: CITAS ─── */}
           {tab === 'citas' && <CitasTab leadId={leadId} />}
+          {tab === 'contratos' && <ContratosTab leadId={leadId} lead={lead} onUpdated={onUpdated} />}
 
         </div>{/* end Content */}
         </div>{/* end RIGHT Chat */}
@@ -5141,6 +5143,257 @@ export default function LeadsPage() {
               <button onClick={enviarMensajeMasivo} disabled={!bulkMsgText.trim() || bulkMsgSending}
                 style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: (!bulkMsgText.trim() || bulkMsgSending) ? 0.5 : 1 }}>
                 {bulkMsgSending ? 'Enviando...' : 'Enviar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ─── Contratos Tab ────────────────────────────────────────────────────────────
+function ContratosTab({ leadId, lead, onUpdated }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null); // contrato a regenerar
+  const [regenerating, setRegenerating] = useState(false);
+
+  // Edit form state (copia de contrato_config)
+  const cfg = lead?.solar_data?.contrato_config || {};
+  const [form, setForm] = useState({
+    modalidad: cfg.modalidad || 'efectivo',
+    prontoDado: cfg.prontoDado || '',
+    numCtaLuma: cfg.numCtaLuma || '',
+    numContador: cfg.numContador || '',
+    direccionPostal: cfg.direccionPostal || '',
+    vendedor: cfg.vendedor || 'Gilberto J. Díaz',
+    pctA: cfg.pcts?.[0] || (cfg.modalidad === 'financiamiento' ? 45 : 50),
+    pctB: cfg.pcts?.[1] || (cfg.modalidad === 'financiamiento' ? 45 : 50),
+    pctC: cfg.pcts?.[2] || (cfg.modalidad === 'financiamiento' ? 10 : 0),
+  });
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const d = await api.listContratosFirma(leadId);
+      setItems(d?.items || d || []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { cargar(); }, [leadId]);
+
+  const fmtFecha = (s) => {
+    if (!s) return '—';
+    try {
+      const d = new Date(s);
+      return d.toLocaleString('es-PR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    } catch { return s; }
+  };
+
+  const eliminar = async (id) => {
+    if (!confirm('¿Eliminar este contrato? No se puede deshacer.')) return;
+    try { await api.deleteContratoFirma(id); cargar(); }
+    catch (e) { alert('Error: ' + e.message); }
+  };
+
+  const descargar = async (id) => {
+    try {
+      const d = await api.downloadContratoFirma(id);
+      if (!d.pdf) throw new Error('Sin PDF');
+      const bytes = Uint8Array.from(atob(d.pdf), c => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type:'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = d.filename || `Contrato-${id}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { alert('Error: ' + e.message); }
+  };
+
+  const copiarLink = async (url) => {
+    if (!url) return;
+    try { await navigator.clipboard.writeText(url); alert('✓ Link copiado'); }
+    catch { alert(url); }
+  };
+
+  const abrirEditor = (c) => {
+    // Precarga form con contrato_config actual del lead
+    const cc = lead?.solar_data?.contrato_config || {};
+    setForm({
+      modalidad: cc.modalidad || 'efectivo',
+      prontoDado: cc.prontoDado || '',
+      numCtaLuma: cc.numCtaLuma || '',
+      numContador: cc.numContador || '',
+      direccionPostal: cc.direccionPostal || '',
+      vendedor: cc.vendedor || 'Gilberto J. Díaz',
+      pctA: cc.pcts?.[0] || (cc.modalidad === 'financiamiento' ? 45 : 50),
+      pctB: cc.pcts?.[1] || (cc.modalidad === 'financiamiento' ? 45 : 50),
+      pctC: cc.pcts?.[2] || (cc.modalidad === 'financiamiento' ? 10 : 0),
+    });
+    setEditing(c);
+  };
+
+  const setField = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const onModalidadChange = (m) => {
+    setForm(p => ({
+      ...p, modalidad: m,
+      pctA: m === 'financiamiento' ? 45 : 50,
+      pctB: m === 'financiamiento' ? 45 : 50,
+      pctC: m === 'financiamiento' ? 10 : 0,
+    }));
+  };
+
+  const sumPcts = Number(form.pctA) + Number(form.pctB) + (form.modalidad === 'financiamiento' ? Number(form.pctC) : 0);
+  const pctsValid = Math.abs(sumPcts - 100) < 0.01;
+
+  const regenerar = async () => {
+    if (!pctsValid) { alert(`Los % deben sumar 100% (actual: ${sumPcts}%)`); return; }
+    setRegenerating(true);
+    try {
+      const pcts = form.modalidad === 'efectivo' ? [Number(form.pctA), Number(form.pctB)] : [Number(form.pctA), Number(form.pctB), Number(form.pctC)];
+      const data = await api.generarContrato(leadId, {
+        modalidad: form.modalidad,
+        prontoDado: Number(form.prontoDado) || 0,
+        numCtaLuma: form.numCtaLuma.trim() || undefined,
+        numContador: form.numContador.trim() || undefined,
+        direccionPostal: form.direccionPostal.trim() || undefined,
+        vendedor: form.vendedor.trim() || 'Gilberto J. Díaz',
+        pcts,
+      });
+      if (!data.pdf) throw new Error('Sin PDF');
+      // Eliminar el viejo (el "editar" reemplaza)
+      if (editing?.id) {
+        try { await api.deleteContratoFirma(editing.id); } catch {}
+      }
+      // Descargar el nuevo
+      const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type:'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = data.filename || `Contrato-${leadId}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      setEditing(null);
+      cargar();
+      if (onUpdated) onUpdated();
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { setRegenerating(false); }
+  };
+
+  const statusBadge = (c) => {
+    const st = c.status || (c.signed_at ? 'firmado' : (c.expired ? 'expirado' : 'pendiente'));
+    const styles = {
+      firmado:    { bg:'rgba(16,185,129,0.12)', color:'#10b981', label:'Firmado' },
+      pendiente:  { bg:'rgba(245,158,11,0.12)', color:'#f59e0b', label:'Pendiente firma' },
+      expirado:   { bg:'rgba(100,116,139,0.12)', color:'#64748b', label:'Expirado' },
+    };
+    const s = styles[st] || styles.pendiente;
+    return <span style={{ fontSize:10, padding:'3px 9px', borderRadius:12, background:s.bg, color:s.color, fontWeight:700 }}>{s.label}</span>;
+  };
+
+  return (
+    <div style={{ padding:16, display:'flex', flexDirection:'column', gap:12 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>Contratos generados ({items.length})</div>
+        <button onClick={cargar} title="Recargar" style={{ background:'var(--bg)', border:'1px solid var(--border)', color:'var(--muted)', borderRadius:6, padding:'5px 10px', fontSize:11, cursor:'pointer' }}>↻ Recargar</button>
+      </div>
+
+      {loading && <div style={{ fontSize:13, color:'var(--muted)' }}>Cargando…</div>}
+      {!loading && items.length === 0 && (
+        <div style={{ background:'var(--bg)', border:'1px dashed var(--border)', borderRadius:8, padding:'20px 14px', textAlign:'center', fontSize:13, color:'var(--muted)' }}>
+          Sin contratos generados todavía. Generá uno desde el botón <strong>"Generar Contrato"</strong> del sidebar.
+        </div>
+      )}
+
+      {!loading && items.length > 0 && (
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {items.map(c => (
+            <div key={c.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'12px 14px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, flexWrap:'wrap' }}>
+                <div style={{ minWidth:0, flex:1 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--text)' }}>Contrato #{c.id}</div>
+                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:3 }}>Generado: {fmtFecha(c.created_at)}</div>
+                  {c.signed_at && <div style={{ fontSize:11, color:'#10b981', marginTop:2 }}>Firmado: {fmtFecha(c.signed_at)}{c.signed_name ? ` por ${c.signed_name}` : ''}</div>}
+                </div>
+                {statusBadge(c)}
+              </div>
+              <div style={{ display:'flex', gap:6, marginTop:10, flexWrap:'wrap' }}>
+                <button onClick={() => descargar(c.id)} style={{ background:'#1a3c8f', color:'#fff', border:'none', borderRadius:6, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer' }}>↓ Descargar PDF</button>
+                {!c.signed_at && c.signing_url && (
+                  <button onClick={() => copiarLink(c.signing_url)} style={{ background:'transparent', color:'#0ea5e9', border:'1px solid #0ea5e9', borderRadius:6, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer' }}>Copiar link firma</button>
+                )}
+                {!c.signed_at && c.signing_url && (
+                  <a href={`https://wa.me/?text=${encodeURIComponent('Contrato Energy Depot: ' + c.signing_url)}`} target="_blank" rel="noopener noreferrer" style={{ background:'#25d366', color:'#fff', border:'none', borderRadius:6, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer', textDecoration:'none' }}>WhatsApp</a>
+                )}
+                <button onClick={() => abrirEditor(c)} style={{ background:'transparent', color:'#f59e0b', border:'1px solid #f59e0b', borderRadius:6, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer' }}>✏️ Editar</button>
+                <button onClick={() => eliminar(c.id)} style={{ background:'transparent', color:'#ef4444', border:'1px solid #ef4444', borderRadius:6, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer' }}>🗑 Eliminar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editing && (
+        <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={() => setEditing(null)}>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:24, width:'100%', maxWidth:480, maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+              <div style={{ fontSize:15, fontWeight:700, color:'var(--text)' }}>Editar contrato #{editing.id}</div>
+              <button onClick={() => setEditing(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', fontSize:20, lineHeight:1 }}>×</button>
+            </div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:14 }}>Al guardar, el contrato actual se elimina y se genera uno nuevo con los cambios.</div>
+
+            <div style={{ marginBottom:12 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Modalidad</label>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                {[['efectivo','Efectivo'],['financiamiento','Financiamiento']].map(([v,l]) => (
+                  <button key={v} onClick={() => onModalidadChange(v)} style={{ border: form.modalidad===v?'2px solid #10b981':'1px solid var(--border)', borderRadius:8, padding:'9px 8px', background: form.modalidad===v?'rgba(16,185,129,0.12)':'var(--bg)', cursor:'pointer', fontSize:12, fontWeight:600, color: form.modalidad===v?'#10b981':'var(--text)' }}>{l}</button>
+                ))}
+              </div>
+            </div>
+
+            {form.modalidad === 'financiamiento' && (
+              <div style={{ marginBottom:12 }}>
+                <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Pronto Dado ($)</label>
+                <input type="number" value={form.prontoDado} onChange={e => setField('prontoDado', e.target.value)} placeholder="ej: 5000" style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
+              </div>
+            )}
+
+            <div style={{ marginBottom:12 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span>% Desembolsos</span>
+                <span style={{ color: pctsValid ? '#10b981' : '#ef4444', fontWeight:700 }}>Suma: {sumPcts}%</span>
+              </label>
+              <div style={{ display:'grid', gridTemplateColumns: form.modalidad === 'efectivo' ? '1fr 1fr' : '1fr 1fr 1fr', gap:6 }}>
+                <input type="number" min="0" max="100" step="0.5" value={form.pctA} onChange={e => setField('pctA', e.target.value)} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', textAlign:'right' }} />
+                <input type="number" min="0" max="100" step="0.5" value={form.pctB} onChange={e => setField('pctB', e.target.value)} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', textAlign:'right' }} />
+                {form.modalidad === 'financiamiento' && (
+                  <input type="number" min="0" max="100" step="0.5" value={form.pctC} onChange={e => setField('pctC', e.target.value)} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', textAlign:'right' }} />
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginBottom:12 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Vendedor asignado</label>
+              <input value={form.vendedor} onChange={e => setField('vendedor', e.target.value)} style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
+            </div>
+
+            <div style={{ marginBottom:12 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Num. Cta AEE</label>
+              <input value={form.numCtaLuma} onChange={e => setField('numCtaLuma', e.target.value)} placeholder="ej: 8557722000" style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
+            </div>
+
+            <div style={{ marginBottom:12 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Num. Contador</label>
+              <input value={form.numContador} onChange={e => setField('numContador', e.target.value)} placeholder="ej: 74359283" style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none' }} />
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Dirección Postal <span style={{ textTransform:'none', color:'#94a3b8', fontWeight:400 }}>(opcional)</span></label>
+              <textarea value={form.direccionPostal} onChange={e => setField('direccionPostal', e.target.value)} rows={2} placeholder={'PO Box 19062\nSan Juan, PR 00910-1062'} style={{ width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, padding:'8px 10px', fontSize:13, color:'var(--text)', outline:'none', fontFamily:'inherit', resize:'vertical' }} />
+            </div>
+
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setEditing(null)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'10px', fontSize:13, color:'var(--muted)', cursor:'pointer' }}>Cancelar</button>
+              <button onClick={regenerar} disabled={regenerating || !pctsValid} style={{ flex:2, background:'#10b981', border:'none', borderRadius:8, padding:'10px', fontSize:13, fontWeight:700, color:'#fff', cursor: regenerating || !pctsValid ? 'default' : 'pointer', opacity: regenerating || !pctsValid ? 0.6 : 1 }}>
+                {regenerating ? 'Regenerando…' : '✓ Guardar cambios y regenerar'}
               </button>
             </div>
           </div>

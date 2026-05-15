@@ -390,6 +390,7 @@ export const api = {
   generarContrato:   (id, data) => req('POST',  `/api/leads/${id}/contrato-solar`, data),
   listContratosFirma:(id)       => req('GET',   `/api/leads/${id}/contratos-firma`),
   downloadContratoFirma:(id)    => req('GET',   `/api/contratos-firma/${id}/pdf`),
+  deleteContratoFirma:(id)      => req('DELETE',`/api/contratos-firma/${id}`),
 
   // Appointments / Citas
   appointments:         (params = '')   => req('GET',    `/api/appointments${params}`),

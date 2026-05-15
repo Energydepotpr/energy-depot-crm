@@ -924,10 +924,25 @@ async function downloadContratoFirma(req, res) {
   }
 }
 
+/* ============================================================
+   DELETE /api/contratos-firma/:id — eliminar contrato
+   ============================================================ */
+async function deleteContratoFirma(req, res) {
+  try {
+    const r = await pool.query(`DELETE FROM contratos_firma WHERE id = $1 RETURNING id`, [req.params.id]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'No encontrado' });
+    res.json({ ok: true, id: r.rows[0].id });
+  } catch (e) {
+    console.error('[deleteContratoFirma]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
 module.exports = {
   generarContratoSolar,
   getFirmaPublic,
   postFirmaPublic,
   listContratosFirma,
   downloadContratoFirma,
+  deleteContratoFirma,
 };

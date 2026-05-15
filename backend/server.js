@@ -35,6 +35,7 @@ const {
   postFirmaPublic,
   listContratosFirma,
   downloadContratoFirma,
+  deleteContratoFirma,
 } = require('./controllers/contratoSolarController');
 const email         = require('./controllers/emailController');
 const menuLinks     = require('./controllers/menuLinksController');
@@ -705,6 +706,7 @@ app.get('/api/leads/:id/propuesta/html', authMiddleware, verPropuestaHTML);
 app.post('/api/leads/:id/contrato-solar', authMiddleware, generarContratoSolar);
 app.get('/api/leads/:id/contratos-firma', authMiddleware, listContratosFirma);
 app.get('/api/contratos-firma/:id/pdf',   authMiddleware, downloadContratoFirma);
+app.delete('/api/contratos-firma/:id',    authMiddleware, deleteContratoFirma);
 app.patch('/api/leads/:id/solar', authMiddleware, async (req, res) => {
   try {
     const { pool } = require('./services/db');
