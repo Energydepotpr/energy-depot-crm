@@ -170,9 +170,10 @@ function buildContratoHTML(d) {
   .seccion-head{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:11pt;font-weight:800;color:#1a3c8f;text-transform:uppercase;letter-spacing:1.5px;margin:6px 0 14px;padding-bottom:6px;border-bottom:2px solid #1a3c8f}
 
   /* ===== CLÁUSULAS ===== */
-  .clausula{margin-bottom:14px;page-break-inside:avoid;break-inside:avoid-page}
-  .sub, .sub-bullet, .texto, .clausula-row, .preambulo, p, li{page-break-inside:avoid;break-inside:avoid-page}
-  body, p, .texto, .sub, .sub-bullet, .preambulo .body{orphans:3;widows:3}
+  .clausula{margin-bottom:14px}
+  /* Solo elementos atómicos (no-divisibles) — el resto fluye libre para no dejar páginas vacías */
+  .clausula-row, table.pagos, .firmas, .partes, .hero, .pagos-wrap{page-break-inside:avoid;break-inside:avoid-page}
+  body, p, .texto, .sub, .sub-bullet{orphans:2;widows:2}
   .clausula-row{display:flex;align-items:flex-start;gap:12px}
   .clausula .num{flex-shrink:0;width:30px;height:30px;background:#1a3c8f;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11.5pt;font-family:'Plus Jakarta Sans',-apple-system,sans-serif}
   .clausula .body{flex:1}
