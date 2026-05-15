@@ -28,7 +28,9 @@ async function ensureContratosFirmaTable() {
 }
 
 function frontendBase() {
-  return (process.env.FRONTEND_URL || 'http://localhost:3000').split(',')[0].trim().replace(/\/$/, '');
+  const fromEnv = (process.env.FRONTEND_URL || '').split(',')[0].trim().replace(/\/$/, '');
+  if (fromEnv && !fromEnv.includes('localhost')) return fromEnv;
+  return 'https://crm-energydepotpr.com';
 }
 
 function emailHTMLContratoParaFirma({ cliente, signingUrl }) {
