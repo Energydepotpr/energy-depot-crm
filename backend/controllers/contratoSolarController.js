@@ -320,10 +320,7 @@ function buildContratoHTML(d) {
 </div>
 
 <!-- ============ PÁGINA 2 ============ -->
-<div class="pagebreak"></div>
-<div class="page">
-
-  <!-- 4. Compraventa con Financiamiento -->
+<!-- 4. Compraventa con Financiamiento -->
   <div class="clausula">
     <div class="titulo"><span class="num">4</span> Compraventa con Financiamiento</div>
         <div class="texto">Sólo aplicable cuando medie financiamiento para la compra del Sistema SELF-ENERGY, según adelantado por el Comprador en el Preacuerdo de Compraventa de Sistema SELF-ENERGY.</div>
@@ -363,10 +360,7 @@ function buildContratoHTML(d) {
   </div>
 
   <!-- ============ PÁGINA 3 ============ -->
-<div class="pagebreak"></div>
-<div class="page">
-
-  <!-- 8. Mantenimiento -->
+<!-- 8. Mantenimiento -->
   <div class="clausula">
     <div class="titulo"><span class="num">8</span> Mantenimiento</div>
         <div class="texto">El Comprador reconoce que será exclusivamente responsable de la operación, mantenimiento y reparación del Sistema SELF-ENERGY, excepto que aplique cualquier situación cubierta por la garantía limitada del Sistema SELF-ENERGY ofrecida por el Vendedor. El Comprador será exclusivamente responsable de cualquier mantenimiento, reparación y/o requisito necesario (i.e. seguros, etc.) para la aprobación de cualquier Acuerdo de Interconexión, Acuerdo de Medición Neta y/o cualquier otro acuerdo suscrito con LUMA Energy o PREPA relacionado al Sistema SELF-ENERGY (colectivamente, los &ldquo;Acuerdos Energéticos&rdquo;). El Comprador reconoce que los Acuerdos Energéticos son a un término definido y que su renovación depende del cumplimiento por el Comprador de una serie de requisitos establecidos por ley, reglamento y/o en los propios Acuerdos Energéticos. Será responsabilidad exclusiva del Comprador el cumplimiento con dichos Acuerdo Energéticos y los requisitos necesarios para su renovación. Por lo menos tres (3) meses previos al vencimiento de cualquiera de los Acuerdo Energéticos, el Comprador podrá notificar al Vendedor que desea que el Vendedor le refiera, a costo exclusivo del Comprador, un profesional para que lo asista o ayude en la renovación de cualquiera de los Acuerdos Energéticos.</div>
@@ -393,10 +387,7 @@ function buildContratoHTML(d) {
 </div>
 
 <!-- ============ PÁGINA 4 ============ -->
-<div class="pagebreak"></div>
-<div class="page">
-
-  <p class="sub">No obstante, Energy Depot LLC podrá, a su entera discreción, ofrecer al heredero principal o nuevo titular del inmueble una evaluación técnica y opción de reinscripción de garantía bajo los siguientes términos:</p>
+<p class="sub">No obstante, Energy Depot LLC podrá, a su entera discreción, ofrecer al heredero principal o nuevo titular del inmueble una evaluación técnica y opción de reinscripción de garantía bajo los siguientes términos:</p>
   <div class="sub-bullet">• Que el heredero solicite formalmente la reinscripción dentro de los noventa (90) días siguientes a la inscripción de la herencia.</div>
   <div class="sub-bullet">• Que el sistema se encuentre en condiciones operativas originales, sin alteraciones ni intervención de terceros.</div>
   <div class="sub-bullet">• Que el heredero asuma los costos de inspección, reinscripción y certificación del sistema.</div>
@@ -434,10 +425,7 @@ function buildContratoHTML(d) {
 </div>
 
 <!-- ============ PÁGINA 5 ============ -->
-<div class="pagebreak"></div>
-<div class="page">
-
-  <!-- 12. Documentos y Facturas -->
+<!-- 12. Documentos y Facturas -->
   <div class="clausula">
     <div class="titulo"><span class="num">12</span> Documentos y Facturas</div>
         <div class="texto">El Comprador proveerá copia al Vendedor de los Acuerdos Energéticos, así como cualquier otro contrato o acuerdo suscrito con relación al Sistema SELF-ENERGY, así como de copia de las facturas de consumo de energía eléctrica para las Facilidades por un periodo de doce (12) meses luego de instalado el Sistema SELF-ENERGY.</div>
@@ -486,10 +474,7 @@ function buildContratoHTML(d) {
   </div>
 
   <!-- ============ PÁGINA 6 ============ -->
-<div class="pagebreak"></div>
-<div class="page">
-
-  <!-- 17. Misceláneos -->
+<!-- 17. Misceláneos -->
   <div class="clausula">
     <div class="titulo"><span class="num">17</span> Misceláneos</div>
     <p class="sub"><span class="letra">a.</span> <span class="sub-titulo">Enmiendas.</span> Este Acuerdo únicamente podrá ser enmendado, modificado o cedido mediante el consentimiento por escrito de las partes.</p>
