@@ -28,9 +28,11 @@ async function ensureContratosFirmaTable() {
 }
 
 function frontendBase() {
+  // Siempre usar el dominio público del CRM para links públicos (firma, share).
+  // Ignora FRONTEND_URL si apunta a vercel.app o localhost.
   const fromEnv = (process.env.FRONTEND_URL || '').split(',')[0].trim().replace(/\/$/, '');
-  if (fromEnv && !fromEnv.includes('localhost')) return fromEnv;
-  return 'https://crm-energydepotpr.com';
+  const isUgly = !fromEnv || fromEnv.includes('localhost') || fromEnv.includes('vercel.app');
+  return isUgly ? 'https://crm-energydepotpr.com' : fromEnv;
 }
 
 function emailHTMLContratoParaFirma({ cliente, signingUrl }) {
