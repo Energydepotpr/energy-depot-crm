@@ -14,13 +14,13 @@ export const metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.ico?v=3', sizes: 'any' },
-      { url: '/logo-icon.png?v=3', type: 'image/png' },
+      { url: '/favicon.ico?v=4', sizes: 'any' },
+      { url: '/logo-icon.png?v=4', type: 'image/png' },
     ],
     apple: [
-      { url: '/apple-icon.png?v=3', sizes: '180x180' },
+      { url: '/apple-icon.png?v=4', sizes: '180x180' },
     ],
-    shortcut: '/favicon.ico?v=3',
+    shortcut: '/favicon.ico?v=4',
   },
 };
 
@@ -42,10 +42,10 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="ED CRM" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-icon.png?v=3" />
-        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=3" />
-        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=3" />
-        <link rel="apple-touch-startup-image" href="/apple-icon.png?v=3" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-icon.png?v=4" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=4" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=4" />
+        <link rel="apple-touch-startup-image" href="/apple-icon.png?v=4" />
         <meta name="theme-color" content="#1b9af5" />
         {/* Prevent zoom on inputs (iOS) */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
