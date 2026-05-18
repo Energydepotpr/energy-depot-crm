@@ -12,7 +12,9 @@ const strings = {
     // ── Navegación ──────────────────────────────
     'nav.home':          'Inicio',
     'nav.leads':         'Leads',
+    'nav.cotizar':       'Cotizar',
     'nav.chats':         'Chats',
+    'nav.citas':         'Calendario',
     'nav.contacts':      'Contactos',
     'nav.email':         'Correo',
     'nav.calls':         'Llamadas',
@@ -353,7 +355,9 @@ const strings = {
     // ── Navigation ──────────────────────────────
     'nav.home':          'Home',
     'nav.leads':         'Leads',
+    'nav.cotizar':       'Quote',
     'nav.chats':         'Chats',
+    'nav.citas':         'Calendar',
     'nav.contacts':      'Contacts',
     'nav.email':         'Email',
     'nav.calls':         'Calls',
