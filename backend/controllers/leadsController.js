@@ -224,36 +224,23 @@ async function moverEtapa(req, res) {
 }
 
 async function eliminar(req, res) {
-  const client = await pool.connect();
   try {
     const id = req.params.id;
-    await client.query('BEGIN');
-    // Borrar dependientes que no tienen ON DELETE CASCADE.
-    // Cada delete va en su propio SAVEPOINT para que un fallo individual
-    // (tabla inexistente, columna distinta, etc) no aborte la transacción.
-    const dependents = [
-      'messages','notes','internal_notes','tags','activity','tasks','alerts',
-      'lead_contacts','custom_field_values','trip_info','call_logs','emails',
-      'lead_assignments','contratos_firma','appointments'
-    ];
-    for (const tbl of dependents) {
-      await client.query('SAVEPOINT sp');
-      try {
-        await client.query(`DELETE FROM ${tbl} WHERE lead_id = $1`, [id]);
-        await client.query('RELEASE SAVEPOINT sp');
-      } catch (e) {
-        await client.query('ROLLBACK TO SAVEPOINT sp');
-      }
+    // Descubrir qué tablas existen con columna lead_id
+    const tblRows = await pool.query(
+      `SELECT table_name FROM information_schema.columns
+       WHERE column_name = 'lead_id' AND table_schema = 'public' AND table_name <> 'leads'`
+    );
+    // Cada delete en su propio query (sin transacción) → fallos aislados
+    for (const r of tblRows.rows) {
+      try { await pool.query(`DELETE FROM "${r.table_name}" WHERE lead_id = $1`, [id]); }
+      catch (e) { console.warn('[eliminar lead] skip', r.table_name, e.message); }
     }
-    await client.query('DELETE FROM leads WHERE id = $1', [id]);
-    await client.query('COMMIT');
+    await pool.query('DELETE FROM leads WHERE id = $1', [id]);
     res.json({ ok: true });
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch {}
     console.error('[eliminar lead]', err.message);
     res.status(500).json({ error: err.message || 'Error interno del servidor' });
-  } finally {
-    client.release();
   }
 }
 
