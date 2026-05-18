@@ -51,7 +51,7 @@ export default function CitasPage() {
     }).toString();
     Promise.all([
       api.appointments(`?${q}`).catch(() => []),
-      api.tasks(`?completed=false`).catch(() => []),
+      api.tasks(``).catch(() => []),  // todas (completas e incompletas) para mostrar checks
     ]).then(([a, t]) => {
       setAppts(Array.isArray(a) ? a : (a?.items || []));
       setTasks(Array.isArray(t) ? t : (t?.items || []));
@@ -62,6 +62,34 @@ export default function CitasPage() {
   const updateStatus = async (id, s) => {
     try { await api.updateAppointment(id, { status: s }); load(); }
     catch (e) { alert(e.message); }
+  };
+
+  const toggleTaskDone = async (task) => {
+    try { await api.completeTask(task.id, !task.completed); load(); }
+    catch (e) { alert(e.message); }
+  };
+  const deleteTask = async (id) => {
+    if (!confirm('¿Eliminar esta nota?')) return;
+    try { await api.deleteTask(id); load(); }
+    catch (e) { alert(e.message); }
+  };
+
+  // Add note state
+  const [newTitle, setNewTitle] = useState('');
+  const [newTime, setNewTime] = useState('09:00');
+  const [adding, setAdding] = useState(false);
+  const addNote = async () => {
+    if (!newTitle.trim()) return;
+    setAdding(true);
+    try {
+      const [hh, mm] = newTime.split(':');
+      const dt = new Date(selectedDay);
+      dt.setHours(Number(hh)||9, Number(mm)||0, 0, 0);
+      await api.createTask({ title: newTitle.trim(), due_date: dt.toISOString() });
+      setNewTitle('');
+      load();
+    } catch (e) { alert(e.message); }
+    finally { setAdding(false); }
   };
 
   // Grilla del mes: 6 semanas × 7 días
@@ -221,13 +249,39 @@ export default function CitasPage() {
               }
               const tk = e.task;
               return (
-                <div key={i} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#8b5cf6' }}>{e.time} ✓ Tarea</div>
-                  <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 4 }}>{tk.title}</div>
-                  {tk.lead_id && <Link href={`/leads?id=${tk.lead_id}`} style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none', marginTop: 4, display: 'inline-block' }}>Ver lead →</Link>}
+                <div key={i} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 8, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <button onClick={() => toggleTaskDone(tk)} title={tk.completed ? 'Marcar pendiente' : 'Marcar completada'}
+                    style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, border: tk.completed ? 'none' : '2px solid #8b5cf6', background: tk.completed ? '#10b981' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, marginTop: 1 }}>
+                    {tk.completed && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
+                  </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: tk.completed ? 'var(--muted)' : '#8b5cf6' }}>{e.time}</div>
+                      <button onClick={() => deleteTask(tk.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: 14, cursor: 'pointer', padding: 0, lineHeight: 1 }} title="Eliminar">×</button>
+                    </div>
+                    <div style={{ fontSize: 13, color: tk.completed ? 'var(--muted)' : 'var(--text)', marginTop: 2, textDecoration: tk.completed ? 'line-through' : 'none' }}>{tk.title}</div>
+                    {tk.lead_id && <Link href={`/leads?id=${tk.lead_id}`} style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none', marginTop: 4, display: 'inline-block' }}>Ver lead →</Link>}
+                  </div>
                 </div>
               );
             })}
+
+            {/* Add note form */}
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>+ Nueva nota</div>
+              <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addNote(); }}
+                placeholder="Escribe una nota o tarea…"
+                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', fontSize: 13, color: 'var(--text)', outline: 'none', marginBottom: 6 }} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 8px', fontSize: 12, color: 'var(--text)', outline: 'none' }} />
+                <button onClick={addNote} disabled={!newTitle.trim() || adding}
+                  style={{ flex: 1, background: '#1a3c8f', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 12px', fontSize: 12, fontWeight: 700, cursor: newTitle.trim() && !adding ? 'pointer' : 'default', opacity: !newTitle.trim() || adding ? 0.5 : 1 }}>
+                  {adding ? '…' : '+ Agregar'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
