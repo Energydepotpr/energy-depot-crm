@@ -228,14 +228,22 @@ async function eliminar(req, res) {
   try {
     const id = req.params.id;
     await client.query('BEGIN');
-    // Borrar dependientes que no tienen ON DELETE CASCADE
+    // Borrar dependientes que no tienen ON DELETE CASCADE.
+    // Cada delete va en su propio SAVEPOINT para que un fallo individual
+    // (tabla inexistente, columna distinta, etc) no aborte la transacción.
     const dependents = [
       'messages','notes','internal_notes','tags','activity','tasks','alerts',
       'lead_contacts','custom_field_values','trip_info','call_logs','emails',
       'lead_assignments','contratos_firma','appointments'
     ];
     for (const tbl of dependents) {
-      try { await client.query(`DELETE FROM ${tbl} WHERE lead_id = $1`, [id]); } catch {}
+      await client.query('SAVEPOINT sp');
+      try {
+        await client.query(`DELETE FROM ${tbl} WHERE lead_id = $1`, [id]);
+        await client.query('RELEASE SAVEPOINT sp');
+      } catch (e) {
+        await client.query('ROLLBACK TO SAVEPOINT sp');
+      }
     }
     await client.query('DELETE FROM leads WHERE id = $1', [id]);
     await client.query('COMMIT');
