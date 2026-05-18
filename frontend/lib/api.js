@@ -394,6 +394,7 @@ export const api = {
 
   // Appointments / Citas
   appointments:         (params = '')   => req('GET',    `/api/appointments${params}`),
+  createAppointment:    (data)           => req('POST',   '/api/appointments', data),
   updateAppointment:    (id, data)      => req('PATCH',  `/api/appointments/${id}`, data),
   deleteAppointment:    (id)            => req('DELETE', `/api/appointments/${id}`),
 

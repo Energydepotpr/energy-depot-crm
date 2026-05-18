@@ -204,6 +204,7 @@ app.use('/api', authMiddleware);
 
 // Appointments (auth)
 app.get('/api/appointments',         appointmentsCtrl.listAppointments);
+app.post('/api/appointments',        appointmentsCtrl.createAppointment);
 app.patch('/api/appointments/:id',   appointmentsCtrl.updateAppointment);
 app.delete('/api/appointments/:id',  appointmentsCtrl.deleteAppointment);
 

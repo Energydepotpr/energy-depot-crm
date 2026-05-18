@@ -74,6 +74,51 @@ export default function CitasPage() {
     catch (e) { alert(e.message); }
   };
 
+  // Add appointment state
+  const [showCitaForm, setShowCitaForm] = useState(false);
+  const [citaTime, setCitaTime] = useState('10:00');
+  const [citaReason, setCitaReason] = useState('orientacion');
+  const [citaType, setCitaType] = useState('llamada');
+  const [citaNotes, setCitaNotes] = useState('');
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadResults, setLeadResults] = useState([]);
+  const [selectedLead, setSelectedLead] = useState(null); // { id, title, contact_name, ... }
+  const [creatingCita, setCreatingCita] = useState(false);
+
+  useEffect(() => {
+    if (!leadSearch.trim() || selectedLead) { setLeadResults([]); return; }
+    const t = setTimeout(() => {
+      api.leads(`?search=${encodeURIComponent(leadSearch.trim())}&limit=8`).then(r => {
+        setLeadResults((Array.isArray(r) ? r : r?.items || []).slice(0, 8));
+      }).catch(() => setLeadResults([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [leadSearch, selectedLead]);
+
+  const createCita = async () => {
+    setCreatingCita(true);
+    try {
+      const [hh, mm] = citaTime.split(':');
+      const dt = new Date(selectedDay);
+      dt.setHours(Number(hh)||10, Number(mm)||0, 0, 0);
+      await api.createAppointment({
+        lead_id: selectedLead?.id || null,
+        contact_name: selectedLead?.contact_name || selectedLead?.title || null,
+        contact_phone: selectedLead?.contact_phone || null,
+        contact_email: selectedLead?.contact_email || null,
+        scheduled_at: dt.toISOString(),
+        reason: citaReason,
+        type: citaType,
+        notes: citaNotes.trim() || null,
+        status: 'confirmed',
+      });
+      setShowCitaForm(false);
+      setSelectedLead(null); setLeadSearch(''); setCitaNotes('');
+      load();
+    } catch (e) { alert(e.message); }
+    finally { setCreatingCita(false); }
+  };
+
   // Add note state
   const [newTitle, setNewTitle] = useState('');
   const [newTime, setNewTime] = useState('09:00');
@@ -265,6 +310,70 @@ export default function CitasPage() {
                 </div>
               );
             })}
+
+            {/* Add cita button + form */}
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+              {!showCitaForm ? (
+                <button onClick={() => setShowCitaForm(true)}
+                  style={{ width: '100%', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  📅 + Nueva cita
+                </button>
+              ) : (
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>Nueva cita</div>
+                    <button onClick={() => { setShowCitaForm(false); setSelectedLead(null); setLeadSearch(''); }} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 14, cursor: 'pointer', lineHeight: 1 }}>×</button>
+                  </div>
+                  {/* Lead picker */}
+                  {selectedLead ? (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', borderRadius: 6, padding: '6px 8px', marginBottom: 8, fontSize: 12 }}>
+                      <span style={{ color: 'var(--text)', fontWeight: 600 }}>👤 {selectedLead.contact_name || selectedLead.title}</span>
+                      <button onClick={() => { setSelectedLead(null); setLeadSearch(''); }} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 12, cursor: 'pointer' }}>cambiar</button>
+                    </div>
+                  ) : (
+                    <div style={{ position: 'relative', marginBottom: 8 }}>
+                      <input value={leadSearch} onChange={e => setLeadSearch(e.target.value)}
+                        placeholder="Buscar cliente (nombre, email, tel)…"
+                        style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px', fontSize: 12, color: 'var(--text)', outline: 'none' }} />
+                      {leadResults.length > 0 && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, marginTop: 4, maxHeight: 180, overflowY: 'auto', zIndex: 10 }}>
+                          {leadResults.map(l => (
+                            <button key={l.id} onClick={() => { setSelectedLead(l); setLeadResults([]); }}
+                              style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', padding: '7px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer' }}>
+                              <div style={{ fontWeight: 600 }}>{l.contact_name || l.title}</div>
+                              {l.contact_phone && <div style={{ fontSize: 10, color: 'var(--muted)' }}>{l.contact_phone}</div>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
+                    <input type="time" value={citaTime} onChange={e => setCitaTime(e.target.value)}
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px', fontSize: 12, color: 'var(--text)', outline: 'none' }} />
+                    <select value={citaType} onChange={e => setCitaType(e.target.value)}
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px', fontSize: 12, color: 'var(--text)', outline: 'none' }}>
+                      <option value="llamada">📞 Llamada</option>
+                      <option value="visita">🏠 Visita</option>
+                    </select>
+                  </div>
+                  <select value={citaReason} onChange={e => setCitaReason(e.target.value)}
+                    style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px', fontSize: 12, color: 'var(--text)', outline: 'none', marginBottom: 8 }}>
+                    <option value="orientacion">🎓 Orientación</option>
+                    <option value="dudas">❓ Aclarar dudas</option>
+                    <option value="financiamiento">💰 Financiamiento</option>
+                    <option value="cotizacion">📋 Cotización</option>
+                    <option value="otra">💬 Otra</option>
+                  </select>
+                  <textarea value={citaNotes} onChange={e => setCitaNotes(e.target.value)} placeholder="Notas (opcional)…" rows={2}
+                    style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px', fontSize: 12, color: 'var(--text)', outline: 'none', resize: 'vertical', fontFamily: 'inherit', marginBottom: 8 }} />
+                  <button onClick={createCita} disabled={creatingCita}
+                    style={{ width: '100%', background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 12px', fontSize: 12, fontWeight: 700, cursor: creatingCita ? 'default' : 'pointer', opacity: creatingCita ? 0.6 : 1 }}>
+                    {creatingCita ? 'Creando…' : '✓ Crear cita'}
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Add note form */}
             <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>

@@ -432,9 +432,68 @@ async function deleteAppointment(req, res) {
   }
 }
 
+// ─── POST /api/appointments (auth) — agente crea cita interna ──────────────
+async function createAppointment(req, res) {
+  try {
+    await ensureAppointmentsTable();
+    const { lead_id, contact_name, contact_email, contact_phone, city,
+            reason = 'orientacion', reason_other, type = 'llamada',
+            scheduled_at, duration_min = 30, status = 'confirmed', notes } = req.body || {};
+    if (!scheduled_at) return res.status(400).json({ error: 'scheduled_at requerido' });
+
+    // Si vino lead_id, traer datos del lead para llenar campos vacíos
+    let nombre = contact_name, email = contact_email, phone = contact_phone, ciudad = city;
+    if (lead_id) {
+      try {
+        const lr = await pool.query(`SELECT l.title, l.contact_phone, l.contact_email, c.name AS cname FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id WHERE l.id = $1`, [lead_id]);
+        const lr0 = lr.rows[0];
+        if (lr0) {
+          nombre = nombre || lr0.cname || lr0.title;
+          email  = email  || lr0.contact_email;
+          phone  = phone  || lr0.contact_phone;
+        }
+      } catch {}
+    }
+    if (!nombre) nombre = 'Cita';
+
+    const at = new Date(scheduled_at);
+    const r = await pool.query(
+      `INSERT INTO appointments
+         (lead_id, contact_name, contact_email, contact_phone, city, reason, reason_other, type, scheduled_at, duration_min, status, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [lead_id || null, nombre, email || null, phone || null, ciudad || null, reason, reason_other || null,
+       type, at, duration_min, status, notes || null]
+    );
+    const a = r.rows[0];
+
+    // Crear tarea + alerta ligadas al lead (si hay)
+    if (lead_id) {
+      try {
+        const txt = `${REASON_LABELS[reason] || reason} — ${type === 'llamada' ? 'Llamada' : 'Visita'}`;
+        await pool.query(
+          `INSERT INTO tasks (lead_id, title, due_date) VALUES ($1,$2,$3)`,
+          [lead_id, `📅 ${txt}`, at]
+        );
+      } catch {}
+      try {
+        await pool.query(
+          `INSERT INTO alerts (title, message, lead_id, seen, type) VALUES ($1,$2,$3,false,'info')`,
+          ['📅 Cita agendada', `${nombre} · ${utcToPrLocal(at)}`, lead_id]
+        );
+      } catch {}
+    }
+
+    res.json({ ...a, scheduled_at_pr: utcToPrLocal(at), reason_label: REASON_LABELS[reason] || reason });
+  } catch (e) {
+    console.error('[createAppointment]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
 module.exports = {
   getPublicSlots,
   createPublicAppointment,
+  createAppointment,
   listAppointments,
   updateAppointment,
   deleteAppointment,
