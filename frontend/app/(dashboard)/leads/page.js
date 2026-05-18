@@ -4231,6 +4231,9 @@ export default function LeadsPage() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   // Dormidos filter (no activity > 7 days)
   const [filterDormidos, setFilterDormidos] = useState(false);
+  // Consumo kWh promedio mensual (rango)
+  const [filterConsumoMin, setFilterConsumoMin] = useState('');
+  const [filterConsumoMax, setFilterConsumoMax] = useState('');
   // Unread message counts per lead
   const [unreadByLead, setUnreadByLead] = useState({});
   // Filter panel (Kommo-style)
@@ -4460,7 +4463,16 @@ export default function LeadsPage() {
     .filter(l => filterTags.size === 0 || (l.tags || []).some(t => filterTags.has(t.tag)))
     .filter(l => !filterDormidos || !l.updated_at || ((Date.now() - new Date(l.updated_at).getTime()) / 86400000) > 7)
     .filter(l => !filterResponsable || (filterResponsable === 'none' ? !l.assigned_to : String(l.assigned_to) === String(filterResponsable)))
-    .filter(l => filterEtapas.size === 0 || filterEtapas.has(l.stage_id));
+    .filter(l => filterEtapas.size === 0 || filterEtapas.has(l.stage_id))
+    .filter(l => {
+      const min = Number(filterConsumoMin);
+      const max = Number(filterConsumoMax);
+      if (!min && !max) return true;
+      const avg = Number(l.solar_data?.calc?.avg || 0);
+      if (min && avg < min) return false;
+      if (max && avg > max) return false;
+      return true;
+    });
 
   const activeFilterCount = [
     filterResponsable ? 1 : 0,
@@ -4468,6 +4480,7 @@ export default function LeadsPage() {
     filterSmallGroup ? 1 : 0,
     filterDormidos ? 1 : 0,
     filterTags.size > 0 ? 1 : 0,
+    (filterConsumoMin || filterConsumoMax) ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
   const leadsParaKanban = applyCommonFilters(leadsDelPipeline);
@@ -4963,6 +4976,30 @@ export default function LeadsPage() {
               </div>
             </div>
           )}
+
+          {/* Consumo kWh */}
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>⚡ Consumo (kWh/mes)</div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input type="number" placeholder="Mín" value={filterConsumoMin} onChange={e => setFilterConsumoMin(e.target.value)}
+                style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 8px', fontSize: 12, color: 'var(--text)', outline: 'none' }} />
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>—</span>
+              <input type="number" placeholder="Máx" value={filterConsumoMax} onChange={e => setFilterConsumoMax(e.target.value)}
+                style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 8px', fontSize: 12, color: 'var(--text)', outline: 'none' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+              {[[100,''],['',500],[500,''],[1000,''],[1500,'']].map((r, i) => (
+                <button key={i} onClick={() => { setFilterConsumoMin(String(r[0]||'')); setFilterConsumoMax(String(r[1]||'')); }}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 6, padding: '3px 8px', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
+                  {r[1] && !r[0] ? `<${r[1]}` : r[0] && !r[1] ? `>${r[0]}` : `${r[0]}-${r[1]}`}
+                </button>
+              ))}
+              {(filterConsumoMin || filterConsumoMax) && (
+                <button onClick={() => { setFilterConsumoMin(''); setFilterConsumoMax(''); }}
+                  style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>Limpiar</button>
+              )}
+            </div>
+          </div>
 
           {/* Otros filtros rápidos */}
           <div style={{ padding: '14px 16px' }}>
