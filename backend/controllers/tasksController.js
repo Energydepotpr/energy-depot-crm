@@ -36,12 +36,12 @@ async function listar(req, res) {
 async function crear(req, res) {
   try {
     const { lead_id, title, due_date, assigned_to } = req.body;
-    if (!lead_id || !title?.trim()) return res.status(400).json({ error: 'lead_id y title requeridos' });
+    if (!title?.trim()) return res.status(400).json({ error: 'title requerido' });
 
     const result = await pool.query(
       `INSERT INTO tasks (lead_id, title, due_date, assigned_to, created_by)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [lead_id, title.trim(), due_date || null, assigned_to || req.user.id, req.user.id]
+      [lead_id || null, title.trim(), due_date || null, assigned_to || req.user.id, req.user.id]
     );
 
     const task = await pool.query(
@@ -54,7 +54,9 @@ async function crear(req, res) {
       [result.rows[0].id]
     );
 
-    await registrarActividad(lead_id, req.user.id, 'tarea_creada', title.trim());
+    if (lead_id) {
+      try { await registrarActividad(lead_id, req.user.id, 'tarea_creada', title.trim()); } catch {}
+    }
     res.json(task.rows[0]);
   } catch (err) { console.error('[ERROR]', err.message); res.status(500).json({ error: 'Error interno del servidor' }); }
 }

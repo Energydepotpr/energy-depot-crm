@@ -224,12 +224,28 @@ async function moverEtapa(req, res) {
 }
 
 async function eliminar(req, res) {
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM leads WHERE id = $1', [req.params.id]);
+    const id = req.params.id;
+    await client.query('BEGIN');
+    // Borrar dependientes que no tienen ON DELETE CASCADE
+    const dependents = [
+      'messages','notes','internal_notes','tags','activity','tasks','alerts',
+      'lead_contacts','custom_field_values','trip_info','call_logs','emails',
+      'lead_assignments','contratos_firma','appointments'
+    ];
+    for (const tbl of dependents) {
+      try { await client.query(`DELETE FROM ${tbl} WHERE lead_id = $1`, [id]); } catch {}
+    }
+    await client.query('DELETE FROM leads WHERE id = $1', [id]);
+    await client.query('COMMIT');
     res.json({ ok: true });
   } catch (err) {
-    console.error('[ERROR]', err.message);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error('[eliminar lead]', err.message);
+    res.status(500).json({ error: err.message || 'Error interno del servidor' });
+  } finally {
+    client.release();
   }
 }
 
