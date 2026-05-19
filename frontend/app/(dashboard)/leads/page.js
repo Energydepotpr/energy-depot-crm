@@ -1039,6 +1039,26 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
               </div>
             );
           })()}
+          {/* Fila 3 mobile: selector de etapa visible + valor */}
+          {isMobile && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+              <select
+                value={lead.stage_id || ''}
+                onChange={e => moverEtapa(e.target.value)}
+                style={{
+                  flex: 1, minWidth: 0,
+                  background: `${lead.stage_color || '#1a3c8f'}25`,
+                  border: `1px solid ${lead.stage_color || '#1a3c8f'}`,
+                  color: lead.stage_color || '#e0eaf5',
+                  borderRadius: 8, padding: '8px 12px', fontSize: 13, fontWeight: 700,
+                  outline: 'none', cursor: 'pointer',
+                }}>
+                <option value="">— Etapa —</option>
+                {allStages.map(s => <option key={s.id} value={s.id} style={{ background: '#1c2d3e', color: '#fff' }}>{s.name}</option>)}
+              </select>
+              {lead.value > 0 && <span style={{ fontSize: 13, color: '#10b981', fontWeight: 700 }}>${Number(lead.value).toLocaleString()}</span>}
+            </div>
+          )}
           {/* Fila 3: etapa + valor + acciones — desktop only */}
           {!isMobile && <div className="flex items-center gap-2 flex-wrap">
             {lead.stage_name && (
