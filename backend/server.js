@@ -241,6 +241,14 @@ app.post('/api/appointments',        appointmentsCtrl.createAppointment);
 app.patch('/api/appointments/:id',   appointmentsCtrl.updateAppointment);
 app.delete('/api/appointments/:id',  appointmentsCtrl.deleteAppointment);
 
+// Financing documents (auth) — cooperativas/preestamos
+const financingCtrl = require('./controllers/financingController');
+app.get   ('/api/leads/:id/financing-docs',                financingCtrl.listDocs);
+app.post  ('/api/leads/:id/financing-docs',                financingCtrl.uploadDoc);
+app.get   ('/api/leads/:id/financing-docs/:doc_key/file',  financingCtrl.getFile);
+app.delete('/api/leads/:id/financing-docs/:doc_key',       financingCtrl.deleteDoc);
+app.post  ('/api/leads/:id/financing/send',                financingCtrl.sendToCoop);
+
 app.get('/api/me', auth.me);
 app.get('/api/stats', settings.stats);
 app.get('/api/stats/chart', settings.statsChart);

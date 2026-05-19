@@ -1402,13 +1402,102 @@ function BotPromptSection({ prompt, setPrompt, guardar, guardando, ok, promptTex
 // ====== SHELL ======
 
 const TABS = [
-  { id: 'general',      label: 'General',       icon: '⚙' },
-  { id: 'cotizaciones', label: 'Cotizaciones',  icon: '☀' },
-  { id: 'bot',          label: 'Bot IA',        icon: '🤖' },
-  { id: 'comunicacion', label: 'Comunicación',  icon: '📨' },
-  { id: 'pipeline',     label: 'Pipeline',      icon: '🔧' },
-  { id: 'permisos',     label: 'Permisos',      icon: '👥' },
+  { id: 'general',         label: 'General',        icon: '⚙' },
+  { id: 'cotizaciones',    label: 'Cotizaciones',   icon: '☀' },
+  { id: 'financiamiento',  label: 'Financiamiento', icon: '💰' },
+  { id: 'bot',             label: 'Bot IA',         icon: '🤖' },
+  { id: 'comunicacion',    label: 'Comunicación',   icon: '📨' },
+  { id: 'pipeline',        label: 'Pipeline',       icon: '🔧' },
+  { id: 'permisos',        label: 'Permisos',       icon: '👥' },
 ];
+
+function CooperativasSection() {
+  const DEFAULTS = [
+    { name: 'Vega Coop',     emails: ['ldelgado@vegacoop.com', 'vguzman@vegacoop.com'] },
+    { name: 'Tu Coop',       emails: ['sfranco@tucooppr.com', 'jsuarez@tucooppr.com', 'lmatos@tucooppr.com'] },
+    { name: 'Coop Oriental', emails: ['lserrano@cooporiental.com'] },
+  ];
+  const [coops, setCoops] = useState(DEFAULTS);
+  const [loaded, setLoaded] = useState(false);
+  const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    api.settings().then(c => {
+      try {
+        const raw = c?.cooperativas;
+        if (raw) {
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if (Array.isArray(parsed) && parsed.length) setCoops(parsed);
+        }
+      } catch {}
+      setLoaded(true);
+    }).catch(() => setLoaded(true));
+  }, []);
+
+  const persist = async (next) => {
+    try {
+      await api.saveSetting('cooperativas', JSON.stringify(next));
+      setOk(true);
+      setTimeout(() => setOk(false), 2000);
+    } catch (e) { alert(e.message); }
+  };
+
+  const updateOne = (idx, patch) => {
+    const next = coops.map((c, i) => i === idx ? { ...c, ...patch } : c);
+    setCoops(next);
+    return next;
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <SeccionCard title="Cooperativas de financiamiento" desc="Lista de cooperativas para enviar solicitudes desde el panel de cada lead. Auto-guarda al salir del campo.">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {coops.map((c, idx) => (
+          <div key={idx} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input
+                className="input text-sm"
+                style={{ flex: 1 }}
+                value={c.name || ''}
+                onChange={e => updateOne(idx, { name: e.target.value })}
+                onBlur={() => persist(coops)}
+                placeholder="Nombre de la cooperativa"
+              />
+              <button
+                onClick={() => {
+                  if (!confirm(`¿Eliminar "${c.name}"?`)) return;
+                  const next = coops.filter((_, i) => i !== idx);
+                  setCoops(next);
+                  persist(next);
+                }}
+                style={{ background: 'none', color: '#ef4444', border: '1px solid var(--border)', borderRadius: 6, padding: '0 10px', cursor: 'pointer', fontSize: 16 }}
+              >×</button>
+            </div>
+            <label className="text-xs text-muted block mb-1">Emails (uno por línea)</label>
+            <textarea
+              className="input text-sm w-full resize-none"
+              rows={Math.max(2, (c.emails || []).length)}
+              value={(c.emails || []).join('\n')}
+              onChange={e => updateOne(idx, { emails: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
+              onBlur={() => persist(coops)}
+              placeholder="contacto1@coop.com&#10;contacto2@coop.com"
+            />
+          </div>
+        ))}
+        <button
+          onClick={() => {
+            const next = [...coops, { name: 'Nueva cooperativa', emails: [] }];
+            setCoops(next);
+            persist(next);
+          }}
+          style={{ padding: '10px', background: 'rgba(103,232,249,0.1)', border: '1px dashed var(--accent)', color: 'var(--accent)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+        >+ Agregar cooperativa</button>
+        {ok && <div className="text-success text-xs">✓ Guardado</div>}
+      </div>
+    </SeccionCard>
+  );
+}
 
 export default function SettingsPage() {
   const { lang } = useLang();
@@ -1486,6 +1575,12 @@ export default function SettingsPage() {
             <ParametrosSolaresSection />
             <BateriasSolaresSection />
             <MensajeCotizadorSection />
+          </div>
+        );
+      case 'financiamiento':
+        return (
+          <div className="space-y-6">
+            <CooperativasSection />
           </div>
         );
       case 'bot':

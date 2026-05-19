@@ -409,6 +409,13 @@ export const api = {
   updateAppointment:    (id, data)      => req('PATCH',  `/api/appointments/${id}`, data),
   deleteAppointment:    (id)            => req('DELETE', `/api/appointments/${id}`),
 
+  // Financiamiento (docs para cooperativa)
+  financingDocs:        (id)            => req('GET',    `/api/leads/${id}/financing-docs`),
+  uploadFinancingDoc:   (id, data)      => req('POST',   `/api/leads/${id}/financing-docs`, data),
+  deleteFinancingDoc:   (id, key)       => req('DELETE', `/api/leads/${id}/financing-docs/${key}`),
+  getFinancingDocFile:  (id, key)       => req('GET',    `/api/leads/${id}/financing-docs/${key}/file`),
+  sendFinancingToCoop:  (id, data)      => req('POST',   `/api/leads/${id}/financing/send`, data),
+
   // Reports
   downloadReport: (period = 30) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('crm_token') : '';

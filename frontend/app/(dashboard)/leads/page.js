@@ -1173,6 +1173,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   { key: 'extra',     icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>), label: 'Extras', count: customFields.length },
                   { key: 'citas',     icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>), label: 'Citas', count: 0 },
                   { key: 'contratos', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>), label: 'Contratos', count: 0 },
+                  { key: 'financiamiento', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>), label: '💰 Financiamiento', count: 0 },
                 ];
                 return items.map(item => (
                   <button key={item.key} onClick={() => { setTab(item.key); setMobileTab('chat'); setShowMoreSheet(false); }}
@@ -1430,6 +1431,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             { key: 'cotizar',   full: 'Cotizar', count: Array.isArray(lead.solar_data?.quotations) ? lead.solar_data.quotations.length : (lead.solar_data?.calc ? 1 : 0) },
             { key: 'citas',     full: '📅 Citas', count: 0 },
             { key: 'contratos', full: '📄 Contratos', count: 0 },
+            { key: 'financiamiento', full: '💰 Financiamiento', count: 0 },
             { key: 'facturas',  full: '💰 Facturas', count: 0 },
           ].map(tab_item => (
             <button key={tab_item.key} onClick={() => setTab(tab_item.key)}
@@ -2690,6 +2692,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           {/* ─── TAB: CITAS ─── */}
           {tab === 'citas' && <CitasTab leadId={leadId} />}
           {tab === 'contratos' && <ContratosTab leadId={leadId} lead={lead} onUpdated={onUpdated} />}
+          {tab === 'financiamiento' && <FinanciamientoTab leadId={leadId} lead={lead} onUpdated={onUpdated} />}
           {tab === 'facturas'  && <ProjectInvoicesLeadTab leadId={leadId} />}
 
         </div>{/* end Content */}
@@ -5612,6 +5615,345 @@ function CitasTab({ leadId }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Financiamiento Tab ───────────────────────────────────────────────────────
+const FINANCING_DOCS = [
+  { key: 'solicitud',     label: 'Solicitud de préstamo (llena y firmada)' },
+  { key: 'id',            label: 'ID vigente (lic. conducir o pasaporte)' },
+  { key: 'ss',            label: 'Tarjeta de Seguro Social' },
+  { key: 'luma',          label: 'Última factura de LUMA' },
+  { key: 'talonarios',    label: 'Últimos 3 talonarios o estados bancarios (pensionado)' },
+  { key: 'carta_empleo',  label: 'Carta de empleo (si aplica)' },
+  { key: 'escrituras',    label: 'Escrituras de la propiedad (solo validación titular)' },
+];
+
+// Comprime imagen >2MB redimensionando a max 1600px, devuelve { base64, mime, filename }
+async function compressIfNeeded(file) {
+  const isImage = file.type && file.type.startsWith('image/');
+  const fileToB64 = (f) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(f);
+  });
+  if (!isImage || file.size <= 2 * 1024 * 1024) {
+    const b64 = await fileToB64(file);
+    return { base64: b64, mime: file.type || 'application/octet-stream', filename: file.name };
+  }
+  // Comprimir vía canvas
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = URL.createObjectURL(file);
+    });
+    const maxW = 1600;
+    const scale = Math.min(1, maxW / img.width);
+    const w = Math.round(img.width * scale);
+    const h = Math.round(img.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+    return { base64: dataUrl.split(',')[1], mime: 'image/jpeg', filename: file.name.replace(/\.[^.]+$/, '') + '.jpg' };
+  } catch {
+    const b64 = await fileToB64(file);
+    return { base64: b64, mime: file.type || 'application/octet-stream', filename: file.name };
+  }
+}
+
+function FinanciamientoTab({ leadId, lead, onUpdated }) {
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(null); // doc_key
+  const [showSend, setShowSend] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    api.financingDocs(leadId).then(d => setDocs(Array.isArray(d) ? d : [])).catch(() => setDocs([])).finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, [leadId]);
+
+  const byKey = Object.fromEntries(docs.map(d => [d.doc_key, d]));
+  const uploaded = docs.length;
+  const total = FINANCING_DOCS.length;
+  const allReady = uploaded >= total && FINANCING_DOCS.every(d => byKey[d.key]);
+
+  const handleUpload = async (docKey, file) => {
+    if (!file) return;
+    setUploading(docKey);
+    try {
+      const { base64, mime, filename } = await compressIfNeeded(file);
+      await api.uploadFinancingDoc(leadId, { doc_key: docKey, filename, mime_type: mime, base64 });
+      load();
+    } catch (e) {
+      alert('Error subiendo: ' + e.message);
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const handleView = async (docKey) => {
+    try {
+      const r = await api.getFinancingDocFile(leadId, docKey);
+      const blob = await (await fetch(`data:${r.mime};base64,${r.base64}`)).blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { alert(e.message); }
+  };
+
+  const handleDelete = async (docKey) => {
+    if (!confirm('¿Eliminar este documento?')) return;
+    try {
+      await api.deleteFinancingDoc(leadId, docKey);
+      load();
+    } catch (e) { alert(e.message); }
+  };
+
+  if (loading) return <div style={{ padding: 20, color: 'var(--muted)' }}>Cargando…</div>;
+
+  const fmtDate = (d) => {
+    if (!d) return '';
+    const dt = new Date(d);
+    return dt.toLocaleDateString('es-PR', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' +
+           dt.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 100 }}>
+      {/* Progress */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>📋 Documentos para cooperativa</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: allReady ? '#10b981' : '#f59e0b' }}>{uploaded}/{total}</div>
+        </div>
+        <div style={{ background: 'var(--border)', height: 8, borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ width: `${(uploaded / total) * 100}%`, height: '100%', background: allReady ? '#10b981' : '#1a3c8f', transition: 'width 0.3s' }} />
+        </div>
+      </div>
+
+      {/* Doc cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+        {FINANCING_DOCS.map(d => {
+          const doc = byKey[d.key];
+          const isUploading = uploading === d.key;
+          return (
+            <div key={d.key} style={{
+              background: 'var(--surface)',
+              border: `1px solid ${doc ? '#10b981' : 'var(--border)'}`,
+              borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: doc ? '#10b981' : 'rgba(148,163,184,0.15)',
+                  color: doc ? '#fff' : 'var(--muted)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, fontWeight: 700, flexShrink: 0,
+                }}>{doc ? '✓' : '○'}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }}>{d.label}</div>
+                  {doc && (
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                      📎 {doc.filename} · {fmtDate(doc.uploaded_at)}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {!doc && (
+                <label style={{
+                  display: 'block', textAlign: 'center', background: '#1a3c8f', color: '#fff',
+                  padding: '9px 12px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  opacity: isUploading ? 0.6 : 1,
+                }}>
+                  {isUploading ? 'Subiendo…' : '📤 Subir foto / archivo'}
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    capture="environment"
+                    disabled={isUploading}
+                    onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleUpload(d.key, f); }}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              )}
+
+              {doc && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button onClick={() => handleView(d.key)} style={{
+                    flex: 1, minWidth: 70, background: '#1a3c8f', color: '#fff', border: 'none',
+                    padding: '7px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  }}>👁 Ver</button>
+                  <label style={{
+                    flex: 1, minWidth: 90, textAlign: 'center', background: 'rgba(103,232,249,0.15)',
+                    color: '#0891b2', border: '1px solid rgba(103,232,249,0.3)',
+                    padding: '7px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    opacity: isUploading ? 0.6 : 1,
+                  }}>
+                    {isUploading ? '…' : '🔄 Reemplazar'}
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      capture="environment"
+                      disabled={isUploading}
+                      onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleUpload(d.key, f); }}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  <button onClick={() => handleDelete(d.key)} style={{
+                    background: 'none', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)',
+                    padding: '7px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                  }}>🗑</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Sticky bottom send button */}
+      <div style={{
+        position: 'sticky', bottom: 0, marginTop: 8, padding: '12px 0',
+        background: 'linear-gradient(to top, var(--bg), rgba(0,0,0,0))',
+      }}>
+        <button
+          onClick={() => allReady && setShowSend(true)}
+          disabled={!allReady}
+          style={{
+            width: '100%', padding: '14px', fontSize: 15, fontWeight: 700,
+            background: allReady ? 'linear-gradient(135deg,#10b981,#059669)' : 'rgba(148,163,184,0.15)',
+            color: allReady ? '#fff' : 'var(--muted)',
+            border: 'none', borderRadius: 10,
+            cursor: allReady ? 'pointer' : 'not-allowed',
+            boxShadow: allReady ? '0 4px 14px rgba(16,185,129,0.35)' : 'none',
+          }}
+        >
+          {allReady ? '📤 Enviar a Cooperativa' : `Faltan ${total - uploaded} documento(s)`}
+        </button>
+      </div>
+
+      {showSend && (
+        <EnviarCooperativaModal
+          leadId={leadId}
+          lead={lead}
+          onClose={() => setShowSend(false)}
+          onSent={() => { setShowSend(false); load(); if (onUpdated) onUpdated(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EnviarCooperativaModal({ leadId, lead, onClose, onSent }) {
+  const COOPERATIVAS_DEFAULT = [
+    { name: 'Vega Coop',     emails: ['ldelgado@vegacoop.com', 'vguzman@vegacoop.com'] },
+    { name: 'Tu Coop',       emails: ['sfranco@tucooppr.com', 'jsuarez@tucooppr.com', 'lmatos@tucooppr.com'] },
+    { name: 'Coop Oriental', emails: ['lserrano@cooporiental.com'] },
+  ];
+  const [coops, setCoops] = useState(COOPERATIVAS_DEFAULT);
+  const [coopIdx, setCoopIdx] = useState(0);
+  const [emailsText, setEmailsText] = useState('');
+  const [message, setMessage] = useState('');
+  const [moveStage, setMoveStage] = useState(true);
+  const [sending, setSending] = useState(false);
+
+  const clientName = lead?.contact_name || lead?.title || 'el cliente';
+
+  useEffect(() => {
+    api.settings().then(c => {
+      let arr = COOPERATIVAS_DEFAULT;
+      try {
+        const raw = c?.cooperativas;
+        if (raw) {
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if (Array.isArray(parsed) && parsed.length) arr = parsed;
+        }
+      } catch {}
+      setCoops(arr);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const c = coops[coopIdx];
+    if (c) setEmailsText((c.emails || []).join('\n'));
+  }, [coopIdx, coops]);
+
+  useEffect(() => {
+    setMessage(`Buenas tardes, adjuntamos los documentos de solicitud de financiamiento para nuestro cliente ${clientName}. Cualquier información adicional, no duden en contactarnos.\n\nSaludos,\nEnergy Depot LLC.\n(787) 627-8585`);
+  }, [clientName]);
+
+  const handleSend = async () => {
+    const emails = emailsText.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+    if (!emails.length) { alert('Agrega al menos un email'); return; }
+    const cooperativa = coops[coopIdx]?.name || 'Cooperativa';
+    setSending(true);
+    try {
+      const r = await api.sendFinancingToCoop(leadId, {
+        cooperativa, emails, message, move_stage: moveStage,
+      });
+      alert(`✅ Enviado a ${cooperativa}` + (r.moved_stage ? `\nLead movido a etapa: ${r.moved_stage}` : ''));
+      onSent();
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200, display: 'flex',
+      alignItems: 'center', justifyContent: 'center', padding: 16,
+      background: 'rgba(0,0,0,0.7)',
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 14, padding: 22, maxWidth: 560, width: '100%',
+        maxHeight: '90vh', overflowY: 'auto',
+      }}>
+        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>
+          📤 Enviar solicitud a Cooperativa
+        </div>
+
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Cooperativa</label>
+        <select value={coopIdx} onChange={e => setCoopIdx(Number(e.target.value))}
+          style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 14, marginBottom: 14 }}>
+          {coops.map((c, i) => <option key={i} value={i}>{c.name}</option>)}
+        </select>
+
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Destinatarios (uno por línea)</label>
+        <textarea value={emailsText} onChange={e => setEmailsText(e.target.value)}
+          rows={3}
+          style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13, marginBottom: 14, resize: 'vertical', fontFamily: 'inherit' }} />
+
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Mensaje</label>
+        <textarea value={message} onChange={e => setMessage(e.target.value)}
+          rows={6}
+          style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13, marginBottom: 14, resize: 'vertical', fontFamily: 'inherit' }} />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
+          <input type="checkbox" checked={moveStage} onChange={e => setMoveStage(e.target.checked)} />
+          Mover lead a etapa "Financiamiento"
+        </label>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={handleSend} disabled={sending} style={{
+            flex: 1, padding: '11px', background: 'linear-gradient(135deg,#10b981,#059669)',
+            color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700,
+            cursor: sending ? 'wait' : 'pointer', opacity: sending ? 0.7 : 1,
+          }}>{sending ? 'Enviando…' : '📤 Enviar'}</button>
+          <button onClick={onClose} disabled={sending} style={{
+            padding: '11px 16px', background: 'transparent', color: 'var(--muted)',
+            border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, cursor: 'pointer',
+          }}>Cancelar</button>
+        </div>
+      </div>
     </div>
   );
 }
