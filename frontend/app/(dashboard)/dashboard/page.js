@@ -273,10 +273,14 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(false);
   const [userName, setUserName] = useState('');
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 720);
+    const check = () => {
+      setIsMobile(window.innerWidth < 720);
+      setIsNarrow(window.innerWidth < 480);
+    };
     check();
     window.addEventListener('resize', check);
     try {
@@ -333,21 +337,35 @@ export default function DashboardPage() {
             Cómo va el negocio hoy
           </div>
 
-          {/* Period selector */}
+          {/* Period selector - scrollable horizontally on mobile */}
           <div style={{
-            marginTop: 18, display: 'flex', flexWrap: 'wrap', gap: 8,
+            marginTop: 18,
+            display: 'flex',
+            flexWrap: isMobile ? 'nowrap' : 'wrap',
+            gap: 8,
+            overflowX: isMobile ? 'auto' : 'visible',
+            paddingBottom: isMobile ? 4 : 0,
+            marginLeft: isMobile ? -4 : 0,
+            marginRight: isMobile ? -4 : 0,
+            paddingLeft: isMobile ? 4 : 0,
+            paddingRight: isMobile ? 4 : 0,
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
           }}>
             {PERIODS.map(p => (
               <button
                 key={p.key}
                 onClick={() => setPeriod(p.key)}
                 style={{
-                  padding: '7px 14px', borderRadius: 999,
-                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  padding: '8px 14px', borderRadius: 999,
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
                   border: '1px solid ' + (period === p.key ? CYAN : 'rgba(255,255,255,0.25)'),
                   background: period === p.key ? CYAN : 'rgba(255,255,255,0.10)',
                   color: period === p.key ? NAVY_DARK : '#fff',
                   transition: 'all .15s ease',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  minHeight: 36,
                 }}
               >
                 {p.label}
@@ -358,10 +376,10 @@ export default function DashboardPage() {
           {period === 'custom' && (
             <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff', fontSize: 12 }} />
+                style={{ flex: isMobile ? '1 1 45%' : '0 0 auto', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff', fontSize: 14, minHeight: 36 }} />
               <span style={{ color: '#fff', fontSize: 12 }}>→</span>
               <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff', fontSize: 12 }} />
+                style={{ flex: isMobile ? '1 1 45%' : '0 0 auto', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff', fontSize: 14, minHeight: 36 }} />
             </div>
           )}
         </div>
@@ -411,7 +429,7 @@ export default function DashboardPage() {
             {/* KPI CARDS */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+              gridTemplateColumns: isNarrow ? '1fr' : isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
               gap: 14, marginBottom: 18,
             }}>
               <KpiCard label="Leads reales"

@@ -26,6 +26,14 @@ const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0'
 const sameDay = (a, b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
 
 export default function CitasPage() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const f = () => setIsMobile(window.innerWidth < 768);
+    f();
+    window.addEventListener('resize', f);
+    return () => window.removeEventListener('resize', f);
+  }, []);
+  const [showDaySheet, setShowDaySheet] = useState(false);
   const [view, setView] = useState('cal'); // cal | list
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [selectedDay, setSelectedDay] = useState(() => new Date());
@@ -176,40 +184,42 @@ export default function CitasPage() {
   const isCurrentMonth = (d) => d.getMonth() === cursor.getMonth();
 
   return (
-    <div style={{ padding: 24, color: 'var(--text)' }}>
+    <div style={{ padding: isMobile ? '14px 10px 90px' : 24, color: 'var(--text)' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>📅 Calendario</h1>
+          <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, margin: 0 }}>📅 Calendario</h1>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Citas y tareas pendientes</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'inline-flex', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 2 }}>
-            <button onClick={() => setView('cal')} style={{ background: view==='cal' ? '#1a3c8f' : 'transparent', color: view==='cal' ? '#fff' : 'var(--muted)', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>📅 Calendario</button>
-            <button onClick={() => setView('list')} style={{ background: view==='list' ? '#1a3c8f' : 'transparent', color: view==='list' ? '#fff' : 'var(--muted)', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>📋 Lista</button>
+            <button onClick={() => setView('cal')} style={{ background: view==='cal' ? '#1a3c8f' : 'transparent', color: view==='cal' ? '#fff' : 'var(--muted)', border: 'none', padding: '8px 12px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', minHeight: 36 }}>📅 {isMobile ? '' : 'Calendario'}</button>
+            <button onClick={() => setView('list')} style={{ background: view==='list' ? '#1a3c8f' : 'transparent', color: view==='list' ? '#fff' : 'var(--muted)', border: 'none', padding: '8px 12px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', minHeight: 36 }}>📋 {isMobile ? '' : 'Lista'}</button>
           </div>
           <select value={status} onChange={e => setStatus(e.target.value)}
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '7px 10px', borderRadius: 8, fontSize: 13 }}>
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '8px 10px', borderRadius: 8, fontSize: 14, minHeight: 36 }}>
             {STATUS_OPTS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
           </select>
-          <a href="/agendar" target="_blank" rel="noopener" style={{ background: '#1a3c8f', color: '#fff', padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>Página pública →</a>
+          {!isMobile && (
+            <a href="/agendar" target="_blank" rel="noopener" style={{ background: '#1a3c8f', color: '#fff', padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>Página pública →</a>
+          )}
         </div>
       </div>
 
       {view === 'cal' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) 320px', gap: 16, alignItems: 'start' }}>
           {/* Calendar */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
             {/* Month nav */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
               <button onClick={() => setCursor(d => { const x = new Date(d); x.setMonth(x.getMonth()-1); return x; })}
-                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer' }}>←</button>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>{MES[cursor.getMonth()]} {cursor.getFullYear()}</div>
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', minHeight: 38, minWidth: 40, fontSize: 16 }}>←</button>
+              <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 700 }}>{MES[cursor.getMonth()]} {cursor.getFullYear()}</div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => { const d = new Date(); d.setDate(1); setCursor(d); setSelectedDay(new Date()); }}
-                  style={{ background: '#1a3c8f', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Hoy</button>
+                  style={{ background: '#1a3c8f', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', minHeight: 38 }}>Hoy</button>
                 <button onClick={() => setCursor(d => { const x = new Date(d); x.setMonth(x.getMonth()+1); return x; })}
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer' }}>→</button>
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', minHeight: 38, minWidth: 40, fontSize: 16 }}>→</button>
               </div>
             </div>
             {/* Weekday header */}
@@ -226,34 +236,37 @@ export default function CitasPage() {
                 const inMonth = isCurrentMonth(d);
                 const isToday = sameDay(d, today);
                 const isSel = sameDay(d, selectedDay);
+                const maxShow = isMobile ? 1 : 3;
                 return (
-                  <div key={i} onClick={() => setSelectedDay(d)}
+                  <div key={i} onClick={() => { setSelectedDay(d); if (isMobile) setShowDaySheet(true); }}
                     style={{
-                      minHeight: 92, borderRight: (i % 7 !== 6) ? '1px solid var(--border)' : 'none',
+                      minHeight: isMobile ? 56 : 92,
+                      borderRight: (i % 7 !== 6) ? '1px solid var(--border)' : 'none',
                       borderBottom: i < 35 ? '1px solid var(--border)' : 'none',
-                      padding: 6, cursor: 'pointer',
+                      padding: isMobile ? 3 : 6, cursor: 'pointer',
                       background: isSel ? 'rgba(26,60,143,0.10)' : (isToday ? 'rgba(103,232,249,0.07)' : 'transparent'),
                       opacity: inMonth ? 1 : 0.4,
+                      overflow: 'hidden',
                     }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 2 : 4 }}>
                       <span style={{
-                        fontSize: 12, fontWeight: 700,
+                        fontSize: isMobile ? 11 : 12, fontWeight: 700,
                         color: isToday ? '#1a3c8f' : 'var(--text)',
                         background: isToday ? '#67e8f9' : 'transparent',
-                        width: isToday ? 22 : 'auto', height: isToday ? 22 : 'auto',
+                        width: isToday ? (isMobile ? 20 : 22) : 'auto', height: isToday ? (isMobile ? 20 : 22) : 'auto',
                         borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                       }}>{d.getDate()}</span>
-                      {evts.length > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: '#1a3c8f', background: 'rgba(26,60,143,0.10)', borderRadius: 8, padding: '1px 5px' }}>{evts.length}</span>}
+                      {evts.length > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: '#1a3c8f', background: 'rgba(26,60,143,0.10)', borderRadius: 8, padding: '1px 4px' }}>{evts.length}</span>}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {evts.slice(0, 3).map((e, j) => {
+                      {evts.slice(0, maxShow).map((e, j) => {
                         if (e.kind === 'cita') {
                           const st = STATUS_COLORS[e.appt.status] || STATUS_COLORS.pending;
-                          return <div key={j} title={`${e.time} — ${e.appt.contact_name}`} style={{ fontSize: 10, padding: '2px 5px', borderRadius: 4, background: st.bg, color: st.color, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.time} {e.appt.contact_name}</div>;
+                          return <div key={j} title={`${e.time} — ${e.appt.contact_name}`} style={{ fontSize: isMobile ? 9 : 10, padding: isMobile ? '1px 3px' : '2px 5px', borderRadius: 4, background: st.bg, color: st.color, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isMobile ? '•' : `${e.time} `}{e.appt.contact_name}</div>;
                         }
-                        return <div key={j} title={`Tarea: ${e.task.title}`} style={{ fontSize: 10, padding: '2px 5px', borderRadius: 4, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>✓ {e.task.title}</div>;
+                        return <div key={j} title={`Tarea: ${e.task.title}`} style={{ fontSize: isMobile ? 9 : 10, padding: isMobile ? '1px 3px' : '2px 5px', borderRadius: 4, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>✓ {e.task.title}</div>;
                       })}
-                      {evts.length > 3 && <div style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>+{evts.length - 3} más</div>}
+                      {evts.length > maxShow && <div style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>+{evts.length - maxShow}</div>}
                     </div>
                   </div>
                 );
@@ -261,8 +274,22 @@ export default function CitasPage() {
             </div>
           </div>
 
-          {/* Day panel */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, position: 'sticky', top: 16 }}>
+          {/* Day panel - desktop sidebar; mobile bottom-sheet */}
+          {isMobile && showDaySheet && (
+            <div onClick={() => setShowDaySheet(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:998 }} />
+          )}
+          <div style={
+            isMobile
+              ? (showDaySheet
+                  ? { position:'fixed', left:0, right:0, bottom:0, background:'var(--surface)', borderTopLeftRadius:16, borderTopRightRadius:16, padding:16, maxHeight:'85vh', overflowY:'auto', zIndex:999, boxShadow:'0 -4px 24px rgba(0,0,0,0.2)' }
+                  : { display:'none' })
+              : { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, position: 'sticky', top: 16 }
+          }>
+            {isMobile && (
+              <div style={{ display:'flex', justifyContent:'flex-end', marginBottom: 4 }}>
+                <button onClick={() => setShowDaySheet(false)} style={{ background:'transparent', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer', padding:4, lineHeight:1 }}>✕</button>
+              </div>
+            )}
             <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 }}>{DIA_SHORT[selectedDay.getDay()]}</div>
             <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{selectedDay.getDate()} de {MES[selectedDay.getMonth()].toLowerCase()}</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>{dayEvents.length} {dayEvents.length === 1 ? 'evento' : 'eventos'}</div>
@@ -334,7 +361,7 @@ export default function CitasPage() {
                     <div style={{ position: 'relative', marginBottom: 8 }}>
                       <input value={leadSearch} onChange={e => setLeadSearch(e.target.value)}
                         placeholder="Buscar cliente (nombre, email, tel)…"
-                        style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px', fontSize: 12, color: 'var(--text)', outline: 'none' }} />
+                        style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 10px', fontSize: 14, color: 'var(--text)', outline: 'none' }} />
                       {leadResults.length > 0 && (
                         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, marginTop: 4, maxHeight: 180, overflowY: 'auto', zIndex: 10 }}>
                           {leadResults.map(l => (
@@ -350,15 +377,15 @@ export default function CitasPage() {
                   )}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
                     <input type="time" value={citaTime} onChange={e => setCitaTime(e.target.value)}
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px', fontSize: 12, color: 'var(--text)', outline: 'none' }} />
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 10px', fontSize: 14, color: 'var(--text)', outline: 'none' }} />
                     <select value={citaType} onChange={e => setCitaType(e.target.value)}
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px', fontSize: 12, color: 'var(--text)', outline: 'none' }}>
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 10px', fontSize: 14, color: 'var(--text)', outline: 'none' }}>
                       <option value="llamada">📞 Llamada</option>
                       <option value="visita">🏠 Visita</option>
                     </select>
                   </div>
                   <select value={citaReason} onChange={e => setCitaReason(e.target.value)}
-                    style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px', fontSize: 12, color: 'var(--text)', outline: 'none', marginBottom: 8 }}>
+                    style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 10px', fontSize: 14, color: 'var(--text)', outline: 'none', marginBottom: 8 }}>
                     <option value="orientacion">🎓 Orientación</option>
                     <option value="dudas">❓ Aclarar dudas</option>
                     <option value="financiamiento">💰 Financiamiento</option>
@@ -366,7 +393,7 @@ export default function CitasPage() {
                     <option value="otra">💬 Otra</option>
                   </select>
                   <textarea value={citaNotes} onChange={e => setCitaNotes(e.target.value)} placeholder="Notas (opcional)…" rows={2}
-                    style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 9px', fontSize: 12, color: 'var(--text)', outline: 'none', resize: 'vertical', fontFamily: 'inherit', marginBottom: 8 }} />
+                    style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 10px', fontSize: 14, color: 'var(--text)', outline: 'none', resize: 'vertical', fontFamily: 'inherit', marginBottom: 8 }} />
                   <button onClick={createCita} disabled={creatingCita}
                     style={{ width: '100%', background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 12px', fontSize: 12, fontWeight: 700, cursor: creatingCita ? 'default' : 'pointer', opacity: creatingCita ? 0.6 : 1 }}>
                     {creatingCita ? 'Creando…' : '✓ Crear cita'}
@@ -381,10 +408,10 @@ export default function CitasPage() {
               <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') addNote(); }}
                 placeholder="Escribe una nota o tarea…"
-                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', fontSize: 13, color: 'var(--text)', outline: 'none', marginBottom: 6 }} />
+                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', fontSize: 14, color: 'var(--text)', outline: 'none', marginBottom: 6 }} />
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 8px', fontSize: 12, color: 'var(--text)', outline: 'none' }} />
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 10px', fontSize: 14, color: 'var(--text)', outline: 'none', minHeight: 38 }} />
                 <button onClick={addNote} disabled={!newTitle.trim() || adding}
                   style={{ flex: 1, background: '#1a3c8f', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 12px', fontSize: 12, fontWeight: 700, cursor: newTitle.trim() && !adding ? 'pointer' : 'default', opacity: !newTitle.trim() || adding ? 0.5 : 1 }}>
                   {adding ? '…' : '+ Agregar'}
