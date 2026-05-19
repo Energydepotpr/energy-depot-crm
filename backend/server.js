@@ -199,8 +199,41 @@ const appointmentsCtrl = require('./controllers/appointmentsController');
 app.get('/api/public/agendar/slots', publicTokenLimiter, appointmentsCtrl.getPublicSlots);
 app.post('/api/public/agendar',      publicTokenLimiter, appointmentsCtrl.createPublicAppointment);
 
+// Public — PDF de facturas por proyecto (token largo, sin auth)
+const projectInvoicesCtrl = require('./controllers/projectInvoicesController');
+app.get('/api/public/project-invoices/:token/pdf', publicTokenLimiter, projectInvoicesCtrl.publicPDF);
+
 // Protected
 app.use('/api', authMiddleware);
+
+// ── Welcome 7-touch sequence engine (admin/debug) ────────────────────────────
+const sequenceEngine = require('./services/sequenceEngine');
+app.post('/api/admin/sequences/start/:lead_id', async (req, res) => {
+  try {
+    const id = await sequenceEngine.startSequence(Number(req.params.lead_id));
+    res.json({ ok: true, sequence_id: id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/sequences/pause/:lead_id', async (req, res) => {
+  try {
+    await sequenceEngine.pauseSequence(Number(req.params.lead_id), req.body?.reason || 'manual');
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/sequences/tick', async (req, res) => {
+  try { await sequenceEngine.tick(); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/admin/sequences/:lead_id', async (req, res) => {
+  try {
+    const { pool } = require('./services/db');
+    const r = await pool.query(
+      `SELECT * FROM lead_sequences WHERE lead_id=$1 ORDER BY id DESC`,
+      [Number(req.params.lead_id)]
+    );
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Appointments (auth)
 app.get('/api/appointments',         appointmentsCtrl.listAppointments);
@@ -211,6 +244,7 @@ app.delete('/api/appointments/:id',  appointmentsCtrl.deleteAppointment);
 app.get('/api/me', auth.me);
 app.get('/api/stats', settings.stats);
 app.get('/api/stats/chart', settings.statsChart);
+app.get('/api/stats/overview', require('./controllers/statsOverviewController').overview);
 app.get('/api/search', search.buscar);
 
 // AI Assistant — Energy Depot PR
@@ -708,6 +742,16 @@ app.post('/api/leads/:id/contrato-solar', authMiddleware, generarContratoSolar);
 app.get('/api/leads/:id/contratos-firma', authMiddleware, listContratosFirma);
 app.get('/api/contratos-firma/:id/pdf',   authMiddleware, downloadContratoFirma);
 app.delete('/api/contratos-firma/:id',    authMiddleware, deleteContratoFirma);
+
+// Project invoices (auto-generadas desde contrato solar)
+app.get   ('/api/leads/:id/project-invoices',         projectInvoicesCtrl.listForLead);
+app.get   ('/api/project-invoices',                   projectInvoicesCtrl.listAll);
+app.get   ('/api/project-invoices/:id',               projectInvoicesCtrl.getOne);
+app.get   ('/api/project-invoices/:id/pdf',           projectInvoicesCtrl.downloadPDF);
+app.patch ('/api/project-invoices/:id',               projectInvoicesCtrl.update);
+app.post  ('/api/project-invoices/:id/mark-paid',     projectInvoicesCtrl.markPaid);
+app.post  ('/api/project-invoices/:id/send',          projectInvoicesCtrl.send);
+app.delete('/api/project-invoices/:id',               projectInvoicesCtrl.softDelete);
 app.patch('/api/leads/:id/solar', authMiddleware, async (req, res) => {
   try {
     const { pool } = require('./services/db');
@@ -918,5 +962,9 @@ initDB()
     // Leadgogo sync every 1 minute
     setTimeout(syncLeadgogo, 20000);
     setInterval(syncLeadgogo, 60 * 1000);
+
+    // Welcome 7-touch sequence engine: tick cada 60s
+    sequenceEngine.tick().catch(e => console.error('[JOB] sequenceEngine first tick:', e.message));
+    setInterval(() => sequenceEngine.tick().catch(e => console.error('[JOB] sequenceEngine tick:', e.message)), 60 * 1000);
   })
   .catch(err => { console.error('[SERVER] Error iniciando DB:', err); process.exit(1); });

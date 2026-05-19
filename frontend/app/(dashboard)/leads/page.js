@@ -7,6 +7,7 @@ import { EMAIL_TEMPLATES } from '../../../lib/email-templates';
 import { useAuth } from '../../../lib/auth';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
+import { ProjectInvoicesLeadTab } from '../facturas/page';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -1409,6 +1410,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             { key: 'cotizar',   full: 'Cotizar', count: Array.isArray(lead.solar_data?.quotations) ? lead.solar_data.quotations.length : (lead.solar_data?.calc ? 1 : 0) },
             { key: 'citas',     full: '📅 Citas', count: 0 },
             { key: 'contratos', full: '📄 Contratos', count: 0 },
+            { key: 'facturas',  full: '💰 Facturas', count: 0 },
           ].map(tab_item => (
             <button key={tab_item.key} onClick={() => setTab(tab_item.key)}
               className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
@@ -2668,6 +2670,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           {/* ─── TAB: CITAS ─── */}
           {tab === 'citas' && <CitasTab leadId={leadId} />}
           {tab === 'contratos' && <ContratosTab leadId={leadId} lead={lead} onUpdated={onUpdated} />}
+          {tab === 'facturas'  && <ProjectInvoicesLeadTab leadId={leadId} />}
 
         </div>{/* end Content */}
         </div>{/* end RIGHT Chat */}

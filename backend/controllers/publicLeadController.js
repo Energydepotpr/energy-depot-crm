@@ -311,6 +311,14 @@ async function createPublicLead(req, res) {
       console.error('[autocotizar notify]', e.message);
     }
 
+    // Iniciar secuencia welcome (idempotente: si ya tiene activa, no duplica)
+    try {
+      const { startSequence } = require('../services/sequenceEngine');
+      startSequence(leadId).catch(e => console.warn('[publicLead] startSequence:', e.message));
+    } catch (e) {
+      console.warn('[publicLead] sequenceEngine load:', e.message);
+    }
+
     res.json({ ok: true, lead_id: leadId, token, updated, quotation_ids });
   } catch (err) {
     console.error('[publicLead] crear:', err.message);
@@ -655,4 +663,4 @@ async function getShareLink(req, res) {
   }
 }
 
-module.exports = { createPublicLead, generarPropuestaPDF, verPropuestaHTML, publicPropuestaAction, publicLeadLookup, publicPropuestaHTML, getShareLink };
+module.exports = { createPublicLead, generarPropuestaPDF, verPropuestaHTML, publicPropuestaAction, publicLeadLookup, publicPropuestaHTML, getShareLink, calcSolar, loadProposalData };

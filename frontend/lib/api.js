@@ -41,6 +41,7 @@ export const api = {
   login:        (email, password)    => req('POST', '/api/auth/login', { email, password }),
   me:           ()                   => req('GET',  '/api/me'),
   stats:        ()                   => req('GET',  '/api/stats'),
+  statsOverview:(q = '')             => req('GET',  `/api/stats/overview${q}`),
   weather:      (city = 'San Juan,PR,US') => req('GET', `/api/weather?city=${encodeURIComponent(city)}`),
   assistant:    (messages, leadId) => req('POST', '/api/assistant', { messages, ...(leadId ? { leadId } : {}) }),
 
@@ -389,6 +390,16 @@ export const api = {
   saveSolarData:     (id, data) => req('PATCH', `/api/leads/${id}/solar`, data),
   generarContrato:   (id, data) => req('POST',  `/api/leads/${id}/contrato-solar`, data),
   listContratosFirma:(id)       => req('GET',   `/api/leads/${id}/contratos-firma`),
+
+  // Project invoices (auto desde contrato)
+  projectInvoices:        (q = '')           => req('GET',    `/api/project-invoices${q}`),
+  projectInvoicesByLead:  (leadId)           => req('GET',    `/api/leads/${leadId}/project-invoices`),
+  projectInvoice:         (id)               => req('GET',    `/api/project-invoices/${id}`),
+  projectInvoiceUpdate:   (id, data)         => req('PATCH',  `/api/project-invoices/${id}`, data),
+  projectInvoiceMarkPaid: (id, data)         => req('POST',   `/api/project-invoices/${id}/mark-paid`, data),
+  projectInvoiceSend:     (id, channels)     => req('POST',   `/api/project-invoices/${id}/send`, channels),
+  projectInvoiceDelete:   (id)               => req('DELETE', `/api/project-invoices/${id}`),
+  projectInvoicePdfUrl:   (id)               => `/backend/api/project-invoices/${id}/pdf`,
   downloadContratoFirma:(id)    => req('GET',   `/api/contratos-firma/${id}/pdf`),
   deleteContratoFirma:(id)      => req('DELETE',`/api/contratos-firma/${id}`),
 

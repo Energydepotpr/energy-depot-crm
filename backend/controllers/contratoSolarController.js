@@ -6,6 +6,7 @@ const { pool } = require('../services/db');
 const { generatePDF } = require('../services/puppeteerPool');
 const { sendEmail } = require('../services/gmailService');
 const { getConfigValue } = require('../services/configService');
+const { generateInvoicesFromContract } = require('../services/projectInvoices');
 
 async function ensureContratosFirmaTable() {
   await pool.query(`
@@ -657,11 +658,21 @@ async function generarContratoSolar(req, res) {
       nombre, telefono, email, direccionFisica,
     };
 
-    await pool.query(
+    const cfIns = await pool.query(
       `INSERT INTO contratos_firma (lead_id, token, pdf_base64, contrato_data)
-       VALUES ($1, $2, $3, $4)`,
+       VALUES ($1, $2, $3, $4) RETURNING id`,
       [leadId, token, base64, contratoData]
     );
+    const contratoFirmaId = cfIns.rows[0]?.id;
+
+    // --- Generación automática de facturas por etapa de desembolso ---
+    let invoicesAuto = null;
+    try {
+      invoicesAuto = await generateInvoicesFromContract(contratoFirmaId, leadId, contratoData);
+    } catch (errInv) {
+      console.error('[contratoSolar autoInvoices]', errInv.message);
+      invoicesAuto = { error: errInv.message };
+    }
 
     // --- Persistir config del contrato en solar_data.contrato_config ---
     try {
@@ -718,6 +729,7 @@ async function generarContratoSolar(req, res) {
       token,
       email_sent: emailSent,
       email_error: emailError,
+      invoices: invoicesAuto,
     });
   } catch (e) {
     console.error('[contratoSolar]', e.message);

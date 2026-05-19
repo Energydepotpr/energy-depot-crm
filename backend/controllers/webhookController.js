@@ -190,6 +190,10 @@ function extraerTags(texto) {
   return { nombre: nombreMatch?.[1].trim() || null, email: emailMatch?.[1].trim() || null, intencion, limpio };
 }
 
+// Lazy-require para evitar ciclos
+function _seqEng() { try { return require('../services/sequenceEngine'); } catch { return null; } }
+function _autoCot() { try { return require('../services/autoCotizacion'); } catch { return null; } }
+
 // Lógica compartida para procesar cualquier mensaje entrante
 async function procesarMensaje(from, body, sid, channel, mediaUrls = []) {
   // Buscar o crear contacto
@@ -223,6 +227,7 @@ async function procesarMensaje(from, body, sid, channel, mediaUrls = []) {
       `INSERT INTO leads (title, contact_id, pipeline_id, stage_id, source) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [`Conversación con ${contacto.name}`, contacto.id, pipId, stage?.id || null, channel]
     )).rows[0];
+    try { _seqEng()?.startSequence(lead.id).catch(()=>{}); } catch {}
   }
 
   // Guardar mensaje entrante
@@ -251,6 +256,26 @@ async function procesarMensaje(from, body, sid, channel, mediaUrls = []) {
     preview: body,
     contactEmail: contacto.email || null,
   }).catch(() => {});
+
+  // Pausa/unsubscribe automático de la secuencia welcome
+  try {
+    const seq = _seqEng();
+    if (seq) {
+      const txt = String(body || '').trim().toLowerCase();
+      const isStop = /^(no|stop|baja|unsubscribe|cancel|end|quit)\b/.test(txt);
+      seq.pauseSequence(lead.id, isStop ? 'unsubscribed_' + channel : 'responded_via_' + channel).catch(()=>{});
+    }
+  } catch {}
+
+  // Auto-cotización si llega media (factura LUMA por WhatsApp/SMS)
+  if (Array.isArray(mediaUrls) && mediaUrls.length > 0) {
+    const auto = _autoCot();
+    if (auto) {
+      auto.tryAutoCotizar({ leadId: lead.id, mediaUrls })
+        .then(r => console.log(`[procesarMensaje] auto-cotiz lead=${lead.id}:`, r.ok ? 'OK' : r.reason))
+        .catch(e => console.warn('[procesarMensaje] auto-cotiz error:', e.message));
+    }
+  }
 
   return { contacto, lead };
 }
@@ -625,6 +650,7 @@ async function webformWebhook(req, res) {
       `INSERT INTO leads (title, contact_id, pipeline_id, stage_id, source) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [leadTitle, contacto.id, pipId, stage?.id || null, leadSource]
     )).rows[0];
+    try { _seqEng()?.startSequence(lead.id).catch(()=>{}); } catch {}
 
     // Guardar mensaje del formulario
     const textoMensaje = mensaje || `Formulario web de ${nameUsado}${emailLimpio ? ' — ' + emailLimpio : ''}${telefono ? ' — ' + telefono : ''}`;
@@ -737,6 +763,7 @@ async function emailWebhook(req, res) {
         `INSERT INTO leads (title, contact_id, pipeline_id, stage_id, source) VALUES ($1,$2,$3,$4,'email') RETURNING *`,
         [`Email: ${subject.slice(0, 60)}`, contacto.id, pipId, stage?.id || null]
       )).rows[0];
+      try { _seqEng()?.startSequence(lead.id).catch(()=>{}); } catch {}
     }
 
     // Guardar mensaje (primeras 2000 chars del body)
@@ -999,6 +1026,7 @@ async function leadsgogoWebhook(req, res) {
        VALUES ($1,$2,$3,$4,'leadsgogo') RETURNING *`,
       [titulo, contacto.id, pipId, stage?.id || null]
     )).rows[0];
+    try { _seqEng()?.startSequence(lead.id).catch(()=>{}); } catch {}
 
     // Mensaje de contexto
     const textoMsg = mensaje || `Lead de LeadsGogo — ${nombre}${email ? ' | ' + email : ''}${phoneF ? ' | ' + phoneF : ''}${source !== 'leadsgogo' ? ' | ' + source : ''}`;
@@ -1126,6 +1154,7 @@ async function perfexWebhook(req, res) {
       [titulo, contacto.id, pipId, stage?.id || null,
        valor ? parseFloat(valor.toString().replace(/[^0-9.]/g, '')) : null]
     )).rows[0];
+    try { _seqEng()?.startSequence(lead.id).catch(()=>{}); } catch {}
 
     // Mensaje de contexto
     const textoMsg = mensaje || `Lead importado de Perfex CRM — ${nombre}${email ? ' | ' + email : ''}${phone ? ' | ' + phone : ''}${status ? ' | Estado: ' + status : ''}`;

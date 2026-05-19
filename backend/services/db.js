@@ -495,6 +495,8 @@ INFORMACIÓN A RECOPILAR: nombre, teléfono/email, número de personas, fecha de
     await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`).catch(() => {});
 
     // Performance indexes (CREATE INDEX IF NOT EXISTS is idempotent)
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_leads_created_at   ON leads(created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_leads_source       ON leads(source)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_leads_contact_id   ON leads(contact_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_leads_stage_id     ON leads(stage_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_leads_assigned_to  ON leads(assigned_to)`);

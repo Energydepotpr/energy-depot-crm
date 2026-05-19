@@ -1,9 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { api } from '../../../lib/api';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useLang } from '../../../lib/lang-context';
-import { t } from '../../../lib/lang';
+import { api } from '../../../lib/api';
 
 const NAVY = '#1a3c8f';
 const NAVY_DARK = '#0f2a5c';
@@ -11,226 +9,269 @@ const CYAN = '#67e8f9';
 const GREEN = '#10b981';
 const ORANGE = '#f59e0b';
 const RED = '#ef4444';
+const PURPLE = '#8b5cf6';
 
-function fmt(n) {
-  if (n == null) return '—';
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}k`;
-  return `$${Number(n).toLocaleString()}`;
-}
+const CURRENCY = new Intl.NumberFormat('es-PR', {
+  style: 'currency', currency: 'USD', maximumFractionDigits: 0,
+});
+const fmt$ = (n) => CURRENCY.format(Number(n) || 0);
+const fmtN = (n) => new Intl.NumberFormat('es-PR').format(Number(n) || 0);
 
-function timeAgo(dateStr, lang) {
-  if (!dateStr) return '';
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return t('time.now', lang);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
-}
+const PERIODS = [
+  { key: 'mes', label: 'Mes actual' },
+  { key: '60',  label: '60 días' },
+  { key: '90',  label: '90 días' },
+  { key: '180', label: '6 meses' },
+  { key: '365', label: '1 año' },
+  { key: 'custom', label: 'Personalizado' },
+];
+
+const SOURCE_LABELS = {
+  'autocotizar-web': 'Auto-cotizador web',
+  'web-form':        'Formulario web',
+  'leadsgogo':       'Leadgogo',
+  'leadgogo':        'Leadgogo',
+  'perfex':          'Perfex / WordPress',
+  'manual':          'Creado manual',
+  'twilio':          'SMS entrante',
+  'sms':             'SMS',
+};
 
 // ─── ICONS ───
-const Icon = {
-  target: (c) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
-  chat: (c) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-  bell: (c) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>,
-  dollar: (c) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
-  phone: (c) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
-  mail: (c) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
-  user: (c) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  arrow: (c) => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
-  trendUp: (c) => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
-  inbox: (c) => <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>,
-  sun: (c) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+const I = {
+  users: (c, s = 22) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  dollar: (c, s = 22) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+  bank: (c, s = 22) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M9 21V13h6v8"/></svg>,
+  check: (c, s = 22) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  clock: (c, s = 18) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  up: (c) => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>,
+  down: (c) => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
 };
 
-// ─── STAGE COLORS ───
-const stageColor = (name) => {
-  if (!name) return { bg: 'rgba(107,114,128,0.12)', fg: '#6b7280' };
-  const n = name.toLowerCase();
-  if (n.includes('lead') || n.includes('nuevo')) return { bg: 'rgba(26,60,143,0.10)', fg: NAVY };
-  if (n.includes('contact')) return { bg: 'rgba(103,232,249,0.18)', fg: '#0891b2' };
-  if (n.includes('cotiz')) return { bg: 'rgba(245,158,11,0.12)', fg: ORANGE };
-  if (n.includes('financ')) return { bg: 'rgba(139,92,246,0.12)', fg: '#8b5cf6' };
-  if (n.includes('permis') || n.includes('luma')) return { bg: 'rgba(59,130,246,0.12)', fg: '#3b82f6' };
-  if (n.includes('instal')) return { bg: 'rgba(16,185,129,0.12)', fg: GREEN };
-  if (n.includes('complet') || n.includes('cerrad')) return { bg: 'rgba(16,185,129,0.18)', fg: '#059669' };
-  return { bg: 'rgba(107,114,128,0.12)', fg: '#6b7280' };
-};
-
-function StageBadge({ name }) {
-  if (!name) return null;
-  const c = stageColor(name);
+function Delta({ value }) {
+  if (value == null) return null;
+  const positive = value >= 0;
+  const color = positive ? GREEN : RED;
   return (
     <span style={{
-      display: 'inline-block', fontSize: 10, fontWeight: 600,
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+      fontSize: 11, fontWeight: 700, color,
+      background: positive ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
       padding: '3px 8px', borderRadius: 999,
-      background: c.bg, color: c.fg, whiteSpace: 'nowrap',
-    }}>{name}</span>
+    }}>
+      {positive ? I.up(color) : I.down(color)}{Math.abs(value)}%
+    </span>
   );
 }
 
-// ─── METRIC CARD ───
-function MetricCard({ label, value, icon, color, href, trend }) {
-  const card = (
-    <div
-      className="metric-card"
-      style={{
-        background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: 12, padding: 18,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-        transition: 'transform .18s ease, box-shadow .18s ease',
-        height: '100%',
-      }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+function KpiCard({ label, value, monto, delta, icon, color }) {
+  return (
+    <div style={{
+      background: 'var(--surface)', border: '1px solid var(--border)',
+      borderRadius: 14, padding: 18,
+      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div style={{
-          width: 42, height: 42, borderRadius: 12,
-          background: `${color}14`,
+          width: 44, height: 44, borderRadius: 12,
+          background: `${color}18`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {icon(color)}
         </div>
-        {trend != null && (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 3,
-            fontSize: 11, fontWeight: 600, color: GREEN,
-            background: 'rgba(16,185,129,0.10)', padding: '3px 8px', borderRadius: 999,
-          }}>
-            {Icon.trendUp(GREEN)} {trend}
-          </span>
-        )}
+        <Delta value={delta} />
       </div>
-      <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
-        {value ?? <span style={{ color: 'var(--muted)', fontSize: 18 }}>—</span>}
+      <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--text)', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+        {value != null ? fmtN(value) : '—'}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, fontWeight: 500 }}>{label}</div>
-    </div>
-  );
-  return href ? <Link href={href} style={{ textDecoration: 'none', display: 'block' }}>{card}</Link> : card;
-}
-
-// ─── SECTION ───
-function Section({ title, icon, href, children, loading, viewLabel }) {
-  return (
-    <div style={{
-      background: 'var(--surface)', border: '1px solid var(--border)',
-      borderRadius: 12, padding: 18,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 8,
-            background: `${NAVY}14`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>{icon}</div>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{title}</span>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+      {monto != null && monto > 0 && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed var(--border)', fontSize: 14, fontWeight: 700, color: color }}>
+          {fmt$(monto)}
         </div>
-        {href && (
-          <Link href={href} style={{
-            fontSize: 11, color: NAVY, textDecoration: 'none', fontWeight: 600,
-            display: 'inline-flex', alignItems: 'center', gap: 3,
-          }}>
-            {viewLabel || 'Ver'} {Icon.arrow(NAVY)}
-          </Link>
-        )}
-      </div>
-      {loading ? (
-        <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: 22, height: 22, border: `2px solid ${NAVY}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-        </div>
-      ) : children}
+      )}
     </div>
   );
 }
 
-function EmptyState({ text }) {
+function Funnel({ funnel, conversions }) {
+  if (!funnel?.length) return null;
+  const max = Math.max(1, ...funnel.map(f => f.count));
+  const colors = [NAVY, ORANGE, PURPLE, GREEN];
+  const conv = [
+    null,
+    conversions?.leadToCotiz,
+    conversions?.cotizToFin,
+    conversions?.finToVenta,
+  ];
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      padding: '28px 12px', gap: 10,
-    }}>
-      <div style={{ opacity: 0.35 }}>{Icon.inbox('var(--muted)')}</div>
-      <span style={{ fontSize: 12, color: 'var(--muted)' }}>{text}</span>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 18 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        Funnel de conversión
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {funnel.map((f, i) => {
+          const pct = (f.count / max) * 100;
+          return (
+            <div key={f.name}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                <span style={{ fontWeight: 600, color: 'var(--text)' }}>{f.name}</span>
+                <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  {conv[i] != null && (
+                    <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>
+                      conv. {conv[i]}%
+                    </span>
+                  )}
+                  <span style={{ fontWeight: 700, color: 'var(--text)' }}>{fmtN(f.count)}</span>
+                  {f.monto > 0 && <span style={{ color: colors[i], fontWeight: 600 }}>{fmt$(f.monto)}</span>}
+                </span>
+              </div>
+              <div style={{ height: 10, background: 'var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+                <div style={{
+                  width: `${Math.max(2, pct)}%`, height: '100%',
+                  background: `linear-gradient(90deg, ${colors[i]}, ${colors[i]}cc)`,
+                  borderRadius: 6,
+                  transition: 'width .4s ease',
+                }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function LeadRow({ lead, lang }) {
-  return (
-    <Link href={`/leads/${lead.id}`} style={{ textDecoration: 'none', display: 'block' }}>
-      <div className="row-hover" style={{
-        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 6px',
-        borderRadius: 8, transition: 'background .15s ease',
-      }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: '50%',
-          background: `linear-gradient(135deg, ${NAVY}, ${NAVY_DARK})`,
-          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 12, fontWeight: 700, flexShrink: 0,
-        }}>
-          {(lead.title || lead.name || '?').charAt(0).toUpperCase()}
+function TtfcBar({ minutes }) {
+  if (minutes == null) {
+    return (
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 18 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Tiempo al primer contacto
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {lead.title || lead.name || t('common.noName', lang)}
-          </div>
-          <div style={{ marginTop: 3 }}>
-            {lead.stage_name ? <StageBadge name={lead.stage_name} /> : (
-              <span style={{ fontSize: 11, color: 'var(--muted)' }}>{lead.contact_name || ''}</span>
-            )}
-          </div>
-        </div>
-        <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>{timeAgo(lead.created_at, lang)}</span>
+        <div style={{ fontSize: 12, color: 'var(--muted)' }}>Sin datos suficientes</div>
       </div>
-    </Link>
+    );
+  }
+  const color = minutes < 5 ? GREEN : minutes < 30 ? ORANGE : RED;
+  const label = minutes < 60 ? `${minutes} min` : `${(minutes / 60).toFixed(1)} h`;
+  // Bar: 0..60 min mapping
+  const pct = Math.min(100, (minutes / 60) * 100);
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Tiempo promedio al 1er contacto
+        </div>
+        {I.clock(color)}
+      </div>
+      <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.02em' }}>{label}</div>
+      <div style={{ marginTop: 10, height: 8, background: 'var(--border)', borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 6 }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, color: 'var(--muted)' }}>
+        <span>Meta: &lt;5 min</span>
+        <span>30 min</span>
+        <span>60 min+</span>
+      </div>
+    </div>
   );
 }
 
-function AlertRow({ alert, lang }) {
-  const resolved = alert.status === 'resolved';
-  const color = resolved ? GREEN : ORANGE;
-  return (
-    <Link href={alert.lead_id ? `/leads/${alert.lead_id}` : '/alerts'} style={{ textDecoration: 'none', display: 'block' }}>
-      <div className="row-hover" style={{
-        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 6px',
-        borderRadius: 8, transition: 'background .15s ease',
-      }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: 8,
-          background: `${color}14`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        }}>
-          {Icon.bell(color)}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {alert.title || alert.message || 'Alerta'}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {alert.lead_name || alert.contact_name || ''}
-          </div>
-        </div>
-        <span style={{ fontSize: 11, color, flexShrink: 0, fontWeight: 600 }}>{timeAgo(alert.created_at, lang)}</span>
+function BySource({ bySource }) {
+  if (!bySource?.length) {
+    return (
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 18 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Leads por canal</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)' }}>Sin datos</div>
       </div>
-    </Link>
+    );
+  }
+  const max = Math.max(1, ...bySource.map(b => b.n));
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 18 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        Leads por canal
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {bySource.map(b => (
+          <div key={b.source}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+              <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                {SOURCE_LABELS[b.source] || b.source}
+              </span>
+              <span style={{ fontWeight: 700, color: 'var(--text)' }}>{fmtN(b.n)}</span>
+            </div>
+            <div style={{ height: 8, background: 'var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+              <div style={{
+                width: `${(b.n / max) * 100}%`, height: '100%',
+                background: `linear-gradient(90deg, ${NAVY}, ${CYAN})`,
+              }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-export default function InicioPage() {
-  const { lang } = useLang();
-  const [weather, setWeather]           = useState(null);
-  const [stats, setStats]               = useState(null);
-  const [revenue, setRevenue]           = useState(null);
-  const [recentLeads, setRecentLeads]   = useState([]);
-  const [recentAlerts, setRecentAlerts] = useState([]);
-  const [recentCalls, setRecentCalls]   = useState([]);
-  const [recentEmails, setRecentEmails] = useState([]);
-  const [loadingLeads, setLoadingLeads]   = useState(true);
-  const [loadingAlerts, setLoadingAlerts] = useState(true);
-  const [loadingCalls, setLoadingCalls]   = useState(true);
-  const [loadingEmails, setLoadingEmails] = useState(true);
+function PendientesTable({ pendientes }) {
+  if (!pendientes?.length) return null;
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Top leads sin respuesta
+        </div>
+        <Link href="/leads" style={{ fontSize: 11, color: NAVY, fontWeight: 600, textDecoration: 'none' }}>Ver todos →</Link>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {pendientes.map(p => {
+          const dias = Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000);
+          return (
+            <Link key={p.id} href={`/leads/${p.id}`} style={{ textDecoration: 'none' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 8px', borderRadius: 8,
+                transition: 'background .15s ease',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,60,143,0.05)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${NAVY}, ${NAVY_DARK})`,
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, fontWeight: 700, flexShrink: 0,
+                }}>
+                  {(p.contact_name || p.title || '?').charAt(0).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {p.contact_name || p.title}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                    {p.stage_name || '—'} · {p.phone || p.email || 'sin contacto'}
+                  </div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: dias > 3 ? RED : ORANGE }}>
+                  {dias === 0 ? 'hoy' : `${dias}d`}
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── PAGE ───
+export default function DashboardPage() {
+  const [period, setPeriod] = useState('mes');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [userName, setUserName] = useState('');
 
@@ -239,7 +280,7 @@ export default function InicioPage() {
     check();
     window.addEventListener('resize', check);
     try {
-      const u = JSON.parse(localStorage.getItem('user') || 'null');
+      const u = JSON.parse(localStorage.getItem('crm_user') || localStorage.getItem('user') || 'null');
       if (u?.name) setUserName(u.name.split(' ')[0]);
       else if (u?.email) setUserName(u.email.split('@')[0]);
     } catch {}
@@ -247,40 +288,30 @@ export default function InicioPage() {
   }, []);
 
   useEffect(() => {
-    api.weather().then(setWeather).catch(() => setWeather({ error: true }));
-    api.stats().then(setStats).catch(() => {});
-    api.analyticsRevenue(30).then(setRevenue).catch(() => {});
-    api.leads('?limit=5').then(r => {
-      setRecentLeads((Array.isArray(r) ? r : (r?.data || [])).slice(0, 5));
-    }).catch(() => {}).finally(() => setLoadingLeads(false));
-    api.alerts('?limit=5').then(r => {
-      setRecentAlerts((Array.isArray(r) ? r : (r?.data || [])).slice(0, 5));
-    }).catch(() => {}).finally(() => setLoadingAlerts(false));
-    api.callLogs(null).then(r => {
-      setRecentCalls((Array.isArray(r) ? r : (r?.data || [])).slice(0, 5));
-    }).catch(() => {}).finally(() => setLoadingCalls(false));
-    api.emails('?limit=5').then(r => {
-      setRecentEmails((Array.isArray(r) ? r : (r?.data || [])).slice(0, 5));
-    }).catch(() => {}).finally(() => setLoadingEmails(false));
-  }, []);
+    setLoading(true);
+    let qs = `?period=${period}`;
+    if (period === 'custom' && customFrom) {
+      qs += `&from=${encodeURIComponent(customFrom)}`;
+      if (customTo) qs += `&to=${encodeURIComponent(customTo)}`;
+    }
+    api.statsOverview(qs)
+      .then(setData)
+      .catch(e => setData({ error: e.message }))
+      .finally(() => setLoading(false));
+  }, [period, customFrom, customTo]);
 
   const now = new Date();
-  const greeting = now.getHours() < 12
-    ? t('dash.greet.morning', lang)
-    : now.getHours() < 19
-      ? t('dash.greet.afternoon', lang)
-      : t('dash.greet.evening', lang);
-  const dateLabel = now.toLocaleDateString(lang === 'en' ? 'en-US' : 'es-PR', { weekday: 'long', month: 'long', day: 'numeric' });
+  const greeting = now.getHours() < 12 ? 'Buenos días'
+                 : now.getHours() < 19 ? 'Buenas tardes'
+                 : 'Buenas noches';
 
-  const tempF = weather && !weather.error ? Math.round(weather.main?.temp || 0) : null;
-
-  const cotizacionLeads = recentLeads.filter(l => (l.stage_name || '').toLowerCase().includes('cotiz')).length;
-  const activeAlerts = recentAlerts.filter(a => a.status !== 'resolved').length || stats?.alertas_sin_ver;
+  const isEmpty = !loading && data && !data.error &&
+                  (data.kpis?.leads?.count || 0) === 0 &&
+                  (data.kpis?.cotizaciones?.count || 0) === 0;
 
   return (
     <div style={{ background: 'var(--bg)', color: 'var(--text)', minHeight: '100%' }}>
-
-      {/* ── HERO HEADER ── */}
+      {/* HERO */}
       <div style={{
         background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY_DARK} 100%)`,
         padding: isMobile ? '24px 18px 56px' : '32px 32px 72px',
@@ -291,202 +322,148 @@ export default function InicioPage() {
           background: `radial-gradient(circle, ${CYAN}33 0%, transparent 70%)`,
           borderRadius: '50%', pointerEvents: 'none',
         }} />
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, color: CYAN, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
-              Energy Depot CRM
-            </div>
-            <h1 style={{
-              margin: 0, fontSize: isMobile ? 22 : 28, fontWeight: 700, color: '#fff',
-              letterSpacing: '-0.02em', lineHeight: 1.2,
-            }}>
-              {greeting}{userName ? `, ${userName}` : ''}
-            </h1>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 6, textTransform: 'capitalize' }}>
-              {dateLabel}
-            </div>
+        <div style={{ position: 'relative' }}>
+          <div style={{ fontSize: 12, color: CYAN, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+            Energy Depot CRM · Executive Dashboard
           </div>
-          {tempF != null && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.18)',
-              padding: '10px 14px', borderRadius: 12,
-            }}>
-              {Icon.sun(CYAN)}
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{tempF}°F</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>San Juan, PR</div>
-              </div>
+          <h1 style={{ margin: 0, fontSize: isMobile ? 22 : 28, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
+            {greeting}{userName ? `, ${userName}` : ''}
+          </h1>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 6 }}>
+            Cómo va el negocio hoy
+          </div>
+
+          {/* Period selector */}
+          <div style={{
+            marginTop: 18, display: 'flex', flexWrap: 'wrap', gap: 8,
+          }}>
+            {PERIODS.map(p => (
+              <button
+                key={p.key}
+                onClick={() => setPeriod(p.key)}
+                style={{
+                  padding: '7px 14px', borderRadius: 999,
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  border: '1px solid ' + (period === p.key ? CYAN : 'rgba(255,255,255,0.25)'),
+                  background: period === p.key ? CYAN : 'rgba(255,255,255,0.10)',
+                  color: period === p.key ? NAVY_DARK : '#fff',
+                  transition: 'all .15s ease',
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {period === 'custom' && (
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff', fontSize: 12 }} />
+              <span style={{ color: '#fff', fontSize: 12 }}>→</span>
+              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff', fontSize: 12 }} />
             </div>
           )}
         </div>
       </div>
 
-      {/* ── CONTENT ── */}
+      {/* CONTENT */}
       <div style={{
-        padding: isMobile ? '0 14px 32px' : '0 32px 40px',
+        padding: isMobile ? '0 14px 40px' : '0 32px 48px',
         marginTop: isMobile ? -40 : -52,
         position: 'relative',
       }}>
+        {loading && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+            <div style={{ width: 32, height: 32, border: `3px solid ${NAVY}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+          </div>
+        )}
 
-        {/* ── METRICS ── */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16, marginBottom: 22,
-        }}>
-          <MetricCard
-            label={t('dash.stat.activeLeads', lang)}
-            value={stats?.leads}
-            icon={Icon.target}
-            color={NAVY}
-            href="/leads"
-          />
-          <MetricCard
-            label="En cotización"
-            value={cotizacionLeads || stats?.en_cotizacion}
-            icon={Icon.dollar}
-            color={ORANGE}
-            href="/leads"
-          />
-          <MetricCard
-            label={t('dash.stat.alerts', lang)}
-            value={activeAlerts}
-            icon={Icon.bell}
-            color={activeAlerts > 0 ? RED : '#6b7280'}
-            href="/alerts"
-          />
-          <MetricCard
-            label={t('dash.stat.revenue', lang)}
-            value={revenue ? fmt(revenue.mes_actual) : null}
-            icon={Icon.dollar}
-            color={GREEN}
-            href="/facturas"
-          />
-        </div>
+        {!loading && data?.error && !data.kpis && (
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 24, textAlign: 'center' }}>
+            <div style={{ fontSize: 14, color: RED, fontWeight: 600 }}>Error: {data.error}</div>
+          </div>
+        )}
 
-        {/* ── 2-COL SECTIONS ── */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-          gap: 16, marginBottom: 16,
-        }}>
-          <Section
-            title={t('dash.section.leads', lang)}
-            icon={Icon.target(NAVY)}
-            href="/leads"
-            loading={loadingLeads}
-            viewLabel={t('common.viewMore', lang)}
-          >
-            {recentLeads.length === 0 && !loadingLeads
-              ? <EmptyState text={t('dash.empty.leads', lang)} />
-              : recentLeads.slice(0, 5).map(lead => <LeadRow key={lead.id} lead={lead} lang={lang} />)
-            }
-          </Section>
-
-          <Section
-            title={t('dash.section.alerts', lang)}
-            icon={Icon.bell(NAVY)}
-            href="/alerts"
-            loading={loadingAlerts}
-            viewLabel={t('common.viewMore', lang)}
-          >
-            {recentAlerts.length === 0 && !loadingAlerts
-              ? <EmptyState text={t('dash.empty.alerts', lang)} />
-              : recentAlerts.slice(0, 5).map(alert => <AlertRow key={alert.id} alert={alert} lang={lang} />)
-            }
-          </Section>
-        </div>
-
-        {/* ── ACTIVITY ROW ── */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-          gap: 16, marginBottom: 22,
-        }}>
-          <Section
-            title={t('dash.section.calls', lang)}
-            icon={Icon.phone(NAVY)}
-            href="/llamadas"
-            loading={loadingCalls}
-            viewLabel={t('common.viewMore', lang)}
-          >
-            {recentCalls.length === 0 && !loadingCalls
-              ? <EmptyState text={t('dash.empty.calls', lang)} />
-              : recentCalls.slice(0, 4).map(call => (
-                <Link key={call.id} href={call.lead_id ? `/leads/${call.lead_id}` : '/llamadas'} style={{ textDecoration: 'none', display: 'block' }}>
-                  <div className="row-hover" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 6px', borderRadius: 8 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `${NAVY}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {Icon.phone(NAVY)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {call.lead_name || call.to_number || call.from_number || t('common.unknown', lang)}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                        {call.direction === 'outbound' ? t('dash.outbound', lang) : t('dash.inbound', lang)}
-                        {call.duration_seconds ? ` · ${Math.floor(call.duration_seconds/60)}m${call.duration_seconds%60}s` : ''}
-                      </div>
-                    </div>
-                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>{timeAgo(call.created_at, lang)}</span>
-                  </div>
-                </Link>
-              ))
-            }
-          </Section>
-
-          <Section
-            title={t('dash.section.emails', lang)}
-            icon={Icon.mail(NAVY)}
-            href="/email"
-            loading={loadingEmails}
-            viewLabel={t('common.viewMore', lang)}
-          >
-            {recentEmails.length === 0 && !loadingEmails
-              ? <EmptyState text={t('dash.empty.emails', lang)} />
-              : recentEmails.slice(0, 4).map(email => (
-                <Link key={email.id} href={email.lead_id ? `/leads/${email.lead_id}` : '/email'} style={{ textDecoration: 'none', display: 'block' }}>
-                  <div className="row-hover" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 6px', borderRadius: 8 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `${NAVY}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {Icon.mail(NAVY)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {email.subject || t('dash.noSubject', lang)}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {email.from_email || email.to_email || ''}
-                      </div>
-                    </div>
-                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>{timeAgo(email.created_at || email.sent_at, lang)}</span>
-                  </div>
-                </Link>
-              ))
-            }
-          </Section>
-        </div>
-
-        {/* ── METRICS LINK ── */}
-        <div style={{ textAlign: 'center' }}>
-          <Link href="/metricas" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            fontSize: 13, fontWeight: 600, color: NAVY, textDecoration: 'none',
-            padding: '10px 22px', borderRadius: 999,
-            border: `1px solid ${NAVY}33`,
-            background: `${NAVY}0d`,
-            transition: 'background .15s ease',
+        {!loading && isEmpty && (
+          <div style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 14, padding: 40, textAlign: 'center',
           }}>
-            {t('dash.metrics', lang)} {Icon.arrow(NAVY)}
-          </Link>
-        </div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
+              Sin datos en este período
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+              Prueba un período más amplio para ver actividad.
+            </div>
+            <button onClick={() => setPeriod('365')} style={{
+              padding: '10px 22px', borderRadius: 999,
+              border: 'none', background: NAVY, color: '#fff',
+              fontWeight: 600, fontSize: 13, cursor: 'pointer',
+            }}>
+              Ver último año
+            </button>
+          </div>
+        )}
+
+        {!loading && data?.kpis && !isEmpty && (
+          <>
+            {/* KPI CARDS */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+              gap: 14, marginBottom: 18,
+            }}>
+              <KpiCard label="Leads reales"
+                       value={data.kpis.leads.count}
+                       delta={data.kpis.leads.delta}
+                       icon={I.users} color={NAVY} />
+              <KpiCard label="Cotizaciones"
+                       value={data.kpis.cotizaciones.count}
+                       monto={data.kpis.cotizaciones.monto}
+                       delta={data.kpis.cotizaciones.delta}
+                       icon={I.dollar} color={ORANGE} />
+              <KpiCard label="Financiamiento"
+                       value={data.kpis.financiamiento.count}
+                       monto={data.kpis.financiamiento.monto}
+                       delta={data.kpis.financiamiento.delta}
+                       icon={I.bank} color={PURPLE} />
+              <KpiCard label="Ventas cerradas"
+                       value={data.kpis.ventas.count}
+                       monto={data.kpis.ventas.monto}
+                       delta={data.kpis.ventas.delta}
+                       icon={I.check} color={GREEN} />
+            </div>
+
+            {/* FUNNEL + TTFC */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
+              gap: 14, marginBottom: 18,
+            }}>
+              <Funnel funnel={data.funnel} conversions={data.conversions} />
+              <TtfcBar minutes={data.timeToFirstContactMin} />
+            </div>
+
+            {/* SOURCE + PENDIENTES */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+              gap: 14, marginBottom: 18,
+            }}>
+              <BySource bySource={data.bySource} />
+              <PendientesTable pendientes={data.pendientes} />
+            </div>
+
+            <div style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center', marginTop: 8 }}>
+              Datos del {data.range?.from ? new Date(data.range.from).toLocaleDateString('es-PR') : '—'} al {data.range?.to ? new Date(data.range.to).toLocaleDateString('es-PR') : '—'}
+              {data.error && <span style={{ color: RED, marginLeft: 10 }}>· {data.error}</span>}
+            </div>
+          </>
+        )}
       </div>
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(26,60,143,0.12) !important; }
-        .row-hover:hover { background: rgba(26,60,143,0.05); }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
