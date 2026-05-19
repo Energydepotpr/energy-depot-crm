@@ -5685,13 +5685,25 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
 
   const handleUpload = async (docKey, file) => {
     if (!file) return;
+    if (!leadId) { alert('Error: lead no identificado'); return; }
+    console.log('[FIN] upload start', docKey, file.name, file.size, file.type);
     setUploading(docKey);
     try {
-      const { base64, mime, filename } = await compressIfNeeded(file);
-      await api.uploadFinancingDoc(leadId, { doc_key: docKey, filename, mime_type: mime, base64 });
+      let payload;
+      try {
+        payload = await compressIfNeeded(file);
+        console.log('[FIN] compressed', payload.filename, payload.mime, payload.base64?.length);
+      } catch (ce) {
+        throw new Error('Procesando imagen: ' + ce.message);
+      }
+      const { base64, mime, filename } = payload;
+      if (!base64) throw new Error('Archivo vacío');
+      const result = await api.uploadFinancingDoc(leadId, { doc_key: docKey, filename, mime_type: mime, base64 });
+      console.log('[FIN] uploaded OK', result);
       load();
     } catch (e) {
-      alert('Error subiendo: ' + e.message);
+      console.error('[FIN] upload FAIL', e);
+      alert('Error subiendo "' + (file.name || docKey) + '": ' + (e.message || 'error desconocido') + (e.status ? ` (HTTP ${e.status})` : ''));
     } finally {
       setUploading(null);
     }
@@ -5766,23 +5778,32 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
                 </div>
               </div>
 
-              {!doc && (
-                <label style={{
-                  display: 'block', textAlign: 'center', background: '#1a3c8f', color: '#fff',
-                  padding: '9px 12px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                  opacity: isUploading ? 0.6 : 1,
-                }}>
-                  {isUploading ? 'Subiendo…' : '📤 Subir foto / archivo'}
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    capture="environment"
-                    disabled={isUploading}
-                    onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleUpload(d.key, f); }}
-                    style={{ display: 'none' }}
-                  />
-                </label>
-              )}
+              {!doc && (() => {
+                const inputId = `fin-up-${d.key}`;
+                return (
+                  <>
+                    <input
+                      id={inputId}
+                      type="file"
+                      accept="image/*,application/pdf"
+                      disabled={isUploading}
+                      onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleUpload(d.key, f); }}
+                      style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      disabled={isUploading}
+                      onClick={() => document.getElementById(inputId)?.click()}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'center', background: '#1a3c8f', color: '#fff',
+                        border: 'none', padding: '11px 12px', borderRadius: 7, fontSize: 13, fontWeight: 600,
+                        cursor: 'pointer', opacity: isUploading ? 0.6 : 1, minHeight: 42,
+                      }}>
+                      {isUploading ? 'Subiendo…' : '📤 Subir foto / archivo'}
+                    </button>
+                  </>
+                );
+              })()}
 
               {doc && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -5790,22 +5811,33 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
                     flex: 1, minWidth: 70, background: '#1a3c8f', color: '#fff', border: 'none',
                     padding: '7px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                   }}>👁 Ver</button>
-                  <label style={{
-                    flex: 1, minWidth: 90, textAlign: 'center', background: 'rgba(103,232,249,0.15)',
-                    color: '#0891b2', border: '1px solid rgba(103,232,249,0.3)',
-                    padding: '7px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                    opacity: isUploading ? 0.6 : 1,
-                  }}>
-                    {isUploading ? '…' : '🔄 Reemplazar'}
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      capture="environment"
-                      disabled={isUploading}
-                      onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleUpload(d.key, f); }}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
+                  {(() => {
+                    const repId = `fin-rep-${d.key}`;
+                    return (
+                      <>
+                        <input
+                          id={repId}
+                          type="file"
+                          accept="image/*,application/pdf"
+                          disabled={isUploading}
+                          onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleUpload(d.key, f); }}
+                          style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
+                        />
+                        <button
+                          type="button"
+                          disabled={isUploading}
+                          onClick={() => document.getElementById(repId)?.click()}
+                          style={{
+                            flex: 1, minWidth: 90, background: 'rgba(103,232,249,0.15)',
+                            color: '#0891b2', border: '1px solid rgba(103,232,249,0.3)',
+                            padding: '7px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                            opacity: isUploading ? 0.6 : 1,
+                          }}>
+                          {isUploading ? '…' : '🔄 Reemplazar'}
+                        </button>
+                      </>
+                    );
+                  })()}
                   <button onClick={() => handleDelete(d.key)} style={{
                     background: 'none', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)',
                     padding: '7px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
