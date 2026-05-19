@@ -280,6 +280,12 @@ async function createPublicAppointment(req, res) {
       );
     } catch (e) { console.error('[appointment alert]', e.message); }
 
+    // Push notification a la app móvil
+    try {
+      const { sendToAll } = require('./pushController');
+      sendToAll('📅 Nueva cita', `${name.trim()} · ${fechaStr}`, `/citas`);
+    } catch (e) { console.error('[appointment push]', e.message); }
+
     // Email interno
     try {
       const notifyTo = await getConfigValue('email_auto_bcc', 'gil.diaz@energydepotpr.com');
@@ -483,10 +489,76 @@ async function createAppointment(req, res) {
       } catch {}
     }
 
+    // Push notification
+    try {
+      const { sendToAll } = require('./pushController');
+      sendToAll('📅 Nueva cita', `${nombre} · ${utcToPrLocal(at)}`, '/citas');
+    } catch {}
+
     res.json({ ...a, scheduled_at_pr: utcToPrLocal(at), reason_label: REASON_LABELS[reason] || reason });
   } catch (e) {
     console.error('[createAppointment]', e.message);
     res.status(500).json({ error: e.message });
+  }
+}
+
+// ─── Reminder tick — cada 5 min: manda push 24h antes y 30 min antes ──────
+let _columnsEnsured = false;
+async function ensureReminderColumns() {
+  if (_columnsEnsured) return;
+  try {
+    await pool.query(`
+      ALTER TABLE appointments
+        ADD COLUMN IF NOT EXISTS reminder_24h_sent_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS reminder_30m_sent_at TIMESTAMP
+    `);
+    _columnsEnsured = true;
+  } catch (e) { console.error('[appt reminder cols]', e.message); }
+}
+
+async function reminderTick() {
+  try {
+    await ensureAppointmentsTable();
+    await ensureReminderColumns();
+    const { sendToAll } = require('./pushController');
+    const now = new Date();
+
+    // 24h antes (ventana 23h55m a 24h05m)
+    const r24 = await pool.query(`
+      SELECT id, contact_name, scheduled_at, lead_id, type
+        FROM appointments
+       WHERE status IN ('pending','confirmed')
+         AND reminder_24h_sent_at IS NULL
+         AND scheduled_at BETWEEN NOW() + INTERVAL '23 hours 55 minutes' AND NOW() + INTERVAL '24 hours 5 minutes'
+    `);
+    for (const a of r24.rows) {
+      const at = new Date(a.scheduled_at);
+      const horaLocal = utcToPrLocal(at).split('T')[1] || '';
+      const fechaLocal = utcToPrLocal(at).split('T')[0]?.split('-').reverse().join('/') || '';
+      try {
+        sendToAll('⏰ Cita mañana', `${a.contact_name} · ${fechaLocal} ${horaLocal}`, a.lead_id ? `/leads?id=${a.lead_id}` : '/citas');
+      } catch {}
+      await pool.query(`UPDATE appointments SET reminder_24h_sent_at = NOW() WHERE id = $1`, [a.id]);
+    }
+
+    // 30 min antes (ventana 27 a 33 min)
+    const r30 = await pool.query(`
+      SELECT id, contact_name, scheduled_at, lead_id, type
+        FROM appointments
+       WHERE status IN ('pending','confirmed')
+         AND reminder_30m_sent_at IS NULL
+         AND scheduled_at BETWEEN NOW() + INTERVAL '27 minutes' AND NOW() + INTERVAL '33 minutes'
+    `);
+    for (const a of r30.rows) {
+      const at = new Date(a.scheduled_at);
+      const horaLocal = utcToPrLocal(at).split('T')[1] || '';
+      try {
+        sendToAll('🔔 Cita en 30 min', `${a.contact_name} · ${horaLocal}`, a.lead_id ? `/leads?id=${a.lead_id}` : '/citas');
+      } catch {}
+      await pool.query(`UPDATE appointments SET reminder_30m_sent_at = NOW() WHERE id = $1`, [a.id]);
+    }
+  } catch (e) {
+    console.error('[appt reminderTick]', e.message);
   }
 }
 
@@ -497,6 +569,7 @@ module.exports = {
   listAppointments,
   updateAppointment,
   deleteAppointment,
+  reminderTick,
   // helpers expuestos por si se quieren reusar
   _utcToPrLocal: utcToPrLocal,
   _prLocalToUTC: prLocalToUTC,

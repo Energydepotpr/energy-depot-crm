@@ -937,6 +937,12 @@ initDB()
     app.listen(PORT, () => console.log(`[SERVER] Energy Depot PR — Puerto ${PORT}`));
     repairLeadsSinStage();
     setInterval(repairLeadsSinStage, 5 * 60 * 1000); // cada 5 min
+    // Recordatorios de citas (24h y 30 min antes)
+    try {
+      const appts = require('./controllers/appointmentsController');
+      appts.reminderTick();
+      setInterval(() => appts.reminderTick(), 5 * 60 * 1000);
+    } catch (e) { console.error('[appt reminders init]', e.message); }
     // Pre-warm Puppeteer browser para que el primer PDF sea instantáneo
     try { require('./services/puppeteerPool').getBrowser().catch(() => {}); } catch {}
     // Run immediately on startup, then periodically
