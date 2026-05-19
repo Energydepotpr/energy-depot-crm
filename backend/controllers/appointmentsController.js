@@ -283,7 +283,7 @@ async function createPublicAppointment(req, res) {
     // Push notification a la app móvil
     try {
       const { sendToAll } = require('./pushController');
-      sendToAll('📅 Nueva cita', `${name.trim()} · ${fechaStr}`, `/citas`);
+      sendToAll('📅 Nueva cita', `${name.trim()} · ${fechaStr}`, `/citas?id=${appointment.id}`);
     } catch (e) { console.error('[appointment push]', e.message); }
 
     // Email interno
@@ -492,7 +492,7 @@ async function createAppointment(req, res) {
     // Push notification
     try {
       const { sendToAll } = require('./pushController');
-      sendToAll('📅 Nueva cita', `${nombre} · ${utcToPrLocal(at)}`, '/citas');
+      sendToAll('📅 Nueva cita', `${nombre} · ${utcToPrLocal(at)}`, `/citas?id=${a.id}`);
     } catch {}
 
     res.json({ ...a, scheduled_at_pr: utcToPrLocal(at), reason_label: REASON_LABELS[reason] || reason });
@@ -536,7 +536,7 @@ async function reminderTick() {
       const horaLocal = utcToPrLocal(at).split('T')[1] || '';
       const fechaLocal = utcToPrLocal(at).split('T')[0]?.split('-').reverse().join('/') || '';
       try {
-        sendToAll('⏰ Cita mañana', `${a.contact_name} · ${fechaLocal} ${horaLocal}`, a.lead_id ? `/leads?id=${a.lead_id}` : '/citas');
+        sendToAll('⏰ Cita mañana', `${a.contact_name} · ${fechaLocal} ${horaLocal}`, `/citas?id=${a.id}`);
       } catch {}
       await pool.query(`UPDATE appointments SET reminder_24h_sent_at = NOW() WHERE id = $1`, [a.id]);
     }
@@ -553,7 +553,7 @@ async function reminderTick() {
       const at = new Date(a.scheduled_at);
       const horaLocal = utcToPrLocal(at).split('T')[1] || '';
       try {
-        sendToAll('🔔 Cita en 30 min', `${a.contact_name} · ${horaLocal}`, a.lead_id ? `/leads?id=${a.lead_id}` : '/citas');
+        sendToAll('🔔 Cita en 30 min', `${a.contact_name} · ${horaLocal}`, `/citas?id=${a.id}`);
       } catch {}
       await pool.query(`UPDATE appointments SET reminder_30m_sent_at = NOW() WHERE id = $1`, [a.id]);
     }

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { api } from '../../../lib/api';
 
 const STATUS_OPTS = [
@@ -66,6 +67,23 @@ export default function CitasPage() {
     }).finally(() => setLoading(false));
   };
   useEffect(load, [cursor, status]);
+
+  // Si la URL trae ?id= (push notification) → enfocar esa cita: mover cursor al mes, abrir el día
+  const searchParams = useSearchParams();
+  const focusId = searchParams?.get('id');
+  useEffect(() => {
+    if (!focusId || !appts.length) return;
+    const target = appts.find(a => String(a.id) === String(focusId));
+    if (!target) return;
+    const [d] = (target.scheduled_at_pr || '').split('T');
+    if (!d) return;
+    const [y, m, day] = d.split('-').map(Number);
+    const dt = new Date(y, m-1, day);
+    const monthStart = new Date(y, m-1, 1);
+    setCursor(monthStart);
+    setSelectedDay(dt);
+    if (isMobile) setShowDaySheet(true);
+  }, [focusId, appts, isMobile]);
 
   const updateStatus = async (id, s) => {
     try { await api.updateAppointment(id, { status: s }); load(); }
