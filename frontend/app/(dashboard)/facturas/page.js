@@ -213,8 +213,11 @@ export default function FacturasPage() {
                 </div>
               </div>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                <a href={api.projectInvoicePdfUrl(r.id)} target="_blank" rel="noopener noreferrer"
-                   style={{ background:'#1a3c8f', color:'#fff', textDecoration:'none', borderRadius:6, padding:'8px 12px', fontSize:12, fontWeight:700, minHeight:36, display:'inline-flex', alignItems:'center' }}>PDF</a>
+                <button onClick={async () => {
+                  try { const d = await api.downloadProjectInvoicePdf(r.id); window.open(d.url, '_blank'); }
+                  catch(e){ alert('Error: ' + e.message); }
+                }}
+                style={{ background:'#1a3c8f', color:'#fff', textDecoration:'none', borderRadius:6, padding:'8px 12px', fontSize:12, fontWeight:700, minHeight:36, display:'inline-flex', alignItems:'center' , border:'none', cursor:'pointer'}}>PDF</button>
                 {r.status !== 'pagada' && r.status !== 'cancelada' && (
                   <button onClick={() => setModal({ type:'pay', invoice: r })}
                     style={{ background:'#16a34a', color:'#fff', border:'none', borderRadius:6, padding:'8px 12px', fontSize:12, fontWeight:700, cursor:'pointer', minHeight:36 }}>Marcar pagada</button>
@@ -263,8 +266,11 @@ export default function FacturasPage() {
                   <td style={{ padding:'10px 14px', color:'var(--muted)', fontSize:12 }}>{fmtDate(r.fecha_vencimiento)}</td>
                   <td style={{ padding:'10px 14px', textAlign:'right' }}>
                     <div style={{ display:'inline-flex', gap:6 }}>
-                      <a href={api.projectInvoicePdfUrl(r.id)} target="_blank" rel="noopener noreferrer"
-                         style={{ background:'#1a3c8f', color:'#fff', textDecoration:'none', borderRadius:6, padding:'5px 10px', fontSize:11, fontWeight:700 }}>PDF</a>
+                      <button onClick={async () => {
+                  try { const d = await api.downloadProjectInvoicePdf(r.id); window.open(d.url, '_blank'); }
+                  catch(e){ alert('Error: ' + e.message); }
+                }}
+                style={{ background:'#1a3c8f', color:'#fff', textDecoration:'none', borderRadius:6, padding:'5px 10px', fontSize:11, fontWeight:700 , border:'none', cursor:'pointer'}}>PDF</button>
                       {r.status !== 'pagada' && r.status !== 'cancelada' && (
                         <button onClick={() => setModal({ type:'pay', invoice: r })}
                           style={{ background:'#16a34a', color:'#fff', border:'none', borderRadius:6, padding:'5px 10px', fontSize:11, fontWeight:700, cursor:'pointer' }}>Marcar pagada</button>
@@ -472,8 +478,11 @@ export function ProjectInvoicesLeadTab({ leadId }) {
               <div style={{ textAlign:'right' }}>
                 <div style={{ fontSize:18, fontWeight:800, color:'var(--text)' }}>{fmtMoney(r.monto)}</div>
                 <div style={{ display:'flex', gap:6, marginTop:8 }}>
-                  <a href={api.projectInvoicePdfUrl(r.id)} target="_blank" rel="noopener noreferrer"
-                     style={{ background:'#1a3c8f', color:'#fff', textDecoration:'none', borderRadius:6, padding:'5px 10px', fontSize:11, fontWeight:700 }}>PDF</a>
+                  <button onClick={async () => {
+                  try { const d = await api.downloadProjectInvoicePdf(r.id); window.open(d.url, '_blank'); }
+                  catch(e){ alert('Error: ' + e.message); }
+                }}
+                style={{ background:'#1a3c8f', color:'#fff', textDecoration:'none', borderRadius:6, padding:'5px 10px', fontSize:11, fontWeight:700 , border:'none', cursor:'pointer'}}>PDF</button>
                   {r.status !== 'pagada' && r.status !== 'cancelada' && (
                     <button onClick={() => setModal({ type:'pay', invoice: r })}
                       style={{ background:'#16a34a', color:'#fff', border:'none', borderRadius:6, padding:'5px 10px', fontSize:11, fontWeight:700, cursor:'pointer' }}>Pagada</button>

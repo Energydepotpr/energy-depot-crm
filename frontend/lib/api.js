@@ -400,6 +400,20 @@ export const api = {
   projectInvoiceSend:     (id, channels)     => req('POST',   `/api/project-invoices/${id}/send`, channels),
   projectInvoiceDelete:   (id)               => req('DELETE', `/api/project-invoices/${id}`),
   projectInvoicePdfUrl:   (id)               => `/backend/api/project-invoices/${id}/pdf`,
+  // Descarga el PDF con auth (no se puede usar <a href> porque eso no envía Authorization)
+  downloadProjectInvoicePdf: async (id) => {
+    const token = (typeof window !== 'undefined') ? localStorage.getItem('crm_token') : null;
+    const res = await fetch(`/backend/api/project-invoices/${id}/pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const cd = res.headers.get('content-disposition') || '';
+    const m = /filename="?([^"]+)"?/.exec(cd);
+    const filename = m ? m[1] : `Factura-${id}.pdf`;
+    return { url, filename, blob };
+  },
   downloadContratoFirma:(id)    => req('GET',   `/api/contratos-firma/${id}/pdf`),
   deleteContratoFirma:(id)      => req('DELETE',`/api/contratos-firma/${id}`),
 
