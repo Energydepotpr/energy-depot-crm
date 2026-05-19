@@ -24,7 +24,7 @@ async function ensureFinancingTable() {
     _ensured = true;
   } catch (e) { console.error('[financing] ensure table:', e.message); }
 }
-ensureFinancingTable();
+// NO llamar aquí — se llama lazy en cada endpoint para evitar crash al cargar el módulo
 
 const DOC_KEYS = ['solicitud', 'id', 'ss', 'luma', 'talonarios', 'carta_empleo', 'escrituras'];
 
