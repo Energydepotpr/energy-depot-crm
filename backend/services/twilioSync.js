@@ -183,7 +183,7 @@ async function syncTwilioMessages() {
           sendToAll(
             `Nuevo mensaje de ${contactName}`,
             msg.body.slice(0, 100),
-            '/inbox'
+            `/inbox?lead=${leadId}`
           ).catch(() => {});
         }
 

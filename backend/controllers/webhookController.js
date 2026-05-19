@@ -245,7 +245,7 @@ async function procesarMensaje(from, body, sid, channel, mediaUrls = []) {
   sendToAll(
     `Nuevo mensaje de ${contactName}`,
     body.slice(0, 100),
-    '/inbox'
+    `/inbox?lead=${lead.id}`
   ).catch(() => {});
 
   // Notificación al equipo (alert + email) — cliente contactó

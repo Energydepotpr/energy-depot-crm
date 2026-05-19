@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { api } from '../../../lib/api';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
@@ -925,6 +926,12 @@ export default function InboxPage() {
   const [inbox, setInbox] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  // Deep link: ?lead=X (de push notification) → abrir ese chat
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const leadParam = searchParams?.get('lead');
+    if (leadParam && !isNaN(Number(leadParam))) setSelected(Number(leadParam));
+  }, [searchParams]);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('reciente');
   const [filterChannel, setFilterChannel] = useState('all'); // all | whatsapp | web | email
