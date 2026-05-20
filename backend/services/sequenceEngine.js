@@ -87,7 +87,7 @@ async function ensureLeadSequencesTable() {
   `);
   ensured = true;
 }
-ensureLeadSequencesTable().catch(e => console.error('[sequenceEngine] ensure table:', e.message));
+// NO llamar al require — se llama lazy desde tick/start/pause (evita crash si pool no está listo)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function firstName(name) {
