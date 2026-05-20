@@ -14,7 +14,6 @@ const VEGA_ETAPA1_DOCS = [
   { key: 'cotizacion',                label: 'Cotización elegida' },
   { key: 'contrato',                  label: 'Contrato de compra-venta' },
   { key: 'factura_45',                label: 'Factura de 45% del precio total' },
-  { key: 'autorizacion_desembolso',   label: 'Autorización de desembolso firmada' },
 ];
 const VEGA_ETAPA2_DOCS = [
   { key: 'fotos_instalacion',         label: 'Fotos de instalación' },
@@ -50,7 +49,6 @@ const DEFAULT_COOPS = [
           { key: 'cotizacion',              label: 'Cotización elegida' },
           { key: 'contrato',                label: 'Contrato de compra-venta' },
           { key: 'factura_40',              label: 'Factura de 40% del precio total' },
-          { key: 'autorizacion_desembolso', label: 'Autorización de desembolso firmada' },
         ] },
       { id: 'etapa2', name: 'Etapa 2 - Instalación',
         docs: [

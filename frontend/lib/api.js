@@ -454,6 +454,17 @@ export const api = {
   cooperativas:         ()              => req('GET',    '/api/cooperativas'),
   saveCooperativas:     (arr)           => req('PUT',    '/api/cooperativas', arr),
 
+  // Loan applications (Solicitud de préstamo con firma electrónica)
+  createLoanApplication: (leadId, data)                     => req('POST',   `/api/leads/${leadId}/loan-application`, data),
+  getLoanApplications:   (leadId, coop)                     => req('GET',    `/api/leads/${leadId}/loan-applications${coop != null ? `?cooperativa=${encodeURIComponent(coop)}` : ''}`),
+  getLoanApplicationPdf: (leadId, laId)                     => req('GET',    `/api/leads/${leadId}/loan-applications/${laId}/pdf`),
+
+  // Helper: subir base64 ya generado (cotización/contrato/factura) como financing-doc
+  uploadFinancingDocFromBase64: (leadId, cooperativa, etapa_id, doc_key, base64, filename, mime) =>
+    req('POST', `/api/leads/${leadId}/financing-docs`, {
+      cooperativa, etapa_id, doc_key, filename, mime_type: mime || 'application/pdf', base64,
+    }),
+
   // Reports
   downloadReport: (period = 30) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('crm_token') : '';

@@ -1,0 +1,281 @@
+'use strict';
+const crypto = require('crypto');
+const { pool } = require('../services/db');
+const { generatePDF } = require('../services/puppeteerPool');
+const { getConfigValue } = require('../services/configService');
+const { buildSolicitudHTML } = require('../templates/solicitudPrestamo.html.js');
+const { LOAN_FORM_SECTIONS, LOAN_FORM_FIELDS, LOAN_REQUIRED_KEYS } = require('../templates/solicitudPrestamoForm');
+
+let _ensured = false;
+async function ensureLoanApplicationsTable() {
+  if (_ensured) return;
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS loan_applications (
+        id SERIAL PRIMARY KEY,
+        lead_id INT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+        cooperativa VARCHAR(80),
+        token VARCHAR(64) UNIQUE NOT NULL,
+        form_data JSONB,
+        signature_base64 TEXT,
+        signed_name VARCHAR(255),
+        signed_at TIMESTAMP,
+        signed_ip VARCHAR(64),
+        pdf_base64 TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 days'
+      );
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_la_lead  ON loan_applications(lead_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_la_token ON loan_applications(token)`);
+    _ensured = true;
+  } catch (e) { console.error('[loan_apps] ensure:', e.message); }
+}
+
+function frontendBase() {
+  const fromEnv = (process.env.FRONTEND_URL || '').split(',')[0].trim().replace(/\/$/, '');
+  const isUgly = !fromEnv || fromEnv.includes('localhost') || fromEnv.includes('vercel.app');
+  return isUgly ? 'https://crm-energydepotpr.com' : fromEnv;
+}
+
+function genToken(leadId) {
+  return crypto.createHash('sha256')
+    .update(crypto.randomBytes(32).toString('hex') + ':la:' + leadId + ':' + Date.now())
+    .digest('hex').slice(0, 64);
+}
+
+async function generatePdfForApp(row) {
+  const html = buildSolicitudHTML({
+    cooperativa: row.cooperativa,
+    form_data: row.form_data || {},
+    signatureDataUrl: row.signature_base64 || null,
+    signedName: row.signed_name || null,
+    signedAt: row.signed_at || null,
+    createdAt: row.created_at || new Date(),
+  });
+  const buf = await generatePDF(html, {
+    format: 'Letter',
+    printBackground: true,
+    margin: { top: '16mm', right: '14mm', bottom: '18mm', left: '14mm' },
+  });
+  return Buffer.from(buf).toString('base64');
+}
+
+// POST /api/leads/:id/loan-application
+// Body: { cooperativa, form_data }
+// Si hay una pendiente (sin firma) para esa coop → actualiza. Si está firmada → crea nueva.
+async function createOrUpdate(req, res) {
+  try {
+    await ensureLoanApplicationsTable();
+    const leadId = Number(req.params.id);
+    const { cooperativa, form_data } = req.body || {};
+    if (!leadId) return res.status(400).json({ error: 'lead inválido' });
+    const coop = String(cooperativa || '');
+    const fd = form_data && typeof form_data === 'object' ? form_data : {};
+
+    // Buscar existente sin firmar para esta coop
+    const ex = await pool.query(
+      `SELECT * FROM loan_applications
+        WHERE lead_id=$1 AND cooperativa=$2 AND signed_at IS NULL
+        ORDER BY id DESC LIMIT 1`,
+      [leadId, coop]
+    );
+
+    let row;
+    if (ex.rows[0]) {
+      const u = await pool.query(
+        `UPDATE loan_applications
+            SET form_data=$1, expires_at = NOW() + INTERVAL '30 days'
+          WHERE id=$2 RETURNING *`,
+        [fd, ex.rows[0].id]
+      );
+      row = u.rows[0];
+    } else {
+      const token = genToken(leadId);
+      const ins = await pool.query(
+        `INSERT INTO loan_applications (lead_id, cooperativa, token, form_data)
+         VALUES ($1,$2,$3,$4) RETURNING *`,
+        [leadId, coop, token, fd]
+      );
+      row = ins.rows[0];
+    }
+
+    res.json({
+      id: row.id,
+      token: row.token,
+      cooperativa: row.cooperativa,
+      signed_at: row.signed_at,
+      created_at: row.created_at,
+      expires_at: row.expires_at,
+      signing_url: `${frontendBase()}/solicitud/${row.token}`,
+    });
+  } catch (e) {
+    console.error('[loan_apps createOrUpdate]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// GET /api/leads/:id/loan-applications?cooperativa=X
+async function listForLead(req, res) {
+  try {
+    await ensureLoanApplicationsTable();
+    const leadId = Number(req.params.id);
+    const coop = req.query.cooperativa != null ? String(req.query.cooperativa) : null;
+    const params = [leadId];
+    let sql = `SELECT id, cooperativa, token, signed_at, signed_name, created_at, expires_at,
+                      (signature_base64 IS NOT NULL) AS has_signature
+                 FROM loan_applications WHERE lead_id=$1`;
+    if (coop !== null) { sql += ` AND cooperativa=$2`; params.push(coop); }
+    sql += ` ORDER BY id DESC`;
+    const r = await pool.query(sql, params);
+    const base = frontendBase();
+    res.json(r.rows.map(row => ({
+      ...row,
+      signing_url: `${base}/solicitud/${row.token}`,
+    })));
+  } catch (e) {
+    console.error('[loan_apps list]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// GET /api/leads/:id/loan-applications/:la_id/pdf (auth)
+async function downloadPdf(req, res) {
+  try {
+    await ensureLoanApplicationsTable();
+    const r = await pool.query(`SELECT * FROM loan_applications WHERE id=$1 AND lead_id=$2`,
+      [Number(req.params.la_id), Number(req.params.id)]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'No encontrado' });
+    const row = r.rows[0];
+    let pdfB64 = row.pdf_base64;
+    if (!pdfB64) {
+      pdfB64 = await generatePdfForApp(row);
+      try { await pool.query(`UPDATE loan_applications SET pdf_base64=$1 WHERE id=$2`, [pdfB64, row.id]); } catch {}
+    }
+    const fname = `Solicitud-Prestamo-${(row.form_data?.nombre_completo || 'cliente').toString().replace(/\s+/g,'-')}.pdf`;
+    res.json({ ok: true, pdf: pdfB64, filename: fname, signed_at: row.signed_at });
+  } catch (e) {
+    console.error('[loan_apps pdf]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// GET /api/public/solicitud/:token  (sin auth)
+async function getPublic(req, res) {
+  try {
+    await ensureLoanApplicationsTable();
+    const r = await pool.query(`SELECT * FROM loan_applications WHERE token=$1`, [req.params.token]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'Enlace no encontrado' });
+    const row = r.rows[0];
+    if (new Date(row.expires_at) < new Date()) {
+      return res.status(410).json({ error: 'Este enlace ha expirado' });
+    }
+    res.json({
+      cooperativa: row.cooperativa,
+      form_sections: LOAN_FORM_SECTIONS,
+      form_data: row.form_data || {},
+      already_signed: !!row.signed_at,
+      signed_at: row.signed_at,
+      signed_name: row.signed_name,
+      expires_at: row.expires_at,
+    });
+  } catch (e) {
+    console.error('[loan_apps getPublic]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// POST /api/public/solicitud/:token  (sin auth)
+// Body: { signature, signed_name, form_data?: {} }
+async function signPublic(req, res) {
+  try {
+    await ensureLoanApplicationsTable();
+    const { signature, signed_name, form_data } = req.body || {};
+    if (!signature) return res.status(400).json({ error: 'Firma requerida' });
+    if (!signed_name || !String(signed_name).trim()) return res.status(400).json({ error: 'Nombre requerido' });
+
+    const r = await pool.query(`SELECT * FROM loan_applications WHERE token=$1`, [req.params.token]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'Enlace no encontrado' });
+    const row = r.rows[0];
+    if (new Date(row.expires_at) < new Date()) return res.status(410).json({ error: 'Enlace expirado' });
+    if (row.signed_at) return res.status(409).json({ error: 'Esta solicitud ya fue firmada' });
+
+    // Permitir que el cliente actualice form_data antes de firmar
+    let fdFinal = row.form_data || {};
+    if (form_data && typeof form_data === 'object') {
+      fdFinal = { ...fdFinal, ...form_data };
+    }
+    // Validar required
+    const missing = LOAN_REQUIRED_KEYS.filter(k => !fdFinal[k] || String(fdFinal[k]).trim() === '');
+    if (missing.length) {
+      return res.status(400).json({ error: 'Faltan campos requeridos: ' + missing.join(', ') });
+    }
+
+    const signedAt = new Date();
+    const ip = (req.headers['x-forwarded-for'] || req.connection?.remoteAddress || '').toString().split(',')[0].trim();
+
+    const u = await pool.query(
+      `UPDATE loan_applications
+          SET form_data=$1, signature_base64=$2, signed_name=$3, signed_at=$4, signed_ip=$5
+        WHERE id=$6 RETURNING *`,
+      [fdFinal, signature, String(signed_name).trim(), signedAt, ip, row.id]
+    );
+    const finalRow = u.rows[0];
+
+    // Generar PDF firmado
+    const pdfB64 = await generatePdfForApp(finalRow);
+    await pool.query(`UPDATE loan_applications SET pdf_base64=$1 WHERE id=$2`, [pdfB64, finalRow.id]);
+
+    // Registrarla como financing-doc (solicitud) en etapa1 de la cooperativa
+    try {
+      const fname = `Solicitud-Prestamo-${(fdFinal.nombre_completo || 'cliente').toString().replace(/\s+/g,'-')}.pdf`;
+      await pool.query(
+        `INSERT INTO lead_financing_docs (lead_id, cooperativa, etapa_id, doc_key, filename, mime_type, file_base64, uploaded_at)
+         VALUES ($1,$2,'etapa1','solicitud',$3,'application/pdf',$4, NOW())
+         ON CONFLICT (lead_id, cooperativa, etapa_id, doc_key)
+         DO UPDATE SET filename=EXCLUDED.filename, mime_type=EXCLUDED.mime_type,
+                       file_base64=EXCLUDED.file_base64, uploaded_at=NOW()`,
+        [finalRow.lead_id, finalRow.cooperativa || '', fname, pdfB64]
+      );
+    } catch (errDoc) { console.error('[loan_apps→financing-doc]', errDoc.message); }
+
+    // Email al cliente (best-effort)
+    try {
+      const email = fdFinal.email;
+      if (email) {
+        const { sendEmail } = require('../services/gmailService');
+        const from = await getConfigValue('email_from', 'info@energydepotpr.com');
+        const bcc  = await getConfigValue('email_auto_bcc', '');
+        await sendEmail({
+          from, to: email, bcc: bcc || undefined,
+          subject: `Solicitud de Préstamo firmada — Energy Depot LLC`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;padding:20px;color:#1f2937;line-height:1.6">
+            <h2 style="color:#1a3c8f">¡Gracias! Hemos recibido tu solicitud.</h2>
+            <p>Hola <strong>${(fdFinal.nombre_completo || 'Cliente')}</strong>, adjuntamos copia de tu solicitud de préstamo firmada${finalRow.cooperativa ? ` para <strong>${finalRow.cooperativa}</strong>` : ''}.</p>
+            <p>Nuestro equipo continuará con el proceso y te contactará pronto.</p>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:18px 0">
+            <div style="font-size:12px;color:#6b7280">Energy Depot LLC · (787) 627-8585 · info@energydepotpr.com</div>
+          </div>`,
+          attachments: [{
+            filename: `Solicitud-Prestamo-${(fdFinal.nombre_completo || 'cliente').toString().replace(/\s+/g,'-')}.pdf`,
+            content: pdfB64, encoding: 'base64', contentType: 'application/pdf',
+          }],
+        });
+      }
+    } catch (errMail) { console.error('[loan_apps email]', errMail.message); }
+
+    res.json({ ok: true, signed_at: signedAt });
+  } catch (e) {
+    console.error('[loan_apps signPublic]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+module.exports = {
+  createOrUpdate,
+  listForLead,
+  downloadPdf,
+  getPublic,
+  signPublic,
+  ensureLoanApplicationsTable,
+};

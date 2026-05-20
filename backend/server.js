@@ -183,6 +183,11 @@ app.post('/api/public/sign/:token',  publicTokenLimiter, signatures.firmar);
 app.get('/api/public/firma/:token',  publicTokenLimiter, getFirmaPublic);
 app.post('/api/public/firma/:token', publicTokenLimiter, postFirmaPublic);
 
+// Public — Solicitud de Préstamo (token aleatorio, sin auth)
+const loanAppsCtrl = require('./controllers/loanApplicationController');
+app.get ('/api/public/solicitud/:token', publicTokenLimiter, loanAppsCtrl.getPublic);
+app.post('/api/public/solicitud/:token', publicTokenLimiter, loanAppsCtrl.signPublic);
+
 // Public audio proxy (browser <audio> can't send JWT headers)
 app.get('/api/recordings/:sid/audio', callRecording.proxyAudio);
 
@@ -254,6 +259,11 @@ app.delete('/api/leads/:id/financing-docs',                financingCtrl.deleteD
 app.get   ('/api/leads/:id/financing-docs/:doc_key/file',  financingCtrl.getFile);
 app.delete('/api/leads/:id/financing-docs/:doc_key',       financingCtrl.deleteDoc);
 app.post  ('/api/leads/:id/financing/send',                financingCtrl.sendToCoop);
+
+// Loan applications (Solicitud de préstamo con firma electrónica)
+app.post  ('/api/leads/:id/loan-application',              loanAppsCtrl.createOrUpdate);
+app.get   ('/api/leads/:id/loan-applications',             loanAppsCtrl.listForLead);
+app.get   ('/api/leads/:id/loan-applications/:la_id/pdf',  loanAppsCtrl.downloadPdf);
 
 app.get('/api/me', auth.me);
 app.get('/api/stats', settings.stats);

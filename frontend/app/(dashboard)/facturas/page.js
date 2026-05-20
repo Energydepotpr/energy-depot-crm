@@ -489,6 +489,9 @@ export function ProjectInvoicesLeadTab({ leadId }) {
                   )}
                   <button onClick={() => setModal({ type:'send', invoice: r })}
                     style={{ background:'#67e8f9', color:'#0f2558', border:'none', borderRadius:6, padding:'5px 10px', fontSize:11, fontWeight:700, cursor:'pointer' }}>Enviar</button>
+                  {isFirstStageInvoice(r) && (
+                    <UseInFinancingInvoiceButton invoice={r} leadId={leadId} />
+                  )}
                 </div>
               </div>
             </div>
@@ -498,5 +501,64 @@ export function ProjectInvoicesLeadTab({ leadId }) {
       {modal?.type === 'pay' && <MarkPaidModal invoice={modal.invoice} onClose={() => { setModal(null); load(); }} isMobile={isMobile} />}
       {modal?.type === 'send' && <SendModal invoice={modal.invoice} onClose={() => { setModal(null); load(); }} isMobile={isMobile} />}
     </div>
+  );
+}
+
+// Identifica factura de etapa 1 por porcentaje (40 o 45) o nombre de etapa
+function isFirstStageInvoice(r) {
+  const pct = Number(r?.porcentaje);
+  if (pct === 40 || pct === 45) return true;
+  const e = String(r?.etapa || '').toLowerCase();
+  if (e.includes('firmar') || e.includes('firma de contrato') || e.includes('inicial')) return true;
+  return false;
+}
+
+function UseInFinancingInvoiceButton({ invoice, leadId }) {
+  const [busy, setBusy] = useState(false);
+  const onClick = async () => {
+    setBusy(true);
+    try {
+      // 1. Descargar PDF
+      const d = await api.downloadProjectInvoicePdf(invoice.id);
+      const blob = d.blob;
+      const buf = await blob.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+      const b64 = btoa(bin);
+
+      // 2. Determinar coop (preguntar) y doc_key
+      const coops = await api.cooperativas().catch(() => []);
+      const names = (Array.isArray(coops) ? coops : []).map(c => c.name);
+      if (!names.length) { alert('No hay cooperativas configuradas'); return; }
+      let coopName = names[0];
+      // Tomar de solar_data si existe
+      try {
+        const lead = await api.lead(leadId);
+        if (lead?.solar_data?.financing_coop && names.includes(lead.solar_data.financing_coop)) {
+          coopName = lead.solar_data.financing_coop;
+        }
+      } catch {}
+      if (names.length > 1) {
+        const choice = prompt('¿En qué cooperativa? (' + names.join(' / ') + ')', coopName);
+        if (!choice) return;
+        const found = names.find(n => n.toLowerCase() === choice.toLowerCase());
+        if (!found) { alert('Cooperativa no válida'); return; }
+        coopName = found;
+      }
+      const docKey = /tu\s*coop/i.test(coopName) ? 'factura_40' : 'factura_45';
+      await api.uploadFinancingDocFromBase64(
+        leadId, coopName, 'etapa1', docKey, b64, d.filename || `Factura-${invoice.id}.pdf`, 'application/pdf'
+      );
+      alert(`✓ Factura guardada en Financiamiento (${coopName} · ${docKey})`);
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <button onClick={onClick} disabled={busy}
+      style={{ background:'transparent', color:'#0891b2', border:'1px solid #67e8f9', borderRadius:6, padding:'5px 10px', fontSize:11, fontWeight:700, cursor:'pointer', opacity: busy ? 0.6 : 1 }}>
+      {busy ? '…' : '📎 Usar en Financiamiento'}
+    </button>
   );
 }

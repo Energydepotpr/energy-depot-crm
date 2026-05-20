@@ -3122,6 +3122,18 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
           <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           {pdfLoad?'Generando…':'Propuesta PDF'}
         </button>
+        <UsarEnFinanciamientoButton
+          tipo="cotizacion"
+          disabled={!calc}
+          leadId={leadId}
+          lead={lead}
+          label="📎 Usar en Financiamiento"
+          fetchPdf={async () => {
+            const d = await api.leadPropuesta(leadId, active?.id);
+            return { base64: d.pdf, filename: d.filename || `Cotizacion-${leadId}.pdf` };
+          }}
+          isMobile={isMobile}
+        />
         <button onClick={()=>setShowContrato(true)} disabled={!calc} style={{ background:'#10b981', border:'none', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '12px 14px' : '6px 14px', fontSize: isMobile ? 14 : 12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc?0.5:1, display:'flex', alignItems:'center', justifyContent: 'center', gap:6, width: isMobile ? '100%' : 'auto' }}>
           <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
           Generar Contrato
@@ -5417,6 +5429,19 @@ function ContratosTab({ leadId, lead, onUpdated }) {
                   <a href={`https://wa.me/?text=${encodeURIComponent('Contrato Energy Depot: ' + c.signing_url)}`} target="_blank" rel="noopener noreferrer" style={{ background:'#25d366', color:'#fff', border:'none', borderRadius:6, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer', textDecoration:'none' }}>WhatsApp</a>
                 )}
                 <button onClick={() => abrirEditor(c)} style={{ background:'transparent', color:'#f59e0b', border:'1px solid #f59e0b', borderRadius:6, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer' }}>✏️ Editar</button>
+                {c.signed_at && (
+                  <UsarEnFinanciamientoButton
+                    tipo="contrato"
+                    leadId={leadId}
+                    lead={lead}
+                    label="📎 Usar en Financiamiento"
+                    fetchPdf={async () => {
+                      const d = await api.downloadContratoFirma(c.id);
+                      return { base64: d.pdf, filename: d.filename || `Contrato-${c.id}.pdf` };
+                    }}
+                    small
+                  />
+                )}
                 <button onClick={() => eliminar(c.id)} style={{ background:'transparent', color:'#ef4444', border:'1px solid #ef4444', borderRadius:6, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer' }}>🗑 Eliminar</button>
               </div>
             </div>
@@ -5634,7 +5659,6 @@ const FINANCING_COOPS_FALLBACK = [
       { key:'cotizacion', label:'Cotización elegida' },
       { key:'contrato', label:'Contrato de compra-venta' },
       { key:'factura_45', label:'Factura de 45% del precio total' },
-      { key:'autorizacion_desembolso', label:'Autorización de desembolso firmada' },
     ]},
     { id: 'etapa2', name: 'Etapa 2 - Instalación', docs: [
       { key:'fotos_instalacion', label:'Fotos de instalación' },
@@ -5691,12 +5715,22 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(null); // composite key coop|etapa|doc
   const [showSend, setShowSend] = useState(false);
+  const [loanApps, setLoanApps] = useState([]); // loan applications de la coop actual
+  const [showLoanForm, setShowLoanForm] = useState(false);
 
   const load = () => {
     setLoading(true);
     api.financingDocs(leadId).then(d => setDocs(Array.isArray(d) ? d : [])).catch(() => setDocs([])).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, [leadId]);
+
+  // Cargar solicitudes de préstamo de la coop seleccionada
+  const loadLoanApps = () => {
+    if (!leadId || !coopName) { setLoanApps([]); return; }
+    api.getLoanApplications(leadId, coopName).then(arr => setLoanApps(Array.isArray(arr) ? arr : [])).catch(() => setLoanApps([]));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadLoanApps(); }, [leadId, coopName]);
 
   useEffect(() => {
     api.cooperativas().then(arr => {
@@ -5877,6 +5911,25 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
         {etapaDocs.map(d => {
           const doc = byKey[d.key];
           const isUploading = uploading === `${coopName}|${etapaId}|${d.key}`;
+
+          // Caso especial: Solicitud de préstamo en Etapa 1 — formulario inline + firma
+          if (d.key === 'solicitud' && etapaId === 'etapa1') {
+            return (
+              <SolicitudCard
+                key={d.key}
+                doc={doc}
+                docLabel={d.label}
+                leadId={leadId}
+                lead={lead}
+                cooperativa={coopName}
+                loanApps={loanApps}
+                onOpenForm={() => setShowLoanForm(true)}
+                onChanged={() => { loadLoanApps(); load(); }}
+                fmtDate={fmtDate}
+              />
+            );
+          }
+
           return (
             <div key={d.key} style={{
               background: 'var(--surface)',
@@ -5993,6 +6046,17 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
         </button>
       </div>
 
+      {showLoanForm && (
+        <SolicitudLoanModal
+          leadId={leadId}
+          lead={lead}
+          cooperativa={coopName}
+          existing={loanApps.find(la => !la.signed_at) || null}
+          onClose={() => setShowLoanForm(false)}
+          onSaved={() => { setShowLoanForm(false); loadLoanApps(); load(); }}
+        />
+      )}
+
       {showSend && (
         <EnviarCooperativaModal
           leadId={leadId}
@@ -6016,6 +6080,342 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// ─── Botón "Usar en Financiamiento" (compartido cotizar/contratos) ───────────
+function UsarEnFinanciamientoButton({ tipo, leadId, lead, label, fetchPdf, disabled, small, isMobile }) {
+  const [busy, setBusy] = useState(false);
+  const onClick = async () => {
+    setBusy(true);
+    try {
+      const coops = await api.cooperativas().catch(() => []);
+      const names = (Array.isArray(coops) ? coops : []).map(c => c.name);
+      if (!names.length) { alert('No hay cooperativas configuradas'); return; }
+      let coopName = lead?.solar_data?.financing_coop && names.includes(lead.solar_data.financing_coop)
+        ? lead.solar_data.financing_coop : names[0];
+      if (names.length > 1 && !lead?.solar_data?.financing_coop) {
+        const choice = prompt('¿En qué cooperativa? (' + names.join(' / ') + ')', coopName);
+        if (!choice) { setBusy(false); return; }
+        const found = names.find(n => n.toLowerCase() === choice.toLowerCase());
+        if (!found) { alert('Cooperativa no válida'); setBusy(false); return; }
+        coopName = found;
+      }
+      const { base64, filename } = await fetchPdf();
+      if (!base64) throw new Error('Sin PDF');
+      const docKey = tipo === 'contrato' ? 'contrato' : 'cotizacion';
+      await api.uploadFinancingDocFromBase64(
+        leadId, coopName, 'etapa1', docKey, base64, filename || `${tipo}.pdf`, 'application/pdf'
+      );
+      alert(`✓ ${tipo === 'contrato' ? 'Contrato' : 'Cotización'} guardada en Financiamiento (${coopName})`);
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { setBusy(false); }
+  };
+  const sz = small ? { padding:'6px 12px', fontSize:11 } : (isMobile ? { padding:'12px 14px', fontSize:14 } : { padding:'6px 14px', fontSize:12 });
+  return (
+    <button onClick={onClick} disabled={disabled || busy} style={{
+      background:'transparent', color:'#0891b2', border:'1px solid #67e8f9',
+      borderRadius: small ? 6 : (isMobile ? 10 : 6), fontWeight:700, cursor:'pointer',
+      opacity: (disabled || busy) ? 0.5 : 1, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6,
+      width: isMobile && !small ? '100%' : 'auto', ...sz,
+    }}>{busy ? '…' : (label || '📎 Usar en Financiamiento')}</button>
+  );
+}
+
+// ─── Solicitud de Préstamo (card + modal) ────────────────────────────────────
+function SolicitudCard({ doc, docLabel, leadId, lead, cooperativa, loanApps, onOpenForm, onChanged, fmtDate }) {
+  const pending = (loanApps || []).find(la => !la.signed_at) || null;
+  const signed  = (loanApps || []).find(la => la.signed_at) || null;
+
+  // Estado C: firmada → mostrar como doc cargado normal
+  // Estado B: pendiente firma → card especial
+  // Estado A: nada → botón Llenar solicitud
+
+  const copyLink = async (url) => {
+    if (!url) return;
+    try { await navigator.clipboard.writeText(url); alert('✓ Link copiado'); }
+    catch { alert(url); }
+  };
+
+  const verBorradorPdf = async (laId) => {
+    try {
+      const d = await api.getLoanApplicationPdf(leadId, laId);
+      if (!d.pdf) throw new Error('Sin PDF');
+      const bytes = Uint8Array.from(atob(d.pdf), c => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type:'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { alert('Error: ' + e.message); }
+  };
+
+  const baseCard = (bordered) => ({
+    background: 'var(--surface)',
+    border: `1px solid ${bordered}`,
+    borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 10,
+  });
+
+  const headerLine = (icon, color) => (
+    <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+      <div style={{
+        width:28, height:28, borderRadius:'50%',
+        background: color === '#10b981' ? '#10b981' : (color === '#f59e0b' ? 'rgba(245,158,11,0.18)' : 'rgba(148,163,184,0.15)'),
+        color: color === '#10b981' ? '#fff' : color,
+        display:'flex', alignItems:'center', justifyContent:'center',
+        fontSize:14, fontWeight:700, flexShrink:0,
+      }}>{icon}</div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', lineHeight:1.3 }}>{docLabel}</div>
+      </div>
+    </div>
+  );
+
+  // Si ya hay doc en lead_financing_docs (firmada) — mostrar como cargado
+  if (doc || signed) {
+    const sName = signed?.signed_name;
+    const sAt   = signed?.signed_at;
+    return (
+      <div style={baseCard('#10b981')}>
+        {headerLine('✓', '#10b981')}
+        <div style={{ fontSize:11, color:'var(--muted)' }}>
+          {sName ? <>Firmada por <strong>{sName}</strong>{sAt ? ` · ${fmtDate(sAt)}` : ''}</> : (doc ? `📎 ${doc.filename} · ${fmtDate(doc.uploaded_at)}` : 'Firmada')}
+        </div>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          {signed && (
+            <button onClick={() => verBorradorPdf(signed.id)} style={{
+              flex:1, minWidth:90, background:'#1a3c8f', color:'#fff', border:'none',
+              padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+            }}>👁 Ver PDF firmado</button>
+          )}
+          {!signed && doc && (
+            <div style={{ fontSize:11, color:'var(--muted)', padding:'7px 4px' }}>Solicitud cargada manualmente</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Estado B: borrador pendiente firma
+  if (pending) {
+    return (
+      <div style={baseCard('#f59e0b')}>
+        {headerLine('✏️', '#f59e0b')}
+        <div style={{ fontSize:12, color:'#92400e', fontWeight:600 }}>
+          Solicitud creada · Pendiente firma del cliente
+        </div>
+        <div style={{ fontSize:11, color:'var(--muted)' }}>
+          Token expira: {fmtDate(pending.expires_at)}
+        </div>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          <button onClick={() => copyLink(pending.signing_url)} style={{
+            background:'#1a3c8f', color:'#fff', border:'none', borderRadius:6,
+            padding:'7px 10px', fontSize:12, fontWeight:600, cursor:'pointer', flex:1, minWidth:110,
+          }}>🔗 Copiar link</button>
+          <a href={`https://wa.me/?text=${encodeURIComponent('Solicitud de préstamo Energy Depot: ' + pending.signing_url)}`}
+            target="_blank" rel="noopener noreferrer"
+            style={{ background:'#25d366', color:'#fff', borderRadius:6, padding:'7px 10px', fontSize:12, fontWeight:600, textDecoration:'none', textAlign:'center' }}>
+            WhatsApp
+          </a>
+          <button onClick={onOpenForm} style={{
+            background:'transparent', color:'#f59e0b', border:'1px solid #f59e0b',
+            padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>✏️ Editar</button>
+          <button onClick={() => verBorradorPdf(pending.id)} style={{
+            background:'transparent', color:'#475569', border:'1px solid var(--border)',
+            padding:'7px 10px', borderRadius:6, fontSize:12, cursor:'pointer',
+          }}>Ver borrador</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Estado A: no iniciada
+  return (
+    <div style={baseCard('var(--border)')}>
+      {headerLine('○', 'var(--muted)')}
+      <button onClick={onOpenForm} style={{
+        display:'block', width:'100%', textAlign:'center', background:'#1a3c8f', color:'#fff',
+        border:'none', padding:'11px 12px', borderRadius:7, fontSize:13, fontWeight:600,
+        cursor:'pointer', minHeight:42,
+      }}>📝 Llenar solicitud</button>
+      <div style={{ fontSize:11, color:'var(--muted)', textAlign:'center' }}>
+        Se genera un link de firma electrónica para el cliente
+      </div>
+    </div>
+  );
+}
+
+const LOAN_SECTIONS_FALLBACK = [
+  { title:'Información Personal', fields:[
+    { key:'nombre_completo', label:'Nombre completo', type:'text', width:'full', required:true },
+    { key:'fecha_nacimiento', label:'Fecha de nacimiento', type:'date', width:'half', required:true },
+    { key:'ss', label:'Seguro Social #', type:'text', width:'half', required:true },
+    { key:'estado_civil', label:'Estado civil', type:'text', width:'half' },
+    { key:'email', label:'Email', type:'email', width:'half', required:true },
+    { key:'telefono_celular', label:'Teléfono celular', type:'tel', width:'half', required:true },
+    { key:'telefono_casa', label:'Teléfono casa', type:'tel', width:'half' },
+  ]},
+  { title:'Direcciones', fields:[
+    { key:'direccion_fisica', label:'Dirección física', type:'textarea', width:'full', required:true },
+    { key:'direccion_postal', label:'Dirección postal', type:'textarea', width:'full' },
+  ]},
+  { title:'Cuenta de Servicio Eléctrico', fields:[
+    { key:'cta_luma', label:'Cuenta LUMA #', type:'text', width:'half', required:true },
+    { key:'contador', label:'Contador #', type:'text', width:'half' },
+  ]},
+  { title:'Empleo e Ingresos', fields:[
+    { key:'empleador', label:'Empleador', type:'text', width:'half' },
+    { key:'ocupacion', label:'Ocupación', type:'text', width:'half' },
+    { key:'anios_empleo', label:'Años en el empleo', type:'number', width:'half' },
+    { key:'salario_mensual', label:'Salario mensual ($)', type:'number', width:'half' },
+    { key:'ingresos_adicionales', label:'Ingresos adicionales mensuales ($)', type:'number', width:'full' },
+  ]},
+  { title:'Préstamo Solicitado', fields:[
+    { key:'cantidad_solicitada', label:'Cantidad solicitada ($)', type:'number', width:'half', required:true },
+    { key:'plazo_anios', label:'Plazo (años)', type:'number', width:'half' },
+    { key:'proposito', label:'Propósito del préstamo', type:'text', width:'full' },
+  ]},
+  { title:'Referencias Personales', fields:[
+    { key:'ref1_nombre', label:'Referencia 1 — Nombre', type:'text', width:'half' },
+    { key:'ref1_parentesco', label:'Referencia 1 — Parentesco', type:'text', width:'half' },
+    { key:'ref1_telefono', label:'Referencia 1 — Teléfono', type:'tel', width:'full' },
+    { key:'ref2_nombre', label:'Referencia 2 — Nombre', type:'text', width:'half' },
+    { key:'ref2_parentesco', label:'Referencia 2 — Parentesco', type:'text', width:'half' },
+    { key:'ref2_telefono', label:'Referencia 2 — Teléfono', type:'tel', width:'full' },
+    { key:'ref3_nombre', label:'Referencia 3 — Nombre', type:'text', width:'half' },
+    { key:'ref3_parentesco', label:'Referencia 3 — Parentesco', type:'text', width:'half' },
+    { key:'ref3_telefono', label:'Referencia 3 — Teléfono', type:'tel', width:'full' },
+  ]},
+];
+
+function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSaved }) {
+  const sd = lead?.solar_data || {};
+  // Auto-fill iniciales desde lead + solar_data
+  const autoFill = {
+    nombre_completo: lead?.contact_name || lead?.title || '',
+    email: lead?.contact_email || sd?.contrato_config?.email || '',
+    telefono_celular: lead?.contact_phone || '',
+    direccion_fisica: sd?.direccion_fisica || sd?.contrato_config?.direccionFisica || '',
+    direccion_postal: sd?.contrato_config?.direccionPostal || '',
+    cta_luma: sd?.contrato_config?.numCtaLuma || sd?.cta_luma || '',
+    contador: sd?.contrato_config?.numContador || '',
+    cantidad_solicitada: sd?.contrato_config?.precioTotal || sd?.calc?.precio_total || '',
+  };
+
+  const initial = { ...autoFill, ...(existing?.form_data || {}) };
+  const [formData, setFormData] = useState(initial);
+  const [saving, setSaving]     = useState(false);
+  const [signingUrl, setSigningUrl] = useState(existing?.signing_url || '');
+  const [savedId, setSavedId]   = useState(existing?.id || null);
+
+  const setField = (k, v) => setFormData(p => ({ ...p, [k]: v }));
+
+  // Auto-save debounced
+  const dirty = useRef(false);
+  useEffect(() => { dirty.current = true; }, [formData]);
+  useEffect(() => {
+    const t = setInterval(async () => {
+      if (!dirty.current) return;
+      dirty.current = false;
+      try {
+        const r = await api.createLoanApplication(leadId, { cooperativa: cooperativa || '', form_data: formData });
+        if (r?.id) setSavedId(r.id);
+        if (r?.signing_url) setSigningUrl(r.signing_url);
+      } catch {}
+    }, 1500);
+    return () => clearInterval(t);
+  }, [leadId, cooperativa, formData]);
+
+  const sections = LOAN_SECTIONS_FALLBACK;
+
+  const handleSaveAndGenerate = async () => {
+    // Validar requeridos
+    const required = sections.flatMap(s => s.fields).filter(f => f.required);
+    const missing = required.filter(f => !formData[f.key] || String(formData[f.key]).trim() === '');
+    if (missing.length) {
+      alert('Faltan campos requeridos:\n- ' + missing.map(m => m.label).join('\n- '));
+      return;
+    }
+    setSaving(true);
+    try {
+      const r = await api.createLoanApplication(leadId, { cooperativa: cooperativa || '', form_data: formData });
+      setSavedId(r.id); setSigningUrl(r.signing_url);
+      if (r.signing_url) {
+        try { await navigator.clipboard.writeText(r.signing_url); } catch {}
+        alert('✓ Solicitud guardada. Link de firma copiado al portapapeles:\n\n' + r.signing_url);
+      }
+      onSaved();
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { setSaving(false); }
+  };
+
+  const inp = { width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, padding:'9px 11px', fontSize:13, color:'var(--text)', outline:'none', fontFamily:'inherit', boxSizing:'border-box' };
+
+  const renderField = (f) => {
+    const v = formData[f.key] ?? '';
+    const colSpan = f.width === 'full' ? '1 / -1' : 'auto';
+    return (
+      <div key={f.key} style={{ gridColumn: colSpan }}>
+        <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.3, display:'block', marginBottom:4 }}>
+          {f.label}{f.required && <span style={{ color:'#dc2626' }}> *</span>}
+        </label>
+        {f.type === 'textarea'
+          ? <textarea value={v} onChange={e => setField(f.key, e.target.value)} rows={2} style={{ ...inp, resize:'vertical' }} />
+          : <input type={f.type || 'text'} value={v} onChange={e => setField(f.key, e.target.value)} style={inp} />}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{
+      position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,0.7)',
+      display:'flex', alignItems:'center', justifyContent:'center', padding:12,
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14,
+        padding:0, maxWidth:780, width:'100%', maxHeight:'95vh', overflowY:'auto',
+      }}>
+        <div style={{ position:'sticky', top:0, background:'var(--surface)', borderBottom:'1px solid var(--border)', padding:'14px 18px', display:'flex', justifyContent:'space-between', alignItems:'center', zIndex:2 }}>
+          <div>
+            <div style={{ fontSize:16, fontWeight:800, color:'var(--text)' }}>📝 Solicitud de Préstamo</div>
+            <div style={{ fontSize:12, color:'var(--muted)' }}>{cooperativa || 'Sin cooperativa'} · Auto-guardado activo</div>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'var(--muted)' }}>×</button>
+        </div>
+
+        <div style={{ padding:'16px 18px' }}>
+          {sections.map(sec => (
+            <div key={sec.title} style={{ marginBottom:16 }}>
+              <div style={{ fontSize:12, fontWeight:800, color:'#1a3c8f', textTransform:'uppercase', letterSpacing:.8, borderBottom:'2px solid #67e8f9', paddingBottom:5, marginBottom:10 }}>
+                {sec.title}
+              </div>
+              <div className="loan-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                {sec.fields.map(renderField)}
+              </div>
+            </div>
+          ))}
+
+          {signingUrl && (
+            <div style={{ background:'rgba(16,185,129,.1)', border:'1px solid rgba(16,185,129,.3)', borderRadius:8, padding:'10px 12px', fontSize:12, color:'#059669', marginBottom:12, wordBreak:'break-all' }}>
+              🔗 Link de firma: <strong>{signingUrl}</strong>
+            </div>
+          )}
+        </div>
+
+        <div style={{ position:'sticky', bottom:0, background:'var(--surface)', borderTop:'1px solid var(--border)', padding:'12px 18px', display:'flex', gap:8 }}>
+          <button onClick={onClose} disabled={saving} style={{ padding:'11px 16px', background:'transparent', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:8, fontSize:13, cursor:'pointer' }}>Cancelar</button>
+          <button onClick={handleSaveAndGenerate} disabled={saving} style={{ flex:1, padding:'11px', background:'linear-gradient(135deg,#1a3c8f,#0f2558)', color:'#fff', border:'none', borderRadius:8, fontSize:14, fontWeight:700, cursor:'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? 'Guardando…' : '💾 Guardar y generar link de firma'}
+          </button>
+        </div>
+
+        <style jsx>{`
+          @media (max-width: 640px) {
+            :global(.loan-grid) { grid-template-columns: 1fr !important; }
+          }
+        `}</style>
+      </div>
     </div>
   );
 }
