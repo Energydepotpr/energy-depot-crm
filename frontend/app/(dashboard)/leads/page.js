@@ -6355,7 +6355,17 @@ function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSa
     cantidad_solicitada: sd?.contrato_config?.precioTotal || sd?.calc?.precio_total || '',
   };
 
-  const initial = { ...autoFill, ...(existing?.form_data || {}) };
+  // Merge: empezar con autoFill, después sobreescribir con los valores NO VACÍOS de existing.
+  // Si existing tiene un campo con '', no debe pisar el autoFill.
+  const initial = (() => {
+    const out = { ...autoFill };
+    const ef = existing?.form_data || {};
+    for (const k in ef) {
+      const v = ef[k];
+      if (v != null && v !== '') out[k] = v;
+    }
+    return out;
+  })();
   const [formData, setFormData] = useState(initial);
   const [saving, setSaving]     = useState(false);
   const [signingUrl, setSigningUrl] = useState(existing?.signing_url || '');
