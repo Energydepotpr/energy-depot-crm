@@ -6193,31 +6193,55 @@ function SolicitudCard({ doc, docLabel, leadId, lead, cooperativa, loanApps, onO
     );
   }
 
-  // Si hay doc manual cargado (sin firma) — mostrar pero permitir generar/firmar
+  // Si hay doc manual cargado (sin firma) — mostrar Ver/Reemplazar/Eliminar como cualquier doc
   if (doc) {
+    const verDoc = async () => {
+      try {
+        const r = await api.getFinancingDocFile(leadId, { cooperativa, etapa_id: 'etapa1', doc_key: 'solicitud' });
+        const blob = await (await fetch(`data:${r.mime};base64,${r.base64}`)).blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (e) { alert('Error: ' + e.message); }
+    };
+    const replaceDoc = async (file) => {
+      if (!file) return;
+      try {
+        const { base64, mime, filename } = await compressIfNeeded(file);
+        await api.uploadFinancingDoc(leadId, { cooperativa, etapa_id: 'etapa1', doc_key: 'solicitud', filename, mime_type: mime, base64 });
+        if (onChanged) onChanged();
+      } catch (e) { alert('Error: ' + e.message); }
+    };
+    const inputId = `sol-rep-${cooperativa}`;
     return (
-      <div style={baseCard('rgba(148,163,184,0.4)')}>
-        {headerLine('📎', '#94a3b8')}
-        <div style={{ fontSize:11, color:'var(--muted)' }}>
-          📎 {doc.filename} · subida {fmtDate(doc.uploaded_at)}
-        </div>
-        <div style={{ background:'rgba(245,158,11,0.10)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:6, padding:'7px 10px', fontSize:11, color:'#92400e' }}>
-          💡 Tienes una subida manual. Para firma electrónica generá una solicitud nueva.
-        </div>
+      <div style={baseCard('#10b981')}>
+        {headerLine('✓', '#10b981')}
+        <div style={{ fontSize:11, color:'var(--muted)' }}>📎 {doc.filename} · {fmtDate(doc.uploaded_at)}</div>
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          <button onClick={verDoc} style={{
+            background:'#1a3c8f', color:'#fff', border:'none',
+            padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>👁 Ver</button>
+          <input id={inputId} type="file" accept="image/*,application/pdf"
+            onChange={e => { const f = e.target.files?.[0]; e.target.value=''; if (f) replaceDoc(f); }}
+            style={{ position:'absolute', width:0, height:0, opacity:0, pointerEvents:'none' }} />
+          <button onClick={() => document.getElementById(inputId)?.click()} style={{
+            background:'rgba(103,232,249,0.15)', color:'#0891b2', border:'1px solid rgba(103,232,249,0.3)',
+            padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>🔄 Reemplazar</button>
           <button onClick={() => onOpenForm()} style={{
-            flex:1, minWidth:120, background:'#1a3c8f', color:'#fff', border:'none',
-            padding:'8px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
-          }}>📝 Llenar solicitud nueva</button>
+            background:'rgba(245,158,11,0.15)', color:'#b45309', border:'1px solid rgba(245,158,11,0.35)',
+            padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>📝 Generar digital</button>
           <button onClick={async () => {
-            if (!confirm('¿Eliminar la subida manual? Vas a poder generar la solicitud digital.')) return;
+            if (!confirm('¿Eliminar este documento?')) return;
             try {
               await api.deleteFinancingDoc(leadId, { cooperativa, etapa_id: 'etapa1', doc_key: 'solicitud' });
               if (onChanged) onChanged();
             } catch (e) { alert('Error: ' + e.message); }
           }} style={{
             background:'transparent', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)',
-            padding:'8px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+            padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
           }}>🗑</button>
         </div>
       </div>
@@ -6336,6 +6360,21 @@ function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSa
   const [saving, setSaving]     = useState(false);
   const [signingUrl, setSigningUrl] = useState(existing?.signing_url || '');
   const [savedId, setSavedId]   = useState(existing?.id || null);
+  const [seeded, setSeeded]     = useState(!!existing);
+
+  // Si NO hay existing para esta coop, intentar auto-fill desde la solicitud más reciente de otra coop
+  useEffect(() => {
+    if (existing || seeded) return;
+    (async () => {
+      try {
+        const latest = await api.getLatestLoanFormData(leadId);
+        if (latest?.form_data && typeof latest.form_data === 'object') {
+          setFormData(p => ({ ...latest.form_data, ...p })); // mantener auto-fill recientes si ya el usuario tipeó
+          setSeeded(true);
+        }
+      } catch {}
+    })();
+  }, [leadId, existing, seeded]);
 
   const setField = (k, v) => setFormData(p => ({ ...p, [k]: v }));
 

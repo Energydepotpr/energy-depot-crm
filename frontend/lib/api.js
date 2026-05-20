@@ -457,6 +457,7 @@ export const api = {
   // Loan applications (Solicitud de préstamo con firma electrónica)
   createLoanApplication: (leadId, data)                     => req('POST',   `/api/leads/${leadId}/loan-application`, data),
   getLoanApplications:   (leadId, coop)                     => req('GET',    `/api/leads/${leadId}/loan-applications${coop != null ? `?cooperativa=${encodeURIComponent(coop)}` : ''}`),
+  getLatestLoanFormData: (leadId)                           => req('GET',    `/api/leads/${leadId}/loan-applications/latest-form-data`),
   getLoanApplicationPdf: (leadId, laId)                     => req('GET',    `/api/leads/${leadId}/loan-applications/${laId}/pdf`),
 
   // Helper: subir base64 ya generado (cotización/contrato/factura) como financing-doc

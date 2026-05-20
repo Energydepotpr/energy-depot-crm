@@ -261,9 +261,10 @@ app.delete('/api/leads/:id/financing-docs/:doc_key',       financingCtrl.deleteD
 app.post  ('/api/leads/:id/financing/send',                financingCtrl.sendToCoop);
 
 // Loan applications (Solicitud de préstamo con firma electrónica)
-app.post  ('/api/leads/:id/loan-application',              loanAppsCtrl.createOrUpdate);
-app.get   ('/api/leads/:id/loan-applications',             loanAppsCtrl.listForLead);
-app.get   ('/api/leads/:id/loan-applications/:la_id/pdf',  loanAppsCtrl.downloadPdf);
+app.post  ('/api/leads/:id/loan-application',                    loanAppsCtrl.createOrUpdate);
+app.get   ('/api/leads/:id/loan-applications',                   loanAppsCtrl.listForLead);
+app.get   ('/api/leads/:id/loan-applications/latest-form-data',  loanAppsCtrl.latestFormData);
+app.get   ('/api/leads/:id/loan-applications/:la_id/pdf',        loanAppsCtrl.downloadPdf);
 
 app.get('/api/me', auth.me);
 app.get('/api/stats', settings.stats);

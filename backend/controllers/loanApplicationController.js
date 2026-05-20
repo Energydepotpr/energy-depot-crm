@@ -115,6 +115,25 @@ async function createOrUpdate(req, res) {
   }
 }
 
+// GET /api/leads/:id/loan-applications/latest-form-data — devuelve form_data más reciente de cualquier coop (para auto-fill)
+async function latestFormData(req, res) {
+  try {
+    await ensureLoanApplicationsTable();
+    const leadId = Number(req.params.id);
+    const r = await pool.query(
+      `SELECT form_data, cooperativa, signed_at, created_at
+         FROM loan_applications
+        WHERE lead_id=$1 AND form_data IS NOT NULL
+        ORDER BY signed_at DESC NULLS LAST, id DESC LIMIT 1`,
+      [leadId]
+    );
+    res.json(r.rows[0] || null);
+  } catch (e) {
+    console.error('[loan_apps latest]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
 // GET /api/leads/:id/loan-applications?cooperativa=X
 async function listForLead(req, res) {
   try {
@@ -274,6 +293,7 @@ async function signPublic(req, res) {
 module.exports = {
   createOrUpdate,
   listForLead,
+  latestFormData,
   downloadPdf,
   getPublic,
   signPublic,
