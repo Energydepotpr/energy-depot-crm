@@ -1412,31 +1412,21 @@ const TABS = [
 ];
 
 function CooperativasSection() {
-  const DEFAULTS = [
-    { name: 'Vega Coop',     emails: ['ldelgado@vegacoop.com', 'vguzman@vegacoop.com'] },
-    { name: 'Tu Coop',       emails: ['sfranco@tucooppr.com', 'jsuarez@tucooppr.com', 'lmatos@tucooppr.com'] },
-    { name: 'Coop Oriental', emails: ['lserrano@cooporiental.com'] },
-  ];
-  const [coops, setCoops] = useState(DEFAULTS);
+  const [coops, setCoops] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [ok, setOk] = useState(false);
+  const [expanded, setExpanded] = useState({}); // idx -> bool
 
   useEffect(() => {
-    api.settings().then(c => {
-      try {
-        const raw = c?.cooperativas;
-        if (raw) {
-          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-          if (Array.isArray(parsed) && parsed.length) setCoops(parsed);
-        }
-      } catch {}
+    api.cooperativas().then(arr => {
+      if (Array.isArray(arr)) setCoops(arr);
       setLoaded(true);
     }).catch(() => setLoaded(true));
   }, []);
 
   const persist = async (next) => {
     try {
-      await api.saveSetting('cooperativas', JSON.stringify(next));
+      await api.saveCooperativas(next);
       setOk(true);
       setTimeout(() => setOk(false), 2000);
     } catch (e) { alert(e.message); }
@@ -1448,46 +1438,169 @@ function CooperativasSection() {
     return next;
   };
 
+  const updateEtapa = (cIdx, eIdx, patch) => {
+    const c = coops[cIdx];
+    const etapas = (c.etapas || []).map((e, i) => i === eIdx ? { ...e, ...patch } : e);
+    const next = updateOne(cIdx, { etapas });
+    return next;
+  };
+
+  const updateDoc = (cIdx, eIdx, dIdx, patch) => {
+    const c = coops[cIdx];
+    const e = (c.etapas || [])[eIdx];
+    const docs = (e.docs || []).map((d, i) => i === dIdx ? { ...d, ...patch } : d);
+    return updateEtapa(cIdx, eIdx, { docs });
+  };
+
+  const resetCoopDefaults = async (cIdx) => {
+    if (!confirm(`¿Restaurar etapas/documentos de "${coops[cIdx].name}" a los valores por defecto?`)) return;
+    try {
+      // Pedir defaults al backend: enviar copia sin etapas para esta, backend rellenará
+      const stripped = coops.map((c, i) => i === cIdx ? { name: c.name, emails: c.emails || [] } : c);
+      const arr = await api.saveCooperativas(stripped);
+      if (Array.isArray(arr)) setCoops(arr);
+      setOk(true); setTimeout(() => setOk(false), 2000);
+    } catch (e) { alert(e.message); }
+  };
+
   if (!loaded) return null;
 
   return (
-    <SeccionCard title="Cooperativas de financiamiento" desc="Lista de cooperativas para enviar solicitudes desde el panel de cada lead. Auto-guarda al salir del campo.">
+    <SeccionCard title="Cooperativas de financiamiento" desc="Cada cooperativa tiene etapas con su propia lista de documentos. Auto-guarda al salir del campo.">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {coops.map((c, idx) => (
-          <div key={idx} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <input
-                className="input text-sm"
-                style={{ flex: 1 }}
-                value={c.name || ''}
-                onChange={e => updateOne(idx, { name: e.target.value })}
-                onBlur={() => persist(coops)}
-                placeholder="Nombre de la cooperativa"
-              />
-              <button
-                onClick={() => {
-                  if (!confirm(`¿Eliminar "${c.name}"?`)) return;
-                  const next = coops.filter((_, i) => i !== idx);
-                  setCoops(next);
-                  persist(next);
-                }}
-                style={{ background: 'none', color: '#ef4444', border: '1px solid var(--border)', borderRadius: 6, padding: '0 10px', cursor: 'pointer', fontSize: 16 }}
-              >×</button>
+        {coops.map((c, idx) => {
+          const isOpen = expanded[idx] !== false;
+          return (
+            <div key={idx} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <button
+                  onClick={() => setExpanded(s => ({ ...s, [idx]: !isOpen }))}
+                  style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '0 10px', cursor: 'pointer', color: 'var(--text)' }}
+                >{isOpen ? '▾' : '▸'}</button>
+                <input
+                  className="input text-sm"
+                  style={{ flex: 1 }}
+                  value={c.name || ''}
+                  onChange={e => updateOne(idx, { name: e.target.value })}
+                  onBlur={() => persist(coops)}
+                  placeholder="Nombre de la cooperativa"
+                />
+                <button
+                  onClick={() => resetCoopDefaults(idx)}
+                  title="Reset a defaults"
+                  style={{ background: 'none', color: 'var(--accent)', border: '1px solid var(--border)', borderRadius: 6, padding: '0 10px', cursor: 'pointer', fontSize: 12 }}
+                >↺ Reset</button>
+                <button
+                  onClick={() => {
+                    if (!confirm(`¿Eliminar "${c.name}"?`)) return;
+                    const next = coops.filter((_, i) => i !== idx);
+                    setCoops(next);
+                    persist(next);
+                  }}
+                  style={{ background: 'none', color: '#ef4444', border: '1px solid var(--border)', borderRadius: 6, padding: '0 10px', cursor: 'pointer', fontSize: 16 }}
+                >×</button>
+              </div>
+
+              {isOpen && (
+                <>
+                  <label className="text-xs text-muted block mb-1">Emails (uno por línea)</label>
+                  <textarea
+                    className="input text-sm w-full resize-none"
+                    rows={Math.max(2, (c.emails || []).length)}
+                    value={(c.emails || []).join('\n')}
+                    onChange={e => updateOne(idx, { emails: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
+                    onBlur={() => persist(coops)}
+                    placeholder="contacto1@coop.com&#10;contacto2@coop.com"
+                  />
+
+                  <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {(c.etapas || []).map((e, eIdx) => (
+                      <div key={eIdx} style={{ border: '1px dashed var(--border)', borderRadius: 8, padding: 10 }}>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                          <input
+                            className="input text-sm"
+                            style={{ flex: 1 }}
+                            value={e.name || ''}
+                            onChange={ev => updateEtapa(idx, eIdx, { name: ev.target.value })}
+                            onBlur={() => persist(coops)}
+                            placeholder="Nombre de la etapa"
+                          />
+                          <input
+                            className="input text-sm"
+                            style={{ width: 100 }}
+                            value={e.id || ''}
+                            onChange={ev => updateEtapa(idx, eIdx, { id: ev.target.value.replace(/[^a-z0-9_-]/gi, '') })}
+                            onBlur={() => persist(coops)}
+                            placeholder="id"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!confirm(`¿Eliminar etapa "${e.name}"?`)) return;
+                              const etapas = (c.etapas || []).filter((_, i) => i !== eIdx);
+                              const next = updateOne(idx, { etapas });
+                              persist(next);
+                            }}
+                            style={{ background: 'none', color: '#ef4444', border: '1px solid var(--border)', borderRadius: 6, padding: '0 8px', cursor: 'pointer', fontSize: 14 }}
+                          >×</button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {(e.docs || []).map((d, dIdx) => (
+                            <div key={dIdx} style={{ display: 'flex', gap: 6 }}>
+                              <input
+                                className="input text-xs"
+                                style={{ width: 140 }}
+                                value={d.key || ''}
+                                onChange={ev => updateDoc(idx, eIdx, dIdx, { key: ev.target.value.replace(/[^a-z0-9_-]/gi, '') })}
+                                onBlur={() => persist(coops)}
+                                placeholder="key"
+                              />
+                              <input
+                                className="input text-xs"
+                                style={{ flex: 1 }}
+                                value={d.label || ''}
+                                onChange={ev => updateDoc(idx, eIdx, dIdx, { label: ev.target.value })}
+                                onBlur={() => persist(coops)}
+                                placeholder="Descripción del documento"
+                              />
+                              <button
+                                onClick={() => {
+                                  const docs = (e.docs || []).filter((_, i) => i !== dIdx);
+                                  const next = updateEtapa(idx, eIdx, { docs });
+                                  persist(next);
+                                }}
+                                style={{ background: 'none', color: '#ef4444', border: '1px solid var(--border)', borderRadius: 6, padding: '0 8px', cursor: 'pointer', fontSize: 12 }}
+                              >×</button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const docs = [...(e.docs || []), { key: `doc_${(e.docs || []).length + 1}`, label: 'Nuevo documento' }];
+                              const next = updateEtapa(idx, eIdx, { docs });
+                              persist(next);
+                            }}
+                            style={{ padding: '6px', background: 'rgba(103,232,249,0.1)', border: '1px dashed var(--accent)', color: 'var(--accent)', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                          >+ Documento</button>
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => {
+                        const etapas = [...(c.etapas || []), { id: `etapa${(c.etapas || []).length + 1}`, name: 'Nueva etapa', docs: [] }];
+                        const next = updateOne(idx, { etapas });
+                        persist(next);
+                      }}
+                      style={{ padding: '8px', background: 'rgba(103,232,249,0.1)', border: '1px dashed var(--accent)', color: 'var(--accent)', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    >+ Etapa</button>
+                  </div>
+                </>
+              )}
             </div>
-            <label className="text-xs text-muted block mb-1">Emails (uno por línea)</label>
-            <textarea
-              className="input text-sm w-full resize-none"
-              rows={Math.max(2, (c.emails || []).length)}
-              value={(c.emails || []).join('\n')}
-              onChange={e => updateOne(idx, { emails: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
-              onBlur={() => persist(coops)}
-              placeholder="contacto1@coop.com&#10;contacto2@coop.com"
-            />
-          </div>
-        ))}
+          );
+        })}
         <button
           onClick={() => {
-            const next = [...coops, { name: 'Nueva cooperativa', emails: [] }];
+            const next = [...coops, { name: 'Nueva cooperativa', emails: [], etapas: [{ id: 'etapa1', name: 'Etapa 1', docs: [] }] }];
             setCoops(next);
             persist(next);
           }}

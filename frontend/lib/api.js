@@ -426,9 +426,33 @@ export const api = {
   // Financiamiento (docs para cooperativa)
   financingDocs:        (id)            => req('GET',    `/api/leads/${id}/financing-docs`),
   uploadFinancingDoc:   (id, data)      => req('POST',   `/api/leads/${id}/financing-docs`, data),
-  deleteFinancingDoc:   (id, key)       => req('DELETE', `/api/leads/${id}/financing-docs/${key}`),
-  getFinancingDocFile:  (id, key)       => req('GET',    `/api/leads/${id}/financing-docs/${key}/file`),
+  // Nuevos (con cooperativa + etapa_id). Si no se pasan, hacen fallback al endpoint legacy.
+  deleteFinancingDoc:   (id, opts) => {
+    if (opts && typeof opts === 'object') {
+      const q = new URLSearchParams({
+        cooperativa: opts.cooperativa || '',
+        etapa_id: opts.etapa_id || '',
+        doc_key: opts.doc_key || '',
+      }).toString();
+      return req('DELETE', `/api/leads/${id}/financing-docs?${q}`);
+    }
+    // legacy: deleteFinancingDoc(id, 'doc_key')
+    return req('DELETE', `/api/leads/${id}/financing-docs/${opts}`);
+  },
+  getFinancingDocFile:  (id, opts) => {
+    if (opts && typeof opts === 'object') {
+      const q = new URLSearchParams({
+        cooperativa: opts.cooperativa || '',
+        etapa_id: opts.etapa_id || '',
+        doc_key: opts.doc_key || '',
+      }).toString();
+      return req('GET', `/api/leads/${id}/financing-docs/file?${q}`);
+    }
+    return req('GET', `/api/leads/${id}/financing-docs/${opts}/file`);
+  },
   sendFinancingToCoop:  (id, data)      => req('POST',   `/api/leads/${id}/financing/send`, data),
+  cooperativas:         ()              => req('GET',    '/api/cooperativas'),
+  saveCooperativas:     (arr)           => req('PUT',    '/api/cooperativas', arr),
 
   // Reports
   downloadReport: (period = 30) => {

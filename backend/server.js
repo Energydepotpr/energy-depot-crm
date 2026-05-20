@@ -243,8 +243,14 @@ app.delete('/api/appointments/:id',  appointmentsCtrl.deleteAppointment);
 
 // Financing documents (auth) — cooperativas/preestamos
 const financingCtrl = require('./controllers/financingController');
+app.get   ('/api/cooperativas',                            financingCtrl.listCoops);
+app.put   ('/api/cooperativas',                            financingCtrl.saveCoops);
 app.get   ('/api/leads/:id/financing-docs',                financingCtrl.listDocs);
 app.post  ('/api/leads/:id/financing-docs',                financingCtrl.uploadDoc);
+// Nuevos (query params: cooperativa, etapa_id, doc_key)
+app.get   ('/api/leads/:id/financing-docs/file',           financingCtrl.getFile);
+app.delete('/api/leads/:id/financing-docs',                financingCtrl.deleteDoc);
+// Legacy (compat con docs viejos sin etapa)
 app.get   ('/api/leads/:id/financing-docs/:doc_key/file',  financingCtrl.getFile);
 app.delete('/api/leads/:id/financing-docs/:doc_key',       financingCtrl.deleteDoc);
 app.post  ('/api/leads/:id/financing/send',                financingCtrl.sendToCoop);

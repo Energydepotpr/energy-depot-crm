@@ -5620,14 +5620,31 @@ function CitasTab({ leadId }) {
 }
 
 // ─── Financiamiento Tab ───────────────────────────────────────────────────────
-const FINANCING_DOCS = [
-  { key: 'solicitud',     label: 'Solicitud de préstamo (llena y firmada)' },
-  { key: 'id',            label: 'ID vigente (lic. conducir o pasaporte)' },
-  { key: 'ss',            label: 'Tarjeta de Seguro Social' },
-  { key: 'luma',          label: 'Última factura de LUMA' },
-  { key: 'talonarios',    label: 'Últimos 3 talonarios o estados bancarios (pensionado)' },
-  { key: 'carta_empleo',  label: 'Carta de empleo (si aplica)' },
-  { key: 'escrituras',    label: 'Escrituras de la propiedad (solo validación titular)' },
+// Defaults (espejo del backend) — se sobreescriben con GET /api/cooperativas
+const FINANCING_COOPS_FALLBACK = [
+  { name: 'Vega Coop',     emails: ['ldelgado@vegacoop.com', 'vguzman@vegacoop.com'], etapas: [
+    { id: 'etapa1', name: 'Etapa 1 - Solicitud de préstamo', docs: [
+      { key:'solicitud', label:'Solicitud de préstamo llena y firmada' },
+      { key:'id', label:'ID Vigente' },
+      { key:'ss', label:'Tarjeta de Seguro Social' },
+      { key:'luma', label:'Última factura de LUMA' },
+      { key:'talonarios', label:'Últimos 3 talonarios o estado bancario' },
+      { key:'carta_empleo', label:'Carta de empleo' },
+      { key:'escrituras', label:'Escrituras de la propiedad' },
+      { key:'cotizacion', label:'Cotización elegida' },
+      { key:'contrato', label:'Contrato de compra-venta' },
+      { key:'factura_45', label:'Factura de 45% del precio total' },
+      { key:'autorizacion_desembolso', label:'Autorización de desembolso firmada' },
+    ]},
+    { id: 'etapa2', name: 'Etapa 2 - Instalación', docs: [
+      { key:'fotos_instalacion', label:'Fotos de instalación' },
+      { key:'serie_equipos', label:'Lista de números de serie de equipos' },
+      { key:'cert_instalacion', label:'Certificación de Instalación eléctrica' },
+      { key:'plano', label:'Diseño de plano' },
+      { key:'poliza_seguro', label:'Póliza de seguros con Vega Coop como acreedor' },
+      { key:'autorizacion_desembolso_2', label:'Autorización de desembolso firmada' },
+    ]},
+  ]},
 ];
 
 // Comprime imagen >2MB redimensionando a max 1600px, devuelve { base64, mime, filename }
@@ -5667,9 +5684,12 @@ async function compressIfNeeded(file) {
 }
 
 function FinanciamientoTab({ leadId, lead, onUpdated }) {
+  const [coops, setCoops] = useState(FINANCING_COOPS_FALLBACK);
+  const [coopName, setCoopName] = useState(lead?.solar_data?.financing_coop || '');
+  const [etapaId, setEtapaId] = useState('');
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(null); // doc_key
+  const [uploading, setUploading] = useState(null); // composite key coop|etapa|doc
   const [showSend, setShowSend] = useState(false);
 
   const load = () => {
@@ -5678,32 +5698,72 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
   };
   useEffect(() => { load(); }, [leadId]);
 
-  const byKey = Object.fromEntries(docs.map(d => [d.doc_key, d]));
-  const uploaded = docs.length;
-  const total = FINANCING_DOCS.length;
-  const allReady = uploaded >= total && FINANCING_DOCS.every(d => byKey[d.key]);
+  useEffect(() => {
+    api.cooperativas().then(arr => {
+      if (Array.isArray(arr) && arr.length) setCoops(arr);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    // Re-sync coopName si cambia lead
+    const saved = lead?.solar_data?.financing_coop;
+    if (saved && saved !== coopName) setCoopName(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead?.id]);
+
+  const coop = coops.find(c => c.name === coopName) || null;
+  const etapas = coop?.etapas || [];
+
+  // Auto-seleccionar primera etapa cuando cambia coop
+  useEffect(() => {
+    if (coop && etapas.length && !etapas.find(e => e.id === etapaId)) {
+      setEtapaId(etapas[0].id);
+    }
+    if (!coop) setEtapaId('');
+  }, [coopName, coop, etapas, etapaId]);
+
+  const etapa = etapas.find(e => e.id === etapaId) || null;
+  const etapaDocs = etapa?.docs || [];
+
+  // Mapeado de docs subidos para esta coop+etapa
+  const byKey = Object.fromEntries(
+    docs
+      .filter(d => (d.cooperativa || '') === (coopName || '') && (d.etapa_id || '') === (etapaId || ''))
+      .map(d => [d.doc_key, d])
+  );
+  const uploaded = etapaDocs.filter(d => byKey[d.key]).length;
+  const total = etapaDocs.length;
+  const allReady = total > 0 && uploaded >= total;
+
+  const etapaSent = lead?.solar_data?.financing_etapas_sent?.[`${coopName}::${etapaId}`] || null;
+
+  const persistCoopChoice = async (name) => {
+    setCoopName(name);
+    try {
+      const sd = { ...(lead?.solar_data || {}), financing_coop: name };
+      await api.saveSolarData(leadId, { solar_data: sd });
+      if (onUpdated) onUpdated();
+    } catch (e) { /* silencioso */ }
+  };
 
   const handleUpload = async (docKey, file) => {
     if (!file) return;
     if (!leadId) { alert('Error: lead no identificado'); return; }
-    console.log('[FIN] upload start', docKey, file.name, file.size, file.type);
-    setUploading(docKey);
+    if (!coopName || !etapaId) { alert('Selecciona cooperativa y etapa primero'); return; }
+    const uk = `${coopName}|${etapaId}|${docKey}`;
+    setUploading(uk);
     try {
-      let payload;
-      try {
-        payload = await compressIfNeeded(file);
-        console.log('[FIN] compressed', payload.filename, payload.mime, payload.base64?.length);
-      } catch (ce) {
-        throw new Error('Procesando imagen: ' + ce.message);
-      }
+      const payload = await compressIfNeeded(file);
       const { base64, mime, filename } = payload;
       if (!base64) throw new Error('Archivo vacío');
-      const result = await api.uploadFinancingDoc(leadId, { doc_key: docKey, filename, mime_type: mime, base64 });
-      console.log('[FIN] uploaded OK', result);
+      await api.uploadFinancingDoc(leadId, {
+        cooperativa: coopName, etapa_id: etapaId,
+        doc_key: docKey, filename, mime_type: mime, base64,
+      });
       load();
     } catch (e) {
       console.error('[FIN] upload FAIL', e);
-      alert('Error subiendo "' + (file.name || docKey) + '": ' + (e.message || 'error desconocido') + (e.status ? ` (HTTP ${e.status})` : ''));
+      alert('Error subiendo "' + (file.name || docKey) + '": ' + (e.message || 'error') + (e.status ? ` (HTTP ${e.status})` : ''));
     } finally {
       setUploading(null);
     }
@@ -5711,7 +5771,7 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
 
   const handleView = async (docKey) => {
     try {
-      const r = await api.getFinancingDocFile(leadId, docKey);
+      const r = await api.getFinancingDocFile(leadId, { cooperativa: coopName, etapa_id: etapaId, doc_key: docKey });
       const blob = await (await fetch(`data:${r.mime};base64,${r.base64}`)).blob();
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
@@ -5722,7 +5782,7 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
   const handleDelete = async (docKey) => {
     if (!confirm('¿Eliminar este documento?')) return;
     try {
-      await api.deleteFinancingDoc(leadId, docKey);
+      await api.deleteFinancingDoc(leadId, { cooperativa: coopName, etapa_id: etapaId, doc_key: docKey });
       load();
     } catch (e) { alert(e.message); }
   };
@@ -5736,24 +5796,87 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
            dt.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Sin cooperativa elegida
+  if (!coopName) {
+    return (
+      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 18 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+            💰 Financiamiento
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>
+            Selecciona la cooperativa para empezar:
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {coops.map(c => (
+              <button key={c.name} onClick={() => persistCoopChoice(c.name)}
+                style={{ padding: '12px 14px', textAlign: 'left', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                {c.name} <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 12 }}>· {(c.etapas || []).length} etapa(s)</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 100 }}>
+      {/* Selector de cooperativa */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Cooperativa:</label>
+        <select value={coopName} onChange={e => persistCoopChoice(e.target.value)}
+          style={{ padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 13, fontWeight: 600 }}>
+          {coops.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+        </select>
+        <button onClick={() => setCoopName('')} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--muted)', padding: '6px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>
+          Cambiar
+        </button>
+      </div>
+
+      {/* Tabs de etapas */}
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'thin' }}>
+        {etapas.map(e => {
+          const active = e.id === etapaId;
+          const sent = !!lead?.solar_data?.financing_etapas_sent?.[`${coopName}::${e.id}`];
+          return (
+            <button key={e.id} onClick={() => setEtapaId(e.id)}
+              style={{
+                whiteSpace: 'nowrap', padding: '8px 14px',
+                background: active ? '#1a3c8f' : 'var(--surface)',
+                color: active ? '#fff' : 'var(--text)',
+                border: `1px solid ${active ? '#1a3c8f' : 'var(--border)'}`,
+                borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}>
+              {sent && '✓ '}{e.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Si etapa enviada */}
+      {etapaSent && (
+        <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#059669' }}>
+          ✓ Enviada el {fmtDate(etapaSent)}
+        </div>
+      )}
+
       {/* Progress */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>📋 Documentos para cooperativa</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>📋 {etapa?.name || 'Etapa'}</div>
           <div style={{ fontSize: 13, fontWeight: 700, color: allReady ? '#10b981' : '#f59e0b' }}>{uploaded}/{total}</div>
         </div>
         <div style={{ background: 'var(--border)', height: 8, borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{ width: `${(uploaded / total) * 100}%`, height: '100%', background: allReady ? '#10b981' : '#1a3c8f', transition: 'width 0.3s' }} />
+          <div style={{ width: total ? `${(uploaded / total) * 100}%` : '0%', height: '100%', background: allReady ? '#10b981' : '#1a3c8f', transition: 'width 0.3s' }} />
         </div>
       </div>
 
       {/* Doc cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-        {FINANCING_DOCS.map(d => {
+        {etapaDocs.map(d => {
           const doc = byKey[d.key];
-          const isUploading = uploading === d.key;
+          const isUploading = uploading === `${coopName}|${etapaId}|${d.key}`;
           return (
             <div key={d.key} style={{
               background: 'var(--surface)',
@@ -5866,7 +5989,7 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
             boxShadow: allReady ? '0 4px 14px rgba(16,185,129,0.35)' : 'none',
           }}
         >
-          {allReady ? '📤 Enviar a Cooperativa' : `Faltan ${total - uploaded} documento(s)`}
+          {allReady ? `📤 Enviar ${etapa?.name || 'etapa'} a ${coopName}` : `Faltan ${Math.max(0, total - uploaded)} documento(s)`}
         </button>
       </div>
 
@@ -5874,42 +5997,48 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
         <EnviarCooperativaModal
           leadId={leadId}
           lead={lead}
+          coops={coops}
+          presetCoopName={coopName}
+          presetEtapaId={etapaId}
           onClose={() => setShowSend(false)}
-          onSent={() => { setShowSend(false); load(); if (onUpdated) onUpdated(); }}
+          onSent={async () => {
+            // Marcar etapa enviada en solar_data
+            try {
+              const sd = { ...(lead?.solar_data || {}) };
+              const map = { ...(sd.financing_etapas_sent || {}) };
+              map[`${coopName}::${etapaId}`] = new Date().toISOString();
+              sd.financing_etapas_sent = map;
+              await api.saveSolarData(leadId, { solar_data: sd });
+            } catch {}
+            setShowSend(false);
+            load();
+            if (onUpdated) onUpdated();
+          }}
         />
       )}
     </div>
   );
 }
 
-function EnviarCooperativaModal({ leadId, lead, onClose, onSent }) {
-  const COOPERATIVAS_DEFAULT = [
-    { name: 'Vega Coop',     emails: ['ldelgado@vegacoop.com', 'vguzman@vegacoop.com'] },
-    { name: 'Tu Coop',       emails: ['sfranco@tucooppr.com', 'jsuarez@tucooppr.com', 'lmatos@tucooppr.com'] },
-    { name: 'Coop Oriental', emails: ['lserrano@cooporiental.com'] },
-  ];
-  const [coops, setCoops] = useState(COOPERATIVAS_DEFAULT);
-  const [coopIdx, setCoopIdx] = useState(0);
+function EnviarCooperativaModal({ leadId, lead, coops: coopsProp, presetCoopName, presetEtapaId, onClose, onSent }) {
+  const [coops, setCoops] = useState(Array.isArray(coopsProp) && coopsProp.length ? coopsProp : []);
+  const initialIdx = Math.max(0, coops.findIndex(c => c.name === presetCoopName));
+  const [coopIdx, setCoopIdx] = useState(initialIdx >= 0 ? initialIdx : 0);
   const [emailsText, setEmailsText] = useState('');
   const [message, setMessage] = useState('');
   const [moveStage, setMoveStage] = useState(true);
   const [sending, setSending] = useState(false);
 
   const clientName = lead?.contact_name || lead?.title || 'el cliente';
+  const coopSel = coops[coopIdx] || null;
+  const etapaSel = coopSel?.etapas?.find(e => e.id === presetEtapaId) || coopSel?.etapas?.[0] || null;
+  const etapaName = etapaSel?.name || 'Solicitud de financiamiento';
 
   useEffect(() => {
-    api.settings().then(c => {
-      let arr = COOPERATIVAS_DEFAULT;
-      try {
-        const raw = c?.cooperativas;
-        if (raw) {
-          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-          if (Array.isArray(parsed) && parsed.length) arr = parsed;
-        }
-      } catch {}
-      setCoops(arr);
-    }).catch(() => {});
-  }, []);
+    if (!coops.length) {
+      api.cooperativas().then(arr => { if (Array.isArray(arr) && arr.length) setCoops(arr); }).catch(() => {});
+    }
+  }, []); // eslint-disable-line
 
   useEffect(() => {
     const c = coops[coopIdx];
@@ -5917,8 +6046,8 @@ function EnviarCooperativaModal({ leadId, lead, onClose, onSent }) {
   }, [coopIdx, coops]);
 
   useEffect(() => {
-    setMessage(`Buenas tardes, adjuntamos los documentos de solicitud de financiamiento para nuestro cliente ${clientName}. Cualquier información adicional, no duden en contactarnos.\n\nSaludos,\nEnergy Depot LLC.\n(787) 627-8585`);
-  }, [clientName]);
+    setMessage(`Buenas tardes, adjuntamos los documentos de ${etapaName.toLowerCase()} para nuestro cliente ${clientName}. Cualquier información adicional, no duden en contactarnos.\n\nSaludos,\nEnergy Depot LLC.\n(787) 627-8585`);
+  }, [clientName, etapaName]);
 
   const handleSend = async () => {
     const emails = emailsText.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
@@ -5927,7 +6056,8 @@ function EnviarCooperativaModal({ leadId, lead, onClose, onSent }) {
     setSending(true);
     try {
       const r = await api.sendFinancingToCoop(leadId, {
-        cooperativa, emails, message, move_stage: moveStage,
+        cooperativa, etapa_id: presetEtapaId || etapaSel?.id || '',
+        emails, message, move_stage: moveStage,
       });
       alert(`✅ Enviado a ${cooperativa}` + (r.moved_stage ? `\nLead movido a etapa: ${r.moved_stage}` : ''));
       onSent();
@@ -5949,9 +6079,12 @@ function EnviarCooperativaModal({ leadId, lead, onClose, onSent }) {
         borderRadius: 14, padding: 22, maxWidth: 560, width: '100%',
         maxHeight: '90vh', overflowY: 'auto',
       }}>
-        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>
-          📤 Enviar solicitud a Cooperativa
+        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+          📤 Enviar a Cooperativa
         </div>
+        {etapaSel && (
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>{etapaName}</div>
+        )}
 
         <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Cooperativa</label>
         <select value={coopIdx} onChange={e => setCoopIdx(Number(e.target.value))}
