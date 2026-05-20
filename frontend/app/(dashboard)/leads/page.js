@@ -6171,26 +6171,54 @@ function SolicitudCard({ doc, docLabel, leadId, lead, cooperativa, loanApps, onO
     </div>
   );
 
-  // Si ya hay doc en lead_financing_docs (firmada) — mostrar como cargado
-  if (doc || signed) {
-    const sName = signed?.signed_name;
-    const sAt   = signed?.signed_at;
+  // Estado C: firmada electrónicamente → mostrar como cargado con ✓ verde
+  if (signed) {
     return (
       <div style={baseCard('#10b981')}>
         {headerLine('✓', '#10b981')}
         <div style={{ fontSize:11, color:'var(--muted)' }}>
-          {sName ? <>Firmada por <strong>{sName}</strong>{sAt ? ` · ${fmtDate(sAt)}` : ''}</> : (doc ? `📎 ${doc.filename} · ${fmtDate(doc.uploaded_at)}` : 'Firmada')}
+          Firmada por <strong>{signed.signed_name}</strong>{signed.signed_at ? ` · ${fmtDate(signed.signed_at)}` : ''}
         </div>
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-          {signed && (
-            <button onClick={() => verBorradorPdf(signed.id)} style={{
-              flex:1, minWidth:90, background:'#1a3c8f', color:'#fff', border:'none',
-              padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
-            }}>👁 Ver PDF firmado</button>
-          )}
-          {!signed && doc && (
-            <div style={{ fontSize:11, color:'var(--muted)', padding:'7px 4px' }}>Solicitud cargada manualmente</div>
-          )}
+          <button onClick={() => verBorradorPdf(signed.id)} style={{
+            flex:1, minWidth:90, background:'#1a3c8f', color:'#fff', border:'none',
+            padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>👁 Ver PDF firmado</button>
+          <button onClick={() => onOpenForm()} style={{
+            background:'transparent', color:'#0891b2', border:'1px solid rgba(8,145,178,0.4)',
+            padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>📝 Nueva solicitud</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Si hay doc manual cargado (sin firma) — mostrar pero permitir generar/firmar
+  if (doc) {
+    return (
+      <div style={baseCard('rgba(148,163,184,0.4)')}>
+        {headerLine('📎', '#94a3b8')}
+        <div style={{ fontSize:11, color:'var(--muted)' }}>
+          📎 {doc.filename} · subida {fmtDate(doc.uploaded_at)}
+        </div>
+        <div style={{ background:'rgba(245,158,11,0.10)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:6, padding:'7px 10px', fontSize:11, color:'#92400e' }}>
+          💡 Tienes una subida manual. Para firma electrónica generá una solicitud nueva.
+        </div>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          <button onClick={() => onOpenForm()} style={{
+            flex:1, minWidth:120, background:'#1a3c8f', color:'#fff', border:'none',
+            padding:'8px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>📝 Llenar solicitud nueva</button>
+          <button onClick={async () => {
+            if (!confirm('¿Eliminar la subida manual? Vas a poder generar la solicitud digital.')) return;
+            try {
+              await api.deleteFinancingDoc(leadId, { cooperativa, etapa_id: 'etapa1', doc_key: 'solicitud' });
+              if (onChanged) onChanged();
+            } catch (e) { alert('Error: ' + e.message); }
+          }} style={{
+            background:'transparent', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)',
+            padding:'8px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>🗑</button>
         </div>
       </div>
     );
