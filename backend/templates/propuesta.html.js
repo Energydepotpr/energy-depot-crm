@@ -99,6 +99,31 @@ function buildHTML(data) {
     precio_solar_bateria:     fmtMoney(fvBat),
     factura_proyeccion:       fmtMoney(proyLuma),
     precio_solar_bateria_ext: fmtMoney(proyFvBat),
+
+    // Bloques condicionales: solo aparecen si hay batería seleccionada
+    opcion2_block: (batteries && batteries.length > 0 && fvBat > 0 && fvBat > fv) ? `
+      <div class="pcard">
+        <div class="l">
+          <div class="label">Opción 2 · Solar + Batería</div>
+          <div class="name">
+            <span class="ic">
+              <svg viewBox="0 0 24 24"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 18v-3h-2v-2h2v-3h-2V8h2V5h2v13h-2z"/></svg>
+            </span>
+            Placas Solares + Batería
+          </div>
+          <div class="desc">Eliminas tu factura y los apagones. Sistema eléctrico consistente y confiable para tu familia.</div>
+        </div>
+        <div class="pricebox">
+          <div class="pill">Pago mensual fijo</div>
+          <div class="v">${fmtMoney(fvBat)}</div>
+        </div>
+      </div>` : '',
+    opcion2_proj_block: (batteries && batteries.length > 0 && fvBat > 0 && fvBat > fv) ? `
+        <div class="pcard">
+          <div class="pill">Pago Fijo de Placas y Batería</div>
+          <div class="lbl">Opción 2</div>
+          <div class="val">${fmtMoney(fvBat)}</div>
+        </div>` : '',
     consumo_anual:            fmtInt(annCons),
     produccion_anual:         fmtInt(annProd),
     cobertura:                String(Math.round(offset || 0)),
