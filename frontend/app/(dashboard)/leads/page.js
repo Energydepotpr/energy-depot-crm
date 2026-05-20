@@ -6360,21 +6360,38 @@ function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSa
   const [saving, setSaving]     = useState(false);
   const [signingUrl, setSigningUrl] = useState(existing?.signing_url || '');
   const [savedId, setSavedId]   = useState(existing?.id || null);
-  const [seeded, setSeeded]     = useState(!!existing);
+  const [seeded, setSeeded]     = useState(false);
 
-  // Si NO hay existing para esta coop, intentar auto-fill desde la solicitud más reciente de otra coop
+  // Siempre buscar la solicitud MÁS RECIENTE (de cualquier coop) y llenar los campos VACÍOS de esta.
+  // Útil para Gloria: llenó Vega Coop primero, ahora abre Tu Coop → no perder lo ya escrito.
   useEffect(() => {
-    if (existing || seeded) return;
+    if (seeded) return;
     (async () => {
       try {
         const latest = await api.getLatestLoanFormData(leadId);
-        if (latest?.form_data && typeof latest.form_data === 'object') {
-          setFormData(p => ({ ...latest.form_data, ...p })); // mantener auto-fill recientes si ya el usuario tipeó
+        const latestData = latest?.form_data;
+        if (latestData && typeof latestData === 'object') {
+          // Si esta solicitud es la misma (mismo id) que el latest, no hacer nada.
+          if (existing && existing.id === latest.id) { setSeeded(true); return; }
+          // Mezclar: latest llena lo que no esté ya seteado en formData
+          setFormData(p => {
+            const merged = { ...p };
+            for (const k in latestData) {
+              const v = latestData[k];
+              const cur = merged[k];
+              if ((cur === undefined || cur === null || cur === '') && v != null && v !== '') {
+                merged[k] = v;
+              }
+            }
+            return merged;
+          });
+          setSeeded(true);
+        } else {
           setSeeded(true);
         }
-      } catch {}
+      } catch { setSeeded(true); }
     })();
-  }, [leadId, existing, seeded]);
+  }, [leadId, existing?.id, seeded]);
 
   const setField = (k, v) => setFormData(p => ({ ...p, [k]: v }));
 

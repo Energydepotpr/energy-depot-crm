@@ -120,11 +120,16 @@ async function latestFormData(req, res) {
   try {
     await ensureLoanApplicationsTable();
     const leadId = Number(req.params.id);
+    // Tomar la solicitud con MÁS campos llenos (no la más reciente con vacíos).
     const r = await pool.query(
-      `SELECT form_data, cooperativa, signed_at, created_at
+      `SELECT id, form_data, cooperativa, signed_at, created_at
          FROM loan_applications
-        WHERE lead_id=$1 AND form_data IS NOT NULL
-        ORDER BY signed_at DESC NULLS LAST, id DESC LIMIT 1`,
+        WHERE lead_id=$1 AND form_data IS NOT NULL AND form_data <> '{}'::jsonb
+        ORDER BY (
+          SELECT COUNT(*) FROM jsonb_each_text(form_data) WHERE value IS NOT NULL AND value <> ''
+        ) DESC,
+        signed_at DESC NULLS LAST,
+        id DESC LIMIT 1`,
       [leadId]
     );
     res.json(r.rows[0] || null);
