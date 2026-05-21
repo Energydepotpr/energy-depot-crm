@@ -6475,7 +6475,10 @@ function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSa
       const fv = Number(active?.calc?.costBase) || Number(sd?.calc?.costBase) || 0;
       const bats = (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0);
       const totalQ = Number(active?.calc?.sub) || (fv + bats);
-      return sd?.contrato_config?.precioTotal || totalQ || Number(lead?.value) || sd?.calc?.precio_total || '';
+      // Restar pronto que el cliente da en el contrato (si aplica)
+      const pronto = Number(sd?.contrato_config?.prontoDado) || 0;
+      const cantidadFinanciar = Math.max(0, totalQ - pronto);
+      return sd?.contrato_config?.precioTotal || cantidadFinanciar || Number(lead?.value) || sd?.calc?.precio_total || '';
     })(),
   };
 
@@ -6655,7 +6658,10 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
       const fv = Number(active?.calc?.costBase) || Number(sd?.calc?.costBase) || 0;
       const bats = (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0);
       const totalQ = Number(active?.calc?.sub) || (fv + bats);
-      return sd?.contrato_config?.precioTotal || totalQ || Number(lead?.value) || sd?.calc?.precio_total || '';
+      // Restar pronto que el cliente da en el contrato (si aplica)
+      const pronto = Number(sd?.contrato_config?.prontoDado) || 0;
+      const cantidadFinanciar = Math.max(0, totalQ - pronto);
+      return sd?.contrato_config?.precioTotal || cantidadFinanciar || Number(lead?.value) || sd?.calc?.precio_total || '';
     })(),
     firma_fecha: new Date().toLocaleDateString('es-PR'),
   };
@@ -6770,7 +6776,7 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
           Number(active?.calc?.costBase || 0) +
           (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0)
         );
-        return cfg.precioTotal || cfg.precio || totalQ || Number(lead?.value) || sd?.calc?.precio_total || formData.cantidad_solicitada || '';
+        return cfg.precioTotal || cfg.precio || cantidadFinanciar || Number(lead?.value) || sd?.calc?.precio_total || formData.cantidad_solicitada || '';
       })(),
       proposito: formData.proposito || 'mejoras',
       firma_fecha: new Date().toLocaleDateString('es-PR'),
