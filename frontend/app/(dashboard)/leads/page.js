@@ -7288,7 +7288,19 @@ function LumaBillsTab({ leadId, onCountChange }) {
       .catch(() => setBills([]))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [leadId]);
+  useEffect(() => {
+    load();
+    // Ping para confirmar versión activa del frontend
+    try {
+      fetch('/backend/api/public/clientlog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tag: 'LUMA-TAB-OPEN', msg: 'v7', leadId, ua: navigator.userAgent.slice(0,80) }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {}
+    /* eslint-disable-next-line */
+  }, [leadId]);
 
   const verBill = async (b) => {
     try {
