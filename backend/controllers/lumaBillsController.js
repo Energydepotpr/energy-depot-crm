@@ -48,7 +48,8 @@ async function listBills(req, res) {
     await ensureTable();
     const r = await pool.query(
       `SELECT id, lead_id, filename, mime_type, periodo, monto, kwh, cta_aee, contador,
-              uploaded_at, uploaded_by, notes
+              uploaded_at, uploaded_by, notes,
+              (file_base64 IS NOT NULL) AS has_file
          FROM lead_luma_bills
         WHERE lead_id = $1
         ORDER BY uploaded_at DESC`,
@@ -62,6 +63,8 @@ async function listBills(req, res) {
 }
 
 async function createBill(req, res) {
+  console.log('[lumaBills create] lead_id=%s body_size=%s', req.params.id,
+    req.body?.base64 ? `${Math.round((req.body.base64.length * 3 / 4) / 1024)}KB` : 'no-base64');
   try {
     await ensureTable();
     let {
@@ -69,13 +72,15 @@ async function createBill(req, res) {
       periodo = null, monto = null, kwh = null,
       cta_aee = null, contador = null, notes = null,
     } = req.body || {};
-    if (!base64 || typeof base64 !== 'string') {
-      return res.status(400).json({ error: 'base64 requerido' });
-    }
+    const hasFile = base64 && typeof base64 === 'string';
     const mime = mime_type || 'application/pdf';
+    // Si archivo > 8MB, no lo guardamos en DB pero igual extraemos OCR
+    const sizeKB = hasFile ? Math.round((base64.length * 3 / 4) / 1024) : 0;
+    const tooBig = sizeKB > 8 * 1024;
+    if (tooBig) console.warn('[lumaBills] archivo grande (%sKB) → solo metadata + OCR', sizeKB);
 
     // OCR opcional: si no vienen monto/kwh/periodo, intentar extraer con Claude.
-    const needsOCR = (monto == null || monto === '' || kwh == null || kwh === '' || !periodo);
+    const needsOCR = hasFile && (monto == null || monto === '' || kwh == null || kwh === '' || !periodo || !cta_aee || !contador);
     if (needsOCR) {
       try {
         const ocr = await extractWithClaude({ base64, mime });
@@ -92,24 +97,71 @@ async function createBill(req, res) {
     }
 
     const userId = req.user?.id || null;
-    const r = await pool.query(
-      `INSERT INTO lead_luma_bills
-         (lead_id, filename, mime_type, file_base64, periodo, monto, kwh, cta_aee, contador, notes, uploaded_by, uploaded_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, NOW())
-       RETURNING id, lead_id, filename, mime_type, periodo, monto, kwh, cta_aee, contador, uploaded_at, uploaded_by, notes`,
-      [
-        req.params.id,
-        filename || 'factura-luma.pdf',
-        mime,
-        base64,
-        periodo, monto === '' ? null : monto, kwh === '' ? null : kwh,
-        cta_aee, contador, notes, userId,
-      ]
-    );
+    const fileToStore = (hasFile && !tooBig) ? base64 : null;
+    let r;
+    try {
+      r = await pool.query(
+        `INSERT INTO lead_luma_bills
+           (lead_id, filename, mime_type, file_base64, periodo, monto, kwh, cta_aee, contador, notes, uploaded_by, uploaded_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, NOW())
+         RETURNING id, lead_id, filename, mime_type, periodo, monto, kwh, cta_aee, contador, uploaded_at, uploaded_by, notes,
+                   (file_base64 IS NOT NULL) AS has_file`,
+        [
+          req.params.id,
+          filename || 'factura-luma.pdf',
+          mime, fileToStore,
+          periodo, monto === '' ? null : monto, kwh === '' ? null : kwh,
+          cta_aee, contador, notes, userId,
+        ]
+      );
+    } catch (insErr) {
+      // Retry sin archivo si fallo por tamaño/encoding
+      console.warn('[lumaBills] insert con file falló, reintentando sin file:', insErr.message);
+      r = await pool.query(
+        `INSERT INTO lead_luma_bills
+           (lead_id, filename, mime_type, file_base64, periodo, monto, kwh, cta_aee, contador, notes, uploaded_by, uploaded_at)
+         VALUES ($1,$2,$3,NULL,$4,$5,$6,$7,$8,$9,$10, NOW())
+         RETURNING id, lead_id, filename, mime_type, periodo, monto, kwh, cta_aee, contador, uploaded_at, uploaded_by, notes,
+                   FALSE AS has_file`,
+        [
+          req.params.id,
+          filename || 'factura-luma.pdf',
+          mime,
+          periodo, monto === '' ? null : monto, kwh === '' ? null : kwh,
+          cta_aee, contador, notes, userId,
+        ]
+      );
+    }
+    // Sync cta_aee + contador al perfil del lead (solar_data) para contratos
+    try {
+      const updates = {};
+      if (r.rows[0].cta_aee) {
+        updates.cta_aee = r.rows[0].cta_aee;
+        updates.ctaAee  = r.rows[0].cta_aee;
+      }
+      if (r.rows[0].contador) {
+        updates.contador     = r.rows[0].contador;
+        updates.num_contador = r.rows[0].contador;
+        updates.numContador  = r.rows[0].contador;
+      }
+      if (Object.keys(updates).length) {
+        await pool.query(
+          `UPDATE leads
+             SET solar_data = COALESCE(solar_data, '{}'::jsonb) || $1::jsonb,
+                 updated_at = NOW()
+           WHERE id = $2`,
+          [JSON.stringify(updates), req.params.id]
+        );
+      }
+    } catch (syncErr) {
+      console.error('[lumaBills sync solar_data]', syncErr.message);
+    }
+
+    console.log('[lumaBills create] OK bill_id=%s lead_id=%s', r.rows[0].id, req.params.id);
     res.json(r.rows[0]);
   } catch (e) {
-    console.error('[lumaBills create]', e.message);
-    res.status(500).json({ error: 'Error interno' });
+    console.error('[lumaBills create] FATAL:', e.message, e.stack);
+    res.status(500).json({ error: 'Error interno: ' + e.message });
   }
 }
 
@@ -186,8 +238,8 @@ Extrae:
 - periodo: mes/año de la factura (ej: "Octubre 2025" o "10/2025"). Si solo aparece un rango, usa el mes de la factura actual.
 - monto: total a pagar de ESTA factura en USD (número, sin símbolo $). Si hay varios, usa "Total a pagar" o "Balance actual".
 - kwh: consumo en kWh del período actual (número entero).
-- cta_aee: número de cuenta LUMA (10 dígitos típicamente).
-- contador: número del contador / medidor.
+- cta_aee: "Su número de cuenta" o "Cuenta:" (10 dígitos típicamente, ej "4626533108"). Está en la esquina superior derecha de la página 1 y/o en el talonario.
+- contador: "Número de contador" en la sección "INFORMACIÓN DEL MEDIDOR Y DEL SERVICIO" (puede ser alfanumérico, ej "NXC2155960616").
 
 REGLAS:
 - SOLO JSON válido sin markdown.

@@ -7317,10 +7317,18 @@ function LumaBillsTab({ leadId, onCountChange }) {
                   {b.kwh != null ? `${Number(b.kwh).toLocaleString()} kWh · ` : ''}{fmtDate(b.uploaded_at)}
                 </div>
                 {b.cta_aee && <div style={{ fontSize:10, color:'var(--muted)' }}>Cta: {b.cta_aee}</div>}
+                {b.contador && <div style={{ fontSize:10, color:'var(--muted)' }}>Contador: {b.contador}</div>}
+                {b.has_file === false && (
+                  <div style={{ fontSize:10, color:'#f59e0b', marginTop:4, fontWeight:600 }}>
+                    ⚠ PDF no guardado (muy pesado) — datos OK
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-              <button onClick={() => verBill(b)} style={{ flex:1, minWidth:70, background:'#1a3c8f', color:'#fff', border:'none', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>👁 Ver</button>
+              {b.has_file !== false && (
+                <button onClick={() => verBill(b)} style={{ flex:1, minWidth:70, background:'#1a3c8f', color:'#fff', border:'none', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>👁 Ver PDF</button>
+              )}
               <button onClick={() => setEditing(b)} style={{ background:'rgba(103,232,249,0.15)', color:'#0891b2', border:'1px solid rgba(103,232,249,0.3)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>✏️ Editar</button>
               <button onClick={() => deleteBill(b)} style={{ background:'transparent', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)', padding:'7px 10px', borderRadius:6, fontSize:12, cursor:'pointer' }}>🗑</button>
             </div>
@@ -7355,16 +7363,32 @@ function LumaBillUploadModal({ leadId, onClose, onSaved }) {
       const payload = await compressIfNeeded(file);
       const { base64, mime, filename } = payload;
       if (!base64) throw new Error('Archivo vacío');
+      const sizeMB = (base64.length * 3 / 4) / (1024 * 1024);
       setProcessing(true);
-      await api.uploadLumaBill(leadId, {
+
+      const body = {
         filename, mime_type: mime, base64,
         periodo: periodo || null,
         monto: monto !== '' ? Number(monto) : null,
         kwh: kwh !== '' ? Number(kwh) : null,
-      });
+      };
+
+      try {
+        await api.uploadLumaBill(leadId, body);
+      } catch (err) {
+        // Si falla por tamaño, reintentar sin el archivo (solo metadata)
+        if (sizeMB > 3 || /413|too large|payload|network/i.test(err.message || '')) {
+          if (!confirm(`El archivo es muy pesado (${sizeMB.toFixed(1)} MB) y no se pudo subir. ¿Guardar solo los datos sin el PDF?`)) {
+            throw err;
+          }
+          await api.uploadLumaBill(leadId, { ...body, base64: '' });
+        } else {
+          throw err;
+        }
+      }
       onSaved();
     } catch (e) {
-      alert('Error: ' + (e.message || e));
+      alert('Error subiendo factura: ' + (e.message || e));
     } finally {
       setSaving(false); setProcessing(false);
     }

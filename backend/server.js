@@ -208,6 +208,47 @@ app.post('/api/public/agendar',      publicTokenLimiter, appointmentsCtrl.create
 const projectInvoicesCtrl = require('./controllers/projectInvoicesController');
 app.get('/api/public/project-invoices/:token/pdf', publicTokenLimiter, projectInvoicesCtrl.publicPDF);
 
+app.get('/api/public/debug-luma-all', async (req, res) => {
+  try {
+    const { pool } = require('./services/db');
+    const t = await pool.query(`SELECT to_regclass('public.lead_luma_bills') AS exists`);
+    let count = null, all = [];
+    if (t.rows[0].exists) {
+      const c = await pool.query(`SELECT COUNT(*)::int AS n FROM lead_luma_bills`);
+      count = c.rows[0].n;
+      const a = await pool.query(`SELECT id, lead_id, filename, periodo, monto, kwh, uploaded_at FROM lead_luma_bills ORDER BY uploaded_at DESC LIMIT 20`);
+      all = a.rows;
+    }
+    res.json({ tableExists: !!t.rows[0].exists, count, recent: all });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/public/debug-luma/:q', async (req, res) => {
+  try {
+    const { pool } = require('./services/db');
+    const q = req.params.q;
+    const leads = await pool.query(
+      `SELECT l.id, l.title, c.name, c.phone, c.email
+         FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id
+        WHERE c.phone ILIKE $1 OR c.name ILIKE $1 OR l.title ILIKE $1
+        ORDER BY l.id DESC LIMIT 5`, [`%${q}%`]
+    );
+    const out = [];
+    for (const l of leads.rows) {
+      let bills = { rows: [] };
+      try {
+        bills = await pool.query(
+          `SELECT id, filename, mime_type, periodo, monto, kwh, uploaded_at,
+                  octet_length(file_base64) AS file_size, uploaded_by
+             FROM lead_luma_bills WHERE lead_id=$1 ORDER BY uploaded_at DESC`, [l.id]
+        );
+      } catch (e) { bills = { rows: [], err: e.message }; }
+      out.push({ lead: l, bills: bills.rows, billsErr: bills.err });
+    }
+    res.json({ q, leads: out });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Protected
 app.use('/api', authMiddleware);
 
@@ -268,6 +309,37 @@ app.post  ('/api/leads/:id/luma-bills',                    lumaBillsCtrl.createB
 app.get   ('/api/leads/:id/luma-bills/:bill_id/file',      lumaBillsCtrl.getFile);
 app.patch ('/api/leads/:id/luma-bills/:bill_id',           lumaBillsCtrl.updateBill);
 app.delete('/api/leads/:id/luma-bills/:bill_id',           lumaBillsCtrl.deleteBill);
+
+// DEBUG temporal — buscar lead por phone/nombre y listar sus luma bills
+app.get('/api/debug/luma/:q', async (req, res) => {
+  try {
+    const { pool } = require('./services/db');
+    const q = req.params.q;
+    const leads = await pool.query(
+      `SELECT l.id, l.title, c.name, c.phone, c.email
+         FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id
+        WHERE c.phone ILIKE $1 OR c.name ILIKE $1 OR l.title ILIKE $1
+        ORDER BY l.id DESC LIMIT 5`,
+      [`%${q}%`]
+    );
+    const out = [];
+    for (const l of leads.rows) {
+      let bills = { rows: [] };
+      try {
+        bills = await pool.query(
+          `SELECT id, filename, mime_type, periodo, monto, kwh, uploaded_at,
+                  octet_length(file_base64) AS file_size
+             FROM lead_luma_bills WHERE lead_id=$1 ORDER BY uploaded_at DESC`,
+          [l.id]
+        );
+      } catch (e) { bills = { error: e.message, rows: [] }; }
+      out.push({ lead: l, bills: bills.rows, billsErr: bills.error });
+    }
+    res.json({ q, leads: out });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // Loan applications (Solicitud de préstamo con firma electrónica)
 app.post  ('/api/leads/:id/loan-application',                    loanAppsCtrl.createOrUpdate);
