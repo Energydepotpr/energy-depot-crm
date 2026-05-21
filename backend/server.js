@@ -259,6 +259,15 @@ app.delete('/api/leads/:id/financing-docs',                financingCtrl.deleteD
 app.get   ('/api/leads/:id/financing-docs/:doc_key/file',  financingCtrl.getFile);
 app.delete('/api/leads/:id/financing-docs/:doc_key',       financingCtrl.deleteDoc);
 app.post  ('/api/leads/:id/financing/send',                financingCtrl.sendToCoop);
+app.post  ('/api/leads/:id/financing/auto-invoice',        financingCtrl.autoInvoice);
+
+// Facturas LUMA del cliente (las que el cliente envía a Energy Depot)
+const lumaBillsCtrl = require('./controllers/lumaBillsController');
+app.get   ('/api/leads/:id/luma-bills',                    lumaBillsCtrl.listBills);
+app.post  ('/api/leads/:id/luma-bills',                    lumaBillsCtrl.createBill);
+app.get   ('/api/leads/:id/luma-bills/:bill_id/file',      lumaBillsCtrl.getFile);
+app.patch ('/api/leads/:id/luma-bills/:bill_id',           lumaBillsCtrl.updateBill);
+app.delete('/api/leads/:id/luma-bills/:bill_id',           lumaBillsCtrl.deleteBill);
 
 // Loan applications (Solicitud de préstamo con firma electrónica)
 app.post  ('/api/leads/:id/loan-application',                    loanAppsCtrl.createOrUpdate);

@@ -727,6 +727,13 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   const [leadInvoice, setLeadInvoice] = useState(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceGenerating, setInvoiceGenerating] = useState(false);
+  const [lumaBillsCount, setLumaBillsCount] = useState(0);
+
+  // Cargar count inicial de facturas LUMA para badge
+  useEffect(() => {
+    if (!leadId) return;
+    api.lumaBills(leadId).then(arr => setLumaBillsCount(Array.isArray(arr) ? arr.length : 0)).catch(() => {});
+  }, [leadId]);
 
   // Merge: search leads when query changes
   useEffect(() => {
@@ -1174,6 +1181,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   { key: 'citas',     icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>), label: 'Citas', count: 0 },
                   { key: 'contratos', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>), label: 'Contratos', count: 0 },
                   { key: 'financiamiento', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>), label: '💰 Financiamiento', count: 0 },
+                  { key: 'luma-bills', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 0h6m-9 4h12a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"/>), label: '📑 Factura LUMA', count: lumaBillsCount },
                 ];
                 return items.map(item => (
                   <button key={item.key} onClick={() => { setTab(item.key); setMobileTab('chat'); setShowMoreSheet(false); }}
@@ -1433,6 +1441,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             { key: 'contratos', full: '📄 Contratos', count: 0 },
             { key: 'financiamiento', full: '💰 Financiamiento', count: 0 },
             { key: 'facturas',  full: '💰 Facturas', count: 0 },
+            { key: 'luma-bills', full: '📑 Factura LUMA', count: lumaBillsCount },
           ].map(tab_item => (
             <button key={tab_item.key} onClick={() => setTab(tab_item.key)}
               className={`flex-shrink-0 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
@@ -2694,6 +2703,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           {tab === 'contratos' && <ContratosTab leadId={leadId} lead={lead} onUpdated={onUpdated} />}
           {tab === 'financiamiento' && <FinanciamientoTab leadId={leadId} lead={lead} onUpdated={onUpdated} />}
           {tab === 'facturas'  && <ProjectInvoicesLeadTab leadId={leadId} />}
+          {tab === 'luma-bills' && <LumaBillsTab leadId={leadId} onCountChange={setLumaBillsCount} />}
 
         </div>{/* end Content */}
         </div>{/* end RIGHT Chat */}
@@ -5930,6 +5940,67 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
             );
           }
 
+          // Cambio 2: Cotización elegida → dropdown de quotations existentes
+          if (d.key === 'cotizacion' && etapaId === 'etapa1') {
+            return (
+              <CotizacionSelectorCard
+                key={d.key}
+                doc={doc}
+                docLabel={d.label}
+                leadId={leadId}
+                lead={lead}
+                cooperativa={coopName}
+                onChanged={load}
+                onUploadManual={(file) => handleUpload(d.key, file)}
+                handleView={() => handleView(d.key)}
+                handleDelete={() => handleDelete(d.key)}
+                isUploading={isUploading}
+                fmtDate={fmtDate}
+              />
+            );
+          }
+
+          // Cambio 3: Contrato según cooperativa
+          if (d.key === 'contrato' && etapaId === 'etapa1') {
+            return (
+              <ContratoFinanciamientoCard
+                key={d.key}
+                doc={doc}
+                docLabel={d.label}
+                leadId={leadId}
+                lead={lead}
+                cooperativa={coopName}
+                onChanged={load}
+                onUploadManual={(file) => handleUpload(d.key, file)}
+                handleView={() => handleView(d.key)}
+                handleDelete={() => handleDelete(d.key)}
+                isUploading={isUploading}
+                fmtDate={fmtDate}
+              />
+            );
+          }
+
+          // Cambio 4: Factura según cooperativa (factura_45, factura_40, factura_50, factura_10)
+          if (['factura_45','factura_40','factura_50','factura_10'].includes(d.key) && etapaId === 'etapa1') {
+            return (
+              <FacturaFinanciamientoCard
+                key={d.key}
+                doc={doc}
+                docLabel={d.label}
+                docKey={d.key}
+                leadId={leadId}
+                lead={lead}
+                cooperativa={coopName}
+                onChanged={load}
+                onUploadManual={(file) => handleUpload(d.key, file)}
+                handleView={() => handleView(d.key)}
+                handleDelete={() => handleDelete(d.key)}
+                isUploading={isUploading}
+                fmtDate={fmtDate}
+              />
+            );
+          }
+
           return (
             <div key={d.key} style={{
               background: 'var(--surface)',
@@ -6611,6 +6682,563 @@ function EnviarCooperativaModal({ leadId, lead, coops: coopsProp, presetCoopName
             padding: '11px 16px', background: 'transparent', color: 'var(--muted)',
             border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, cursor: 'pointer',
           }}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Cambio 2: Cotización Selector Card ─────────────────────────────────────
+function CotizacionSelectorCard({ doc, docLabel, leadId, lead, cooperativa, onChanged, onUploadManual, handleView, handleDelete, isUploading, fmtDate }) {
+  const [busy, setBusy] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const quotations = Array.isArray(lead?.solar_data?.quotations) ? lead.solar_data.quotations : [];
+  const lastUsedId = lead?.solar_data?.financing_cotizacion_id || null;
+
+  const card = (bordered) => ({
+    background:'var(--surface)', border:`1px solid ${bordered}`,
+    borderRadius:10, padding:14, display:'flex', flexDirection:'column', gap:10,
+  });
+
+  const fmtMoney = (n) => `$${Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+
+  const elegirCotizacion = async (q) => {
+    if (!q?.id) return;
+    setBusy(true);
+    try {
+      const r = await api.leadPropuesta(leadId, q.id);
+      const base64 = r?.pdf || r?.base64;
+      const filename = r?.filename || `Cotizacion-${q.name || q.id}.pdf`;
+      if (!base64) throw new Error('No se pudo generar el PDF de la cotización');
+      await api.uploadFinancingDocFromBase64(leadId, cooperativa, 'etapa1', 'cotizacion', base64, filename, 'application/pdf');
+      try {
+        const sd = { ...(lead?.solar_data || {}), financing_cotizacion_id: q.id };
+        await api.saveSolarData(leadId, { solar_data: sd });
+      } catch {}
+      setPicking(false);
+      if (onChanged) onChanged();
+    } catch (e) {
+      alert('Error: ' + (e.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!quotations.length && !doc) {
+    return (
+      <div style={card('var(--border)')}>
+        <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+          <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(148,163,184,0.15)', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700 }}>○</div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{docLabel}</div>
+            <div style={{ fontSize:11, color:'#b45309', marginTop:6 }}>⚠️ Crea una cotización primero en la pestaña "Cotizar"</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (doc) {
+    const usedQ = quotations.find(q => q.id === lastUsedId);
+    return (
+      <div style={card('#10b981')}>
+        <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+          <div style={{ width:28, height:28, borderRadius:'50%', background:'#10b981', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700 }}>✓</div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{docLabel}</div>
+            {usedQ && <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>📊 {usedQ.name || 'Cotización'} {usedQ.calc?.precio_total ? `· ${fmtMoney(usedQ.calc.precio_total)}` : ''}</div>}
+            <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>📎 {doc.filename} · {fmtDate(doc.uploaded_at)}</div>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          <button onClick={handleView} style={{ background:'#1a3c8f', color:'#fff', border:'none', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>👁 Ver</button>
+          <button onClick={() => setPicking(true)} disabled={busy} style={{ background:'rgba(103,232,249,0.15)', color:'#0891b2', border:'1px solid rgba(103,232,249,0.3)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>🔄 Cambiar</button>
+          <button onClick={handleDelete} style={{ background:'transparent', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)', padding:'7px 10px', borderRadius:6, fontSize:12, cursor:'pointer' }}>🗑</button>
+        </div>
+        {picking && (
+          <CotizacionPickerModal quotations={quotations} onClose={() => setPicking(false)} onPick={elegirCotizacion} busy={busy} fmtMoney={fmtMoney} />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={card('var(--border)')}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+        <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(148,163,184,0.15)', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700 }}>○</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{docLabel}</div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>Elige una de las cotizaciones existentes:</div>
+        </div>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+        {quotations.map(q => (
+          <button key={q.id} onClick={() => elegirCotizacion(q)} disabled={busy}
+            style={{ textAlign:'left', padding:'10px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, opacity: busy ? 0.6 : 1 }}>
+            <span style={{ fontWeight:600, minWidth:0, overflow:'hidden', textOverflow:'ellipsis' }}>{q.name || `Cotización ${q.id}`}</span>
+            {q?.calc?.precio_total ? <span style={{ color:'#1a3c8f', fontWeight:700, fontSize:12 }}>{fmtMoney(q.calc.precio_total)}</span> : null}
+          </button>
+        ))}
+      </div>
+      <div style={{ borderTop:'1px dashed var(--border)', marginTop:4, paddingTop:8 }}>
+        {(() => {
+          const inputId = `fin-cot-manual-${cooperativa}`;
+          return (
+            <>
+              <input id={inputId} type="file" accept="image/*,application/pdf"
+                onChange={e => { const f = e.target.files?.[0]; e.target.value=''; if (f) onUploadManual(f); }}
+                style={{ position:'absolute', width:0, height:0, opacity:0, pointerEvents:'none' }} />
+              <button onClick={() => document.getElementById(inputId)?.click()} disabled={isUploading || busy}
+                style={{ background:'transparent', color:'var(--muted)', border:'1px dashed var(--border)', borderRadius:6, padding:'7px 10px', fontSize:11, cursor:'pointer', width:'100%' }}>
+                {isUploading ? 'Subiendo…' : '📤 O sube un PDF manualmente'}
+              </button>
+            </>
+          );
+        })()}
+      </div>
+      {busy && <div style={{ fontSize:11, color:'var(--muted)', textAlign:'center' }}>Generando PDF…</div>}
+    </div>
+  );
+}
+
+function CotizacionPickerModal({ quotations, onClose, onPick, busy, fmtMoney }) {
+  return (
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:12 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:18, maxWidth:480, width:'100%' }}>
+        <div style={{ fontSize:16, fontWeight:700, color:'var(--text)', marginBottom:12 }}>Elegir cotización</div>
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {quotations.map(q => (
+            <button key={q.id} onClick={() => onPick(q)} disabled={busy} style={{ textAlign:'left', padding:'12px 14px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', cursor:'pointer', display:'flex', justifyContent:'space-between', gap:8, opacity: busy ? 0.6 : 1 }}>
+              <span style={{ fontWeight:600 }}>{q.name || `Cotización ${q.id}`}</span>
+              {q?.calc?.precio_total ? <span style={{ color:'#1a3c8f', fontWeight:700 }}>{fmtMoney(q.calc.precio_total)}</span> : null}
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} disabled={busy} style={{ marginTop:14, width:'100%', padding:'10px', background:'transparent', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:8, cursor:'pointer' }}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Cambio 3: Contrato por cooperativa ──────────────────────────────────────
+const COOP_PCTS = {
+  'Vega Coop':     { pcts: [45, 50, 5],  facturaPct: 45 },
+  'Tu Coop':       { pcts: [40, 50, 10], facturaPct: 40 },
+  'Coop Oriental': { pcts: [45, 50, 5],  facturaPct: 45 },
+};
+const DEFAULT_COOP_PCTS = { pcts: [45, 45, 10], facturaPct: 45 };
+function getCoopPcts(coopName) { return COOP_PCTS[coopName] || DEFAULT_COOP_PCTS; }
+
+function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, onChanged, onUploadManual, handleView, handleDelete, isUploading, fmtDate }) {
+  const [busy, setBusy] = useState(false);
+  const cfg = getCoopPcts(cooperativa);
+  const expectedPcts = cfg.pcts;
+  const contratoCfg = lead?.solar_data?.contrato_config || null;
+  const currentPcts = Array.isArray(contratoCfg?.pcts) ? contratoCfg.pcts : null;
+  const pctsMatch = currentPcts &&
+    currentPcts.length === expectedPcts.length &&
+    currentPcts.every((p, i) => Math.round(Number(p)) === Math.round(expectedPcts[i]));
+
+  const card = (bordered) => ({
+    background:'var(--surface)', border:`1px solid ${bordered}`,
+    borderRadius:10, padding:14, display:'flex', flexDirection:'column', gap:10,
+  });
+
+  const generarContrato = async () => {
+    if (!confirm(`Generar contrato para ${cooperativa} con porcentajes ${expectedPcts.join('/')}?`)) return;
+    setBusy(true);
+    try {
+      const pronto = Number(contratoCfg?.prontoDado) || 0;
+      const r = await api.generarContrato(leadId, {
+        modalidad: 'financiamiento',
+        prontoDado: pronto,
+        pcts: expectedPcts,
+        vendedor: contratoCfg?.vendedor || 'Gilberto J. Díaz',
+        numCtaLuma: contratoCfg?.numCtaLuma || '',
+        numContador: contratoCfg?.numContador || '',
+        direccionPostal: contratoCfg?.direccionPostal || '',
+      });
+      if (!r?.pdf) throw new Error('No se generó PDF');
+      const filename = r.filename || `Contrato-${cooperativa}.pdf`;
+      await api.uploadFinancingDocFromBase64(leadId, cooperativa, 'etapa1', 'contrato', r.pdf, filename, 'application/pdf');
+      if (onChanged) onChanged();
+      alert(`✓ Contrato generado para ${cooperativa} (${expectedPcts.join('/')}%)`);
+    } catch (e) {
+      alert('Error: ' + (e.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (doc) {
+    return (
+      <div style={card(pctsMatch ? '#10b981' : '#f59e0b')}>
+        <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+          <div style={{ width:28, height:28, borderRadius:'50%', background: pctsMatch ? '#10b981' : 'rgba(245,158,11,0.18)', color: pctsMatch ? '#fff' : '#b45309', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700 }}>{pctsMatch ? '✓' : '!'}</div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{docLabel}</div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>📎 {doc.filename} · {fmtDate(doc.uploaded_at)}</div>
+            {currentPcts && (
+              <div style={{ fontSize:11, color: pctsMatch ? '#059669' : '#b45309', marginTop:3 }}>
+                Porcentajes: {currentPcts.map(p => Math.round(Number(p))).join('/')}% {pctsMatch ? '(correctos)' : `(esperado ${expectedPcts.join('/')}%)`}
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          <button onClick={handleView} style={{ background:'#1a3c8f', color:'#fff', border:'none', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>👁 Ver</button>
+          {!pctsMatch && (
+            <button onClick={generarContrato} disabled={busy} style={{ background:'rgba(245,158,11,0.15)', color:'#b45309', border:'1px solid rgba(245,158,11,0.4)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>
+              {busy ? '…' : `🔄 Regenerar (${expectedPcts.join('/')}%)`}
+            </button>
+          )}
+          <button onClick={handleDelete} style={{ background:'transparent', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)', padding:'7px 10px', borderRadius:6, fontSize:12, cursor:'pointer' }}>🗑</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={card('var(--border)')}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+        <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(148,163,184,0.15)', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700 }}>○</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{docLabel}</div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>Porcentajes para {cooperativa}: <strong>{expectedPcts.join('/')}%</strong></div>
+        </div>
+      </div>
+      <button onClick={generarContrato} disabled={busy} style={{ width:'100%', background:'#1a3c8f', color:'#fff', border:'none', padding:'11px 12px', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer', opacity: busy ? 0.6 : 1, minHeight:42 }}>
+        {busy ? 'Generando…' : `📝 Generar contrato para ${cooperativa}`}
+      </button>
+      {(() => {
+        const inputId = `fin-contrato-manual-${cooperativa}`;
+        return (
+          <>
+            <input id={inputId} type="file" accept="image/*,application/pdf"
+              onChange={e => { const f = e.target.files?.[0]; e.target.value=''; if (f) onUploadManual(f); }}
+              style={{ position:'absolute', width:0, height:0, opacity:0, pointerEvents:'none' }} />
+            <button onClick={() => document.getElementById(inputId)?.click()} disabled={isUploading || busy}
+              style={{ background:'transparent', color:'var(--muted)', border:'1px dashed var(--border)', borderRadius:6, padding:'7px 10px', fontSize:11, cursor:'pointer', width:'100%' }}>
+              {isUploading ? 'Subiendo…' : '📤 O sube un PDF manualmente'}
+            </button>
+          </>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ─── Cambio 4: Factura por cooperativa ───────────────────────────────────────
+function FacturaFinanciamientoCard({ doc, docLabel, docKey, leadId, lead, cooperativa, onChanged, onUploadManual, handleView, handleDelete, isUploading, fmtDate }) {
+  const [busy, setBusy] = useState(false);
+  const cfg = getCoopPcts(cooperativa);
+  const m = /factura_(\d+)/.exec(docKey || '');
+  const expectedPct = m ? Number(m[1]) : cfg.facturaPct;
+
+  const card = (bordered) => ({
+    background:'var(--surface)', border:`1px solid ${bordered}`,
+    borderRadius:10, padding:14, display:'flex', flexDirection:'column', gap:10,
+  });
+
+  const autoUse = async () => {
+    setBusy(true);
+    try {
+      const r = await api.autoFinancingInvoice(leadId, {
+        cooperativa, etapa_id: 'etapa1', doc_key: docKey,
+      });
+      if (onChanged) onChanged();
+      alert(`✓ Factura ${r.numero || ''} (${expectedPct}%) usada en Financiamiento`);
+    } catch (e) {
+      alert('Error: ' + (e.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (doc) {
+    return (
+      <div style={card('#10b981')}>
+        <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+          <div style={{ width:28, height:28, borderRadius:'50%', background:'#10b981', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700 }}>✓</div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{docLabel}</div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>📎 {doc.filename} · {fmtDate(doc.uploaded_at)}</div>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          <button onClick={handleView} style={{ background:'#1a3c8f', color:'#fff', border:'none', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>👁 Ver PDF</button>
+          <button onClick={autoUse} disabled={busy} style={{ background:'rgba(103,232,249,0.15)', color:'#0891b2', border:'1px solid rgba(103,232,249,0.3)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>🔄 Re-buscar</button>
+          <button onClick={handleDelete} style={{ background:'transparent', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)', padding:'7px 10px', borderRadius:6, fontSize:12, cursor:'pointer' }}>🗑</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={card('var(--border)')}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+        <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(148,163,184,0.15)', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700 }}>○</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{docLabel}</div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>Genera o busca la factura del {expectedPct}% para {cooperativa}</div>
+        </div>
+      </div>
+      <button onClick={autoUse} disabled={busy} style={{ width:'100%', background:'#1a3c8f', color:'#fff', border:'none', padding:'11px 12px', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer', opacity: busy ? 0.6 : 1, minHeight:42 }}>
+        {busy ? 'Buscando…' : `📝 Generar/usar factura del ${expectedPct}%`}
+      </button>
+      {(() => {
+        const inputId = `fin-${docKey}-manual-${cooperativa}`;
+        return (
+          <>
+            <input id={inputId} type="file" accept="image/*,application/pdf"
+              onChange={e => { const f = e.target.files?.[0]; e.target.value=''; if (f) onUploadManual(f); }}
+              style={{ position:'absolute', width:0, height:0, opacity:0, pointerEvents:'none' }} />
+            <button onClick={() => document.getElementById(inputId)?.click()} disabled={isUploading || busy}
+              style={{ background:'transparent', color:'var(--muted)', border:'1px dashed var(--border)', borderRadius:6, padding:'7px 10px', fontSize:11, cursor:'pointer', width:'100%' }}>
+              {isUploading ? 'Subiendo…' : '📤 O sube un PDF manualmente'}
+            </button>
+          </>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ─── Cambio 1: Tab Factura LUMA ──────────────────────────────────────────────
+function LumaBillsTab({ leadId, onCountChange }) {
+  const [bills, setBills] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showUpload, setShowUpload] = useState(false);
+  const [editing, setEditing] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    api.lumaBills(leadId)
+      .then(arr => {
+        const list = Array.isArray(arr) ? arr : [];
+        setBills(list);
+        if (onCountChange) onCountChange(list.length);
+      })
+      .catch(() => setBills([]))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [leadId]);
+
+  const verBill = async (b) => {
+    try {
+      const r = await api.getLumaBillFile(leadId, b.id);
+      const blob = await (await fetch(`data:${r.mime};base64,${r.base64}`)).blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { alert(e.message); }
+  };
+
+  const deleteBill = async (b) => {
+    if (!confirm('¿Eliminar esta factura LUMA?')) return;
+    try { await api.deleteLumaBill(leadId, b.id); load(); }
+    catch (e) { alert(e.message); }
+  };
+
+  const fmtMoney = (n) => n != null ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-PR', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '';
+
+  if (loading) return <div style={{ padding:20, color:'var(--muted)' }}>Cargando…</div>;
+
+  return (
+    <div style={{ padding:16, display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
+        <div>
+          <div style={{ fontSize:15, fontWeight:700, color:'var(--text)' }}>📑 Facturas LUMA del cliente</div>
+          <div style={{ fontSize:12, color:'var(--muted)' }}>{bills.length} factura{bills.length === 1 ? '' : 's'} cargada{bills.length === 1 ? '' : 's'}</div>
+        </div>
+        <button onClick={() => setShowUpload(true)} style={{ background:'#1a3c8f', color:'#fff', border:'none', borderRadius:8, padding:'10px 14px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+          📤 Subir factura LUMA
+        </button>
+      </div>
+
+      {bills.length === 0 && (
+        <div style={{ background:'var(--surface)', border:'1px dashed var(--border)', borderRadius:10, padding:30, textAlign:'center', color:'var(--muted)', fontSize:13 }}>
+          Aún no hay facturas LUMA cargadas para este cliente.
+        </div>
+      )}
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:12 }}>
+        {bills.map(b => (
+          <div key={b.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:14, display:'flex', flexDirection:'column', gap:8 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:'var(--text)' }}>{b.periodo || 'Sin período'}</div>
+                <div style={{ fontSize:18, fontWeight:800, color:'#1a3c8f', marginTop:2 }}>{fmtMoney(b.monto)}</div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>
+                  {b.kwh != null ? `${Number(b.kwh).toLocaleString()} kWh · ` : ''}{fmtDate(b.uploaded_at)}
+                </div>
+                {b.cta_aee && <div style={{ fontSize:10, color:'var(--muted)' }}>Cta: {b.cta_aee}</div>}
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              <button onClick={() => verBill(b)} style={{ flex:1, minWidth:70, background:'#1a3c8f', color:'#fff', border:'none', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>👁 Ver</button>
+              <button onClick={() => setEditing(b)} style={{ background:'rgba(103,232,249,0.15)', color:'#0891b2', border:'1px solid rgba(103,232,249,0.3)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>✏️ Editar</button>
+              <button onClick={() => deleteBill(b)} style={{ background:'transparent', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)', padding:'7px 10px', borderRadius:6, fontSize:12, cursor:'pointer' }}>🗑</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showUpload && (
+        <LumaBillUploadModal leadId={leadId} onClose={() => setShowUpload(false)} onSaved={() => { setShowUpload(false); load(); }} />
+      )}
+      {editing && (
+        <LumaBillEditModal leadId={leadId} bill={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />
+      )}
+    </div>
+  );
+}
+
+function LumaBillUploadModal({ leadId, onClose, onSaved }) {
+  const [file, setFile] = useState(null);
+  const [periodo, setPeriodo] = useState('');
+  const [monto, setMonto] = useState('');
+  const [kwh, setKwh] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [processing, setProcessing] = useState(false);
+
+  const inputId = 'luma-bill-upload';
+
+  const handleSubmit = async () => {
+    if (!file) { alert('Selecciona un archivo'); return; }
+    setSaving(true);
+    try {
+      const payload = await compressIfNeeded(file);
+      const { base64, mime, filename } = payload;
+      if (!base64) throw new Error('Archivo vacío');
+      setProcessing(true);
+      await api.uploadLumaBill(leadId, {
+        filename, mime_type: mime, base64,
+        periodo: periodo || null,
+        monto: monto !== '' ? Number(monto) : null,
+        kwh: kwh !== '' ? Number(kwh) : null,
+      });
+      onSaved();
+    } catch (e) {
+      alert('Error: ' + (e.message || e));
+    } finally {
+      setSaving(false); setProcessing(false);
+    }
+  };
+
+  const inp = { width:'100%', padding:'10px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, boxSizing:'border-box' };
+
+  return (
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:12 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20, maxWidth:480, width:'100%', maxHeight:'92vh', overflowY:'auto' }}>
+        <div style={{ fontSize:17, fontWeight:700, color:'var(--text)', marginBottom:14 }}>📤 Subir factura LUMA</div>
+
+        <input id={inputId} type="file" accept="image/*,application/pdf" capture="environment"
+          onChange={e => setFile(e.target.files?.[0] || null)}
+          style={{ position:'absolute', width:0, height:0, opacity:0, pointerEvents:'none' }} />
+        <button onClick={() => document.getElementById(inputId)?.click()}
+          style={{ width:'100%', background: file ? 'rgba(16,185,129,0.15)' : '#1a3c8f', color: file ? '#059669' : '#fff', border: file ? '1px solid rgba(16,185,129,0.4)' : 'none', padding:'14px', borderRadius:8, fontSize:14, fontWeight:600, cursor:'pointer', marginBottom:14 }}>
+          {file ? `✓ ${file.name}` : '📷 Seleccionar foto o PDF'}
+        </button>
+
+        <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:4 }}>Período (opcional)</label>
+        <input value={periodo} onChange={e => setPeriodo(e.target.value)} placeholder="Octubre 2025" style={{ ...inp, marginBottom:10 }} />
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+          <div>
+            <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:4 }}>Monto $</label>
+            <input type="number" step="0.01" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0.00" style={inp} />
+          </div>
+          <div>
+            <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:4 }}>kWh</label>
+            <input type="number" value={kwh} onChange={e => setKwh(e.target.value)} placeholder="0" style={inp} />
+          </div>
+        </div>
+
+        <div style={{ fontSize:11, color:'var(--muted)', marginBottom:14 }}>
+          💡 Si dejas los campos en blanco, intentaremos extraerlos automáticamente con IA.
+        </div>
+
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={onClose} disabled={saving} style={{ padding:'11px 16px', background:'transparent', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:8, fontSize:13, cursor:'pointer' }}>Cancelar</button>
+          <button onClick={handleSubmit} disabled={saving || !file} style={{ flex:1, padding:'11px', background:'linear-gradient(135deg,#1a3c8f,#0f2558)', color:'#fff', border:'none', borderRadius:8, fontSize:14, fontWeight:700, cursor:'pointer', opacity: (saving || !file) ? 0.6 : 1 }}>
+            {saving ? (processing ? 'Procesando con IA…' : 'Subiendo…') : '💾 Guardar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LumaBillEditModal({ leadId, bill, onClose, onSaved }) {
+  const [periodo, setPeriodo] = useState(bill.periodo || '');
+  const [monto, setMonto]     = useState(bill.monto != null ? String(bill.monto) : '');
+  const [kwh, setKwh]         = useState(bill.kwh   != null ? String(bill.kwh)   : '');
+  const [ctaAee, setCtaAee]   = useState(bill.cta_aee || '');
+  const [contador, setContador] = useState(bill.contador || '');
+  const [notes, setNotes]     = useState(bill.notes || '');
+  const [saving, setSaving]   = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.updateLumaBill(leadId, bill.id, {
+        periodo: periodo || null,
+        monto: monto !== '' ? Number(monto) : null,
+        kwh: kwh !== '' ? Number(kwh) : null,
+        cta_aee: ctaAee || null,
+        contador: contador || null,
+        notes: notes || null,
+      });
+      onSaved();
+    } catch (e) {
+      alert('Error: ' + (e.message || e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inp = { width:'100%', padding:'10px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, boxSizing:'border-box' };
+
+  return (
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:12 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20, maxWidth:480, width:'100%', maxHeight:'92vh', overflowY:'auto' }}>
+        <div style={{ fontSize:17, fontWeight:700, color:'var(--text)', marginBottom:14 }}>✏️ Editar factura LUMA</div>
+
+        <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:4 }}>Período</label>
+        <input value={periodo} onChange={e => setPeriodo(e.target.value)} style={{ ...inp, marginBottom:10 }} />
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+          <div>
+            <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:4 }}>Monto $</label>
+            <input type="number" step="0.01" value={monto} onChange={e => setMonto(e.target.value)} style={inp} />
+          </div>
+          <div>
+            <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:4 }}>kWh</label>
+            <input type="number" value={kwh} onChange={e => setKwh(e.target.value)} style={inp} />
+          </div>
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+          <div>
+            <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:4 }}>Cta AEE/LUMA</label>
+            <input value={ctaAee} onChange={e => setCtaAee(e.target.value)} style={inp} />
+          </div>
+          <div>
+            <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:4 }}>Contador</label>
+            <input value={contador} onChange={e => setContador(e.target.value)} style={inp} />
+          </div>
+        </div>
+
+        <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:4 }}>Notas</label>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} style={{ ...inp, marginBottom:14, resize:'vertical', fontFamily:'inherit' }} />
+
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={onClose} disabled={saving} style={{ padding:'11px 16px', background:'transparent', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:8, fontSize:13, cursor:'pointer' }}>Cancelar</button>
+          <button onClick={save} disabled={saving} style={{ flex:1, padding:'11px', background:'linear-gradient(135deg,#1a3c8f,#0f2558)', color:'#fff', border:'none', borderRadius:8, fontSize:14, fontWeight:700, cursor:'pointer', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Guardando…' : '💾 Guardar cambios'}
+          </button>
         </div>
       </div>
     </div>

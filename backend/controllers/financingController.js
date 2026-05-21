@@ -430,6 +430,128 @@ async function sendToCoop(req, res) {
   }
 }
 
+// ─── POST /api/leads/:id/financing/auto-invoice ──────────────────────────────
+// Body: { cooperativa, etapa_id, doc_key } (doc_key suele ser factura_45/40/50/10)
+// Busca un project_invoice de ese lead cuyo porcentaje coincida con el doc_key
+// (factura_45 → 45%). Si lo encuentra, asegura PDF y lo sube como financing-doc.
+// Si NO existe, intenta generarlo desde el último contrato firmado.
+async function autoInvoice(req, res) {
+  try {
+    await ensureFinancingTable();
+    const leadId = req.params.id;
+    const cooperativa = String(req.body?.cooperativa || '');
+    const etapa_id    = String(req.body?.etapa_id    || 'etapa1');
+    const doc_key     = String(req.body?.doc_key     || '');
+    if (!doc_key) return res.status(400).json({ error: 'doc_key requerido' });
+
+    // Extraer porcentaje del doc_key (factura_45 → 45)
+    const m = /factura_(\d+)/.exec(doc_key);
+    if (!m) return res.status(400).json({ error: 'doc_key no parseable' });
+    const targetPct = Number(m[1]);
+
+    // 1) Buscar project_invoice existente con ese %
+    const invR = await pool.query(
+      `SELECT id, numero, etapa, monto, porcentaje, pdf_base64, contrato_firma_id, status
+         FROM project_invoices
+        WHERE lead_id = $1 AND status <> 'cancelada'
+          AND ROUND(porcentaje) = $2
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [leadId, targetPct]
+    );
+    let inv = invR.rows[0];
+
+    // 2) Si no existe, intentar generar desde el último contrato firma del lead
+    if (!inv) {
+      const cfR = await pool.query(
+        `SELECT id, contrato_data FROM contratos_firma
+          WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        [leadId]
+      );
+      if (cfR.rows[0]) {
+        try {
+          await generateInvoicesFromContract(cfR.rows[0].id, leadId, cfR.rows[0].contrato_data || {});
+          const inv2 = await pool.query(
+            `SELECT id, numero, etapa, monto, porcentaje, pdf_base64, contrato_firma_id, status
+               FROM project_invoices
+              WHERE lead_id = $1 AND status <> 'cancelada' AND ROUND(porcentaje) = $2
+              ORDER BY created_at DESC LIMIT 1`,
+            [leadId, targetPct]
+          );
+          inv = inv2.rows[0];
+        } catch (e) {
+          console.error('[autoInvoice regen]', e.message);
+        }
+      }
+    }
+
+    if (!inv) {
+      return res.status(404).json({
+        error: `No se encontró factura del ${targetPct}% para este lead. Genera el contrato primero.`,
+      });
+    }
+
+    // 3) Asegurar PDF
+    let b64 = inv.pdf_base64;
+    if (!b64) {
+      try {
+        const { generatePDF } = require('../services/puppeteerPool');
+        const { buildFacturaHTML } = require('../templates/facturaProyecto');
+        const ldR = await pool.query(
+          `SELECT l.*, c.name AS contact_name, c.email AS contact_email, c.phone AS contact_phone
+             FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id WHERE l.id = $1`,
+          [leadId]
+        );
+        const lead = ldR.rows[0] || {};
+        const sd = lead.solar_data || {};
+        const cliente = {
+          nombre:  lead.contact_name || lead.title || 'Cliente',
+          email:   sd.email    || lead.contact_email || '',
+          telefono:sd.telefono || lead.contact_phone || '',
+          direccion: [sd.address, sd.city ? `${sd.city}${sd.zip ? ', PR ' + sd.zip : ''}` : ''].filter(Boolean).join('\n'),
+        };
+        let empresa = await getConfigValue('empresa_info', null);
+        if (empresa && typeof empresa === 'string') { try { empresa = JSON.parse(empresa); } catch { empresa = null; } }
+        empresa = {
+          nombre:    empresa?.nombre   || 'Energy Depot LLC',
+          direccion: empresa?.direccion|| 'Global Plaza Suite 204\nSan Juan, PR 00920',
+          ein:       empresa?.ein      || '',
+          telefono:  empresa?.telefono || '(787) 627-8585',
+          email:     empresa?.email    || 'info@energydepotpr.com',
+        };
+        const banco = await getConfigValue('invoice_banco_info', '');
+        const html = buildFacturaHTML({ invoice: inv, cliente, empresa, banco });
+        const pdfBuf = await generatePDF(html, {
+          format: 'Letter', printBackground: true,
+          margin: { top: 0, bottom: 0, left: 0, right: 0 },
+        });
+        b64 = Buffer.from(pdfBuf).toString('base64');
+        await pool.query(`UPDATE project_invoices SET pdf_base64=$1, updated_at=NOW() WHERE id=$2`, [b64, inv.id]);
+      } catch (e) {
+        console.error('[autoInvoice render]', e.message);
+        return res.status(500).json({ error: 'No se pudo renderizar PDF: ' + e.message });
+      }
+    }
+
+    // 4) Subir como financing-doc
+    const filename = `Factura-${inv.numero}.pdf`;
+    const userId = req.user?.id || null;
+    await pool.query(
+      `INSERT INTO lead_financing_docs (lead_id, cooperativa, etapa_id, doc_key, filename, mime_type, file_base64, uploaded_by, uploaded_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW())
+       ON CONFLICT (lead_id, cooperativa, etapa_id, doc_key)
+       DO UPDATE SET filename = EXCLUDED.filename, mime_type = EXCLUDED.mime_type,
+                     file_base64 = EXCLUDED.file_base64, uploaded_by = EXCLUDED.uploaded_by,
+                     uploaded_at = NOW()`,
+      [leadId, cooperativa, etapa_id, doc_key, filename, 'application/pdf', b64, userId]
+    );
+    res.json({ ok: true, invoice_id: inv.id, numero: inv.numero, monto: inv.monto, porcentaje: inv.porcentaje });
+  } catch (e) {
+    console.error('[autoInvoice]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
 module.exports = {
   listDocs,
   uploadDoc,
@@ -438,5 +560,6 @@ module.exports = {
   sendToCoop,
   listCoops,
   saveCoops,
+  autoInvoice,
   DEFAULT_COOPS,
 };

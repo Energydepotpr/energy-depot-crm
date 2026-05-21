@@ -451,6 +451,14 @@ export const api = {
     return req('GET', `/api/leads/${id}/financing-docs/${opts}/file`);
   },
   sendFinancingToCoop:  (id, data)      => req('POST',   `/api/leads/${id}/financing/send`, data),
+  autoFinancingInvoice: (id, data)      => req('POST',   `/api/leads/${id}/financing/auto-invoice`, data),
+
+  // Facturas LUMA (las que el cliente envía a Energy Depot)
+  lumaBills:        (leadId)               => req('GET',    `/api/leads/${leadId}/luma-bills`),
+  uploadLumaBill:   (leadId, data)         => req('POST',   `/api/leads/${leadId}/luma-bills`, data),
+  getLumaBillFile:  (leadId, billId)       => req('GET',    `/api/leads/${leadId}/luma-bills/${billId}/file`),
+  updateLumaBill:   (leadId, billId, data) => req('PATCH',  `/api/leads/${leadId}/luma-bills/${billId}`, data),
+  deleteLumaBill:   (leadId, billId)       => req('DELETE', `/api/leads/${leadId}/luma-bills/${billId}`),
   cooperativas:         ()              => req('GET',    '/api/cooperativas'),
   saveCooperativas:     (arr)           => req('PUT',    '/api/cooperativas', arr),
 
