@@ -467,6 +467,10 @@ export const api = {
   getLoanApplications:   (leadId, coop)                     => req('GET',    `/api/leads/${leadId}/loan-applications${coop != null ? `?cooperativa=${encodeURIComponent(coop)}` : ''}`),
   getLatestLoanFormData: (leadId)                           => req('GET',    `/api/leads/${leadId}/loan-applications/latest-form-data`),
   getLoanApplicationPdf: (leadId, laId)                     => req('GET',    `/api/leads/${leadId}/loan-applications/${laId}/pdf`),
+  generateTuCoopSolicitudPdf: (leadId, formData, signatureBase64) =>
+    req('POST', `/api/leads/${leadId}/loan-applications/tu-coop-pdf`, {
+      form_data: formData, signature_base64: signatureBase64,
+    }),
 
   // Helper: subir base64 ya generado (cotización/contrato/factura) como financing-doc
   uploadFinancingDocFromBase64: (leadId, cooperativa, etapa_id, doc_key, base64, filename, mime) =>

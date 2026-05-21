@@ -6118,14 +6118,24 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
       </div>
 
       {showLoanForm && (
-        <SolicitudLoanModal
-          leadId={leadId}
-          lead={lead}
-          cooperativa={coopName}
-          existing={loanApps.find(la => !la.signed_at) || null}
-          onClose={() => setShowLoanForm(false)}
-          onSaved={() => { setShowLoanForm(false); loadLoanApps(); load(); }}
-        />
+        (String(coopName || '').toLowerCase().includes('tu coop')) ? (
+          <TuCoopSolicitudModal
+            leadId={leadId}
+            lead={lead}
+            existing={loanApps.find(la => !la.signed_at) || null}
+            onClose={() => setShowLoanForm(false)}
+            onSaved={() => { setShowLoanForm(false); loadLoanApps(); load(); }}
+          />
+        ) : (
+          <SolicitudLoanModal
+            leadId={leadId}
+            lead={lead}
+            cooperativa={coopName}
+            existing={loanApps.find(la => !la.signed_at) || null}
+            onClose={() => setShowLoanForm(false)}
+            onSaved={() => { setShowLoanForm(false); loadLoanApps(); load(); }}
+          />
+        )
       )}
 
       {showSend && (
@@ -6578,6 +6588,239 @@ function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSa
         <style jsx>{`
           @media (max-width: 640px) {
             :global(.loan-grid) { grid-template-columns: 1fr !important; }
+          }
+        `}</style>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal específico Tu Coop (template PDF propio + firma) ──────────────────
+function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
+  const sd = lead?.solar_data || {};
+  const autoFill = {
+    nombre_completo: lead?.contact_name || lead?.title || '',
+    correo: lead?.contact_email || sd?.contrato_config?.email || '',
+    telefono: lead?.contact_phone || '',
+    celular: lead?.contact_phone || '',
+    direccion_fisica: sd?.direccion_fisica || sd?.contrato_config?.direccionFisica || lead?.address || '',
+    direccion_postal: sd?.contrato_config?.direccionPostal || '',
+    cantidad_solicitada: sd?.contrato_config?.precioTotal || sd?.calc?.precio_total || '',
+    firma_fecha: new Date().toLocaleDateString('es-PR'),
+  };
+
+  // Merge inicial (existing no-vacío sobre autoFill)
+  const initial = (() => {
+    const out = { ...autoFill };
+    const ef = existing?.form_data || {};
+    for (const k in ef) { const v = ef[k]; if (v != null && v !== '') out[k] = v; }
+    return out;
+  })();
+
+  const [formData, setFormData] = useState(initial);
+  const [submitting, setSubmitting] = useState(false);
+  const [name, setName] = useState(initial.nombre_completo || '');
+  const [seeded, setSeeded] = useState(false);
+
+  // Cargar la solicitud más reciente para auto-fill de campos vacíos
+  useEffect(() => {
+    if (seeded) return;
+    (async () => {
+      try {
+        const latest = await api.getLatestLoanFormData(leadId);
+        const ld = latest?.form_data;
+        if (ld && typeof ld === 'object') {
+          setFormData(p => {
+            const merged = { ...p };
+            for (const k in ld) {
+              const v = ld[k];
+              if ((merged[k] === undefined || merged[k] === '' || merged[k] === null) && v != null && v !== '') {
+                merged[k] = v;
+              }
+            }
+            if (!name && ld.nombre_completo) setName(ld.nombre_completo);
+            return merged;
+          });
+        }
+      } catch {}
+      setSeeded(true);
+    })();
+  }, [leadId, seeded, name]);
+
+  const setField = (k, v) => setFormData(p => ({ ...p, [k]: v }));
+
+  // Canvas firma (mismo patrón que /solicitud/[token])
+  const canvasRef = useRef(null);
+  const drawing = useRef(false);
+  const isEmpty = useRef(true);
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const ratio = window.devicePixelRatio || 1;
+    const rect  = c.getBoundingClientRect();
+    c.width  = rect.width  * ratio;
+    c.height = rect.height * ratio;
+    const ctx = c.getContext('2d');
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#0f172a';
+  }, []);
+  const getPos = (e) => {
+    const c = canvasRef.current;
+    const rect = c.getBoundingClientRect();
+    const t = e.touches?.[0];
+    const x = (t ? t.clientX : e.clientX) - rect.left;
+    const y = (t ? t.clientY : e.clientY) - rect.top;
+    return { x, y };
+  };
+  const start = (e) => { e.preventDefault(); drawing.current = true; const { x,y } = getPos(e); const ctx = canvasRef.current.getContext('2d'); ctx.beginPath(); ctx.moveTo(x,y); };
+  const move  = (e) => { if (!drawing.current) return; e.preventDefault(); const { x,y } = getPos(e); const ctx = canvasRef.current.getContext('2d'); ctx.lineTo(x,y); ctx.stroke(); isEmpty.current = false; };
+  const end   = () => { drawing.current = false; };
+  const clear = () => { const c = canvasRef.current; const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); isEmpty.current = true; };
+
+  const inp = { width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, padding:'9px 11px', fontSize:13, color:'var(--text)', outline:'none', fontFamily:'inherit', boxSizing:'border-box' };
+  const labelStyle = { fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.3, display:'block', marginBottom:4 };
+
+  const Field = ({ k, label, type = 'text', full = false }) => (
+    <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
+      <label style={labelStyle}>{label}</label>
+      <input type={type} value={formData[k] ?? ''} onChange={e => setField(k, e.target.value)} style={inp} />
+    </div>
+  );
+
+  const RadioGroup = ({ k, label, options, full = false }) => (
+    <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
+      <label style={labelStyle}>{label}</label>
+      <div style={{ display:'flex', gap:10, flexWrap:'wrap', paddingTop:4 }}>
+        {options.map(opt => (
+          <label key={opt.value} style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:13, color:'var(--text)', cursor:'pointer' }}>
+            <input type="radio" name={k} checked={formData[k] === opt.value} onChange={() => setField(k, opt.value)} />
+            {opt.label}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+
+  const submit = async () => {
+    if (!String(formData.nombre_completo || name || '').trim()) {
+      alert('El nombre del solicitante es requerido'); return;
+    }
+    if (isEmpty.current) { alert('Por favor dibuja tu firma'); return; }
+    setSubmitting(true);
+    try {
+      const sig = canvasRef.current.toDataURL('image/png');
+      const fd = { ...formData, nombre_completo: formData.nombre_completo || name };
+      const r = await api.generateTuCoopSolicitudPdf(leadId, fd, sig);
+      if (!r?.ok) throw new Error(r?.error || 'Error generando PDF');
+      alert('✓ Solicitud Tu Coop generada y guardada en documentos');
+      onSaved();
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:12 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, maxWidth:820, width:'100%', maxHeight:'95vh', overflowY:'auto' }}>
+        <div style={{ position:'sticky', top:0, background:'var(--surface)', borderBottom:'1px solid var(--border)', padding:'14px 18px', display:'flex', justifyContent:'space-between', alignItems:'center', zIndex:2 }}>
+          <div>
+            <div style={{ fontSize:16, fontWeight:800, color:'var(--text)' }}>📝 Solicitud Tu Coop</div>
+            <div style={{ fontSize:12, color:'var(--muted)' }}>Template oficial · Firma electrónica</div>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'var(--muted)' }}>×</button>
+        </div>
+
+        <div style={{ padding:'16px 18px' }}>
+          {/* Información del Préstamo */}
+          <div style={{ fontSize:12, fontWeight:800, color:'#1a3c8f', textTransform:'uppercase', letterSpacing:.8, borderBottom:'2px solid #67e8f9', paddingBottom:5, marginBottom:10 }}>Información del Préstamo</div>
+          <div className="tcg" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
+            <RadioGroup k="proposito" label="Propósito" full options={[
+              {value:'vacaciones',label:'Vacaciones'},
+              {value:'consolidacion',label:'Consolidación'},
+              {value:'mejoras',label:'Mejoras'},
+              {value:'otro',label:'Otro'},
+            ]} />
+            <Field k="cantidad_solicitada" label="Cantidad Solicitada" />
+          </div>
+
+          {/* Solicitante */}
+          <div style={{ fontSize:12, fontWeight:800, color:'#1a3c8f', textTransform:'uppercase', letterSpacing:.8, borderBottom:'2px solid #67e8f9', paddingBottom:5, marginBottom:10 }}>Información del Solicitante</div>
+          <div className="tcg" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
+            <Field k="nombre_completo" label="Nombre Completo" full />
+            <Field k="seguro_social" label="Seguro Social" />
+            <Field k="fecha_nacimiento" label="Fecha de Nacimiento" />
+            <Field k="telefono" label="Teléfono" />
+            <Field k="licencia_conducir" label="Lic. Conducir" />
+            <Field k="licencia_vencimiento" label="Lic. Vencimiento" />
+            <Field k="licencia_emitida_en" label="Lic. Emitida en" />
+            <Field k="correo" label="Correo" />
+            <Field k="celular" label="Celular" />
+            <RadioGroup k="estado_civil" label="Estado Civil" options={[
+              {value:'casado',label:'Casado(a)'},
+              {value:'separado',label:'Separado(a)'},
+              {value:'soltero',label:'Soltero(a)'},
+            ]} />
+            <Field k="dependientes" label="Dependientes" />
+            <Field k="direccion_fisica" label="Dirección Física" full />
+            <Field k="direccion_postal" label="Dirección Postal" full />
+            <RadioGroup k="vive_en_casa" label="Vive en casa" options={[
+              {value:'propia',label:'Propia'},
+              {value:'alquilada',label:'Alquilada'},
+              {value:'familiar',label:'Familiar'},
+              {value:'otro',label:'Otro'},
+            ]} />
+            <Field k="tiempo_residencia" label="Tiempo de residencia" />
+            <Field k="pariente_nombre_direccion" label="Pariente — Nombre y Dirección" full />
+            <Field k="pariente_correo" label="Pariente — Correo" />
+            <Field k="pariente_telefono" label="Pariente — Teléfono" />
+          </div>
+
+          {/* Empleo */}
+          <div style={{ fontSize:12, fontWeight:800, color:'#1a3c8f', textTransform:'uppercase', letterSpacing:.8, borderBottom:'2px solid #67e8f9', paddingBottom:5, marginBottom:10 }}>Empleo</div>
+          <div className="tcg" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
+            <RadioGroup k="empleado_tipo" label="Tipo de empleado" full options={[
+              {value:'regular',label:'Regular'},
+              {value:'probatorio',label:'Probatorio'},
+              {value:'contrato',label:'Contrato'},
+              {value:'cuenta_propia',label:'Cuenta propia'},
+            ]} />
+            <Field k="tiempo_empleo" label="Tiempo en el empleo" />
+            <Field k="patrono" label="Patrono" />
+            <Field k="ocupacion" label="Ocupación" />
+            <Field k="patrono_telefono" label="Teléfono del patrono" />
+            <Field k="supervisor" label="Supervisor" />
+            <Field k="telefono_empleo" label="Teléfono empleo" />
+            <Field k="direccion_empleo" label="Dirección del empleo" full />
+            <Field k="salario_bruto" label="Salario bruto" />
+          </div>
+
+          {/* Firma */}
+          <div style={{ fontSize:12, fontWeight:800, color:'#1a3c8f', textTransform:'uppercase', letterSpacing:.8, borderBottom:'2px solid #67e8f9', paddingBottom:5, marginBottom:10 }}>Firma del Solicitante</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+            <Field k="firma_fecha" label="Fecha" />
+          </div>
+          <div style={{ border:'2px dashed #94a3b8', borderRadius:8, background:'#f8fafc' }}>
+            <canvas ref={canvasRef}
+              style={{ width:'100%', height:160, touchAction:'none', display:'block', borderRadius:6 }}
+              onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
+              onTouchStart={start} onTouchMove={move} onTouchEnd={end} />
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between', marginTop:8 }}>
+            <button onClick={clear} style={{ background:'transparent', border:'1px solid var(--border)', borderRadius:6, padding:'6px 12px', fontSize:12, cursor:'pointer', color:'var(--muted)' }}>Limpiar firma</button>
+            <span style={{ fontSize:11, color:'var(--muted)' }}>Usa dedo o mouse</span>
+          </div>
+        </div>
+
+        <div style={{ position:'sticky', bottom:0, background:'var(--surface)', borderTop:'1px solid var(--border)', padding:'12px 18px', display:'flex', gap:8 }}>
+          <button onClick={onClose} disabled={submitting} style={{ padding:'11px 16px', background:'transparent', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:8, fontSize:13, cursor:'pointer' }}>Cancelar</button>
+          <button onClick={submit} disabled={submitting} style={{ flex:1, padding:'11px', background:'linear-gradient(135deg,#1a3c8f,#0f2558)', color:'#fff', border:'none', borderRadius:8, fontSize:14, fontWeight:700, cursor:'pointer', opacity: submitting ? 0.7 : 1 }}>
+            {submitting ? 'Generando…' : '✓ Generar PDF firmado'}
+          </button>
+        </div>
+
+        <style jsx>{`
+          @media (max-width: 640px) {
+            :global(.tcg) { grid-template-columns: 1fr !important; }
           }
         `}</style>
       </div>
