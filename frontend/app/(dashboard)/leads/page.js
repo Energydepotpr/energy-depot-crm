@@ -6474,8 +6474,14 @@ function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSa
       // FV: probar active.calc.costBase primero, luego sd.calc.costBase (calc global del lead)
       const fv = Number(active?.calc?.costBase) || Number(sd?.calc?.costBase) || 0;
       const bats = (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0);
-      const totalQ = Number(active?.calc?.sub) || (fv + bats);
-      // Restar pronto que el cliente da en el contrato (si aplica)
+      // calc.sub ya tiene descuento aplicado si la cotización lo guardó. Si no, calculamos.
+      let totalQ = Number(active?.calc?.sub);
+      if (!totalQ) {
+        const subBruto = fv + bats;
+        const dPct = Number(active?.calc?.descuentoPct) || Number(active?.descuentoPct) || Number(sd?.descuentoPct) || 0;
+        const dAmt = Number(active?.calc?.descuentoAmt) || Number(active?.descuentoAmt) || (subBruto * dPct / 100);
+        totalQ = Math.max(0, subBruto - dAmt);
+      }
       const pronto = Number(sd?.contrato_config?.prontoDado) || 0;
       const cantidadFinanciar = Math.max(0, totalQ - pronto);
       return sd?.contrato_config?.precioTotal || cantidadFinanciar || Number(lead?.value) || sd?.calc?.precio_total || '';
@@ -6641,6 +6647,35 @@ function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSa
   );
 }
 
+// Estilos compartidos para inputs de TuCoop
+const TC_INP = { width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, padding:'9px 11px', fontSize:13, color:'var(--text)', outline:'none', fontFamily:'inherit', boxSizing:'border-box' };
+const TC_LABEL = { fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.3, display:'block', marginBottom:4 };
+
+// Field y RadioGroup definidos FUERA del modal para no remontar inputs en cada render (lo cual rompe el focus)
+function TCField({ k, label, type = 'text', full = false, value, onChange }) {
+  return (
+    <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
+      <label style={TC_LABEL}>{label}</label>
+      <input type={type} value={value ?? ''} onChange={e => onChange(k, e.target.value)} style={TC_INP} />
+    </div>
+  );
+}
+function TCRadioGroup({ k, label, options, full = false, value, onChange }) {
+  return (
+    <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
+      <label style={TC_LABEL}>{label}</label>
+      <div style={{ display:'flex', gap:10, flexWrap:'wrap', paddingTop:4 }}>
+        {options.map(opt => (
+          <label key={opt.value} style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:13, color:'var(--text)', cursor:'pointer' }}>
+            <input type="radio" name={k} checked={value === opt.value} onChange={() => onChange(k, opt.value)} />
+            {opt.label}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Modal específico Tu Coop (template PDF propio + firma) ──────────────────
 function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
   const sd = lead?.solar_data || {};
@@ -6657,8 +6692,14 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
       // FV: probar active.calc.costBase primero, luego sd.calc.costBase (calc global del lead)
       const fv = Number(active?.calc?.costBase) || Number(sd?.calc?.costBase) || 0;
       const bats = (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0);
-      const totalQ = Number(active?.calc?.sub) || (fv + bats);
-      // Restar pronto que el cliente da en el contrato (si aplica)
+      // calc.sub ya tiene descuento aplicado si la cotización lo guardó. Si no, calculamos.
+      let totalQ = Number(active?.calc?.sub);
+      if (!totalQ) {
+        const subBruto = fv + bats;
+        const dPct = Number(active?.calc?.descuentoPct) || Number(active?.descuentoPct) || Number(sd?.descuentoPct) || 0;
+        const dAmt = Number(active?.calc?.descuentoAmt) || Number(active?.descuentoAmt) || (subBruto * dPct / 100);
+        totalQ = Math.max(0, subBruto - dAmt);
+      }
       const pronto = Number(sd?.contrato_config?.prontoDado) || 0;
       const cantidadFinanciar = Math.max(0, totalQ - pronto);
       return sd?.contrato_config?.precioTotal || cantidadFinanciar || Number(lead?.value) || sd?.calc?.precio_total || '';
@@ -6735,29 +6776,6 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
   const end   = () => { drawing.current = false; };
   const clear = () => { const c = canvasRef.current; const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); isEmpty.current = true; };
 
-  const inp = { width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, padding:'9px 11px', fontSize:13, color:'var(--text)', outline:'none', fontFamily:'inherit', boxSizing:'border-box' };
-  const labelStyle = { fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.3, display:'block', marginBottom:4 };
-
-  const Field = ({ k, label, type = 'text', full = false }) => (
-    <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
-      <label style={labelStyle}>{label}</label>
-      <input type={type} value={formData[k] ?? ''} onChange={e => setField(k, e.target.value)} style={inp} />
-    </div>
-  );
-
-  const RadioGroup = ({ k, label, options, full = false }) => (
-    <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
-      <label style={labelStyle}>{label}</label>
-      <div style={{ display:'flex', gap:10, flexWrap:'wrap', paddingTop:4 }}>
-        {options.map(opt => (
-          <label key={opt.value} style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:13, color:'var(--text)', cursor:'pointer' }}>
-            <input type="radio" name={k} checked={formData[k] === opt.value} onChange={() => setField(k, opt.value)} />
-            {opt.label}
-          </label>
-        ))}
-      </div>
-    </div>
-  );
 
   const autollenar = async () => {
     // Recolectar todo lo conocido del lead, contrato y solicitud previa
@@ -6843,70 +6861,70 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
           {/* Información del Préstamo */}
           <div style={{ fontSize:12, fontWeight:800, color:'#1a3c8f', textTransform:'uppercase', letterSpacing:.8, borderBottom:'2px solid #67e8f9', paddingBottom:5, marginBottom:10 }}>Información del Préstamo</div>
           <div className="tcg" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
-            <RadioGroup k="proposito" label="Propósito" full options={[
+            <TCRadioGroup k="proposito" label="Propósito" full options={[
               {value:'vacaciones',label:'Vacaciones'},
               {value:'consolidacion',label:'Consolidación'},
               {value:'mejoras',label:'Mejoras'},
               {value:'otro',label:'Otro'},
-            ]} />
-            <Field k="cantidad_solicitada" label="Cantidad Solicitada" />
+            ]}  value={formData.proposito} onChange={setField} />
+            <TCField k="cantidad_solicitada" label="Cantidad Solicitada" value={formData.cantidad_solicitada} onChange={setField} />
           </div>
 
           {/* Solicitante */}
           <div style={{ fontSize:12, fontWeight:800, color:'#1a3c8f', textTransform:'uppercase', letterSpacing:.8, borderBottom:'2px solid #67e8f9', paddingBottom:5, marginBottom:10 }}>Información del Solicitante</div>
           <div className="tcg" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
-            <Field k="nombre_completo" label="Nombre Completo" full />
-            <Field k="seguro_social" label="Seguro Social" />
-            <Field k="fecha_nacimiento" label="Fecha de Nacimiento" />
-            <Field k="telefono" label="Teléfono" />
-            <Field k="licencia_conducir" label="Lic. Conducir" />
-            <Field k="licencia_vencimiento" label="Lic. Vencimiento" />
-            <Field k="licencia_emitida_en" label="Lic. Emitida en" />
-            <Field k="correo" label="Correo" />
-            <Field k="celular" label="Celular" />
-            <RadioGroup k="estado_civil" label="Estado Civil" options={[
+            <TCField k="nombre_completo" label="Nombre Completo" full value={formData.nombre_completo} onChange={setField} />
+            <TCField k="seguro_social" label="Seguro Social" value={formData.seguro_social} onChange={setField} />
+            <TCField k="fecha_nacimiento" label="Fecha de Nacimiento" value={formData.fecha_nacimiento} onChange={setField} />
+            <TCField k="telefono" label="Teléfono" value={formData.telefono} onChange={setField} />
+            <TCField k="licencia_conducir" label="Lic. Conducir" value={formData.licencia_conducir} onChange={setField} />
+            <TCField k="licencia_vencimiento" label="Lic. Vencimiento" value={formData.licencia_vencimiento} onChange={setField} />
+            <TCField k="licencia_emitida_en" label="Lic. Emitida en" value={formData.licencia_emitida_en} onChange={setField} />
+            <TCField k="correo" label="Correo" value={formData.correo} onChange={setField} />
+            <TCField k="celular" label="Celular" value={formData.celular} onChange={setField} />
+            <TCRadioGroup k="estado_civil" label="Estado Civil" options={[
               {value:'casado',label:'Casado(a)'},
               {value:'separado',label:'Separado(a)'},
               {value:'soltero',label:'Soltero(a)'},
-            ]} />
-            <Field k="dependientes" label="Dependientes" />
-            <Field k="direccion_fisica" label="Dirección Física" full />
-            <Field k="direccion_postal" label="Dirección Postal" full />
-            <RadioGroup k="vive_en_casa" label="Vive en casa" options={[
+            ]}  value={formData.estado_civil} onChange={setField} />
+            <TCField k="dependientes" label="Dependientes" value={formData.dependientes} onChange={setField} />
+            <TCField k="direccion_fisica" label="Dirección Física" full value={formData.direccion_fisica} onChange={setField} />
+            <TCField k="direccion_postal" label="Dirección Postal" full value={formData.direccion_postal} onChange={setField} />
+            <TCRadioGroup k="vive_en_casa" label="Vive en casa" options={[
               {value:'propia',label:'Propia'},
               {value:'alquilada',label:'Alquilada'},
               {value:'familiar',label:'Familiar'},
               {value:'otro',label:'Otro'},
-            ]} />
-            <Field k="tiempo_residencia" label="Tiempo de residencia" />
-            <Field k="pariente_nombre_direccion" label="Pariente — Nombre y Dirección" full />
-            <Field k="pariente_correo" label="Pariente — Correo" />
-            <Field k="pariente_telefono" label="Pariente — Teléfono" />
+            ]}  value={formData.vive_en_casa} onChange={setField} />
+            <TCField k="tiempo_residencia" label="Tiempo de residencia" value={formData.tiempo_residencia} onChange={setField} />
+            <TCField k="pariente_nombre_direccion" label="Pariente — Nombre y Dirección" full value={formData.pariente_nombre_direccion} onChange={setField} />
+            <TCField k="pariente_correo" label="Pariente — Correo" value={formData.pariente_correo} onChange={setField} />
+            <TCField k="pariente_telefono" label="Pariente — Teléfono" value={formData.pariente_telefono} onChange={setField} />
           </div>
 
           {/* Empleo */}
           <div style={{ fontSize:12, fontWeight:800, color:'#1a3c8f', textTransform:'uppercase', letterSpacing:.8, borderBottom:'2px solid #67e8f9', paddingBottom:5, marginBottom:10 }}>Empleo</div>
           <div className="tcg" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
-            <RadioGroup k="empleado_tipo" label="Tipo de empleado" full options={[
+            <TCRadioGroup k="empleado_tipo" label="Tipo de empleado" full options={[
               {value:'regular',label:'Regular'},
               {value:'probatorio',label:'Probatorio'},
               {value:'contrato',label:'Contrato'},
               {value:'cuenta_propia',label:'Cuenta propia'},
-            ]} />
-            <Field k="tiempo_empleo" label="Tiempo en el empleo" />
-            <Field k="patrono" label="Patrono" />
-            <Field k="ocupacion" label="Ocupación" />
-            <Field k="patrono_telefono" label="Teléfono del patrono" />
-            <Field k="supervisor" label="Supervisor" />
-            <Field k="telefono_empleo" label="Teléfono empleo" />
-            <Field k="direccion_empleo" label="Dirección del empleo" full />
-            <Field k="salario_bruto" label="Salario bruto" />
+            ]}  value={formData.empleado_tipo} onChange={setField} />
+            <TCField k="tiempo_empleo" label="Tiempo en el empleo" value={formData.tiempo_empleo} onChange={setField} />
+            <TCField k="patrono" label="Patrono" value={formData.patrono} onChange={setField} />
+            <TCField k="ocupacion" label="Ocupación" value={formData.ocupacion} onChange={setField} />
+            <TCField k="patrono_telefono" label="Teléfono del patrono" value={formData.patrono_telefono} onChange={setField} />
+            <TCField k="supervisor" label="Supervisor" value={formData.supervisor} onChange={setField} />
+            <TCField k="telefono_empleo" label="Teléfono empleo" value={formData.telefono_empleo} onChange={setField} />
+            <TCField k="direccion_empleo" label="Dirección del empleo" full value={formData.direccion_empleo} onChange={setField} />
+            <TCField k="salario_bruto" label="Salario bruto" value={formData.salario_bruto} onChange={setField} />
           </div>
 
           {/* Firma */}
           <div style={{ fontSize:12, fontWeight:800, color:'#1a3c8f', textTransform:'uppercase', letterSpacing:.8, borderBottom:'2px solid #67e8f9', paddingBottom:5, marginBottom:10 }}>Firma del Solicitante</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
-            <Field k="firma_fecha" label="Fecha" />
+            <TCField k="firma_fecha" label="Fecha" value={formData.firma_fecha} onChange={setField} />
           </div>
           <div style={{ border:'2px dashed #94a3b8', borderRadius:8, background:'#f8fafc' }}>
             <canvas ref={canvasRef}
