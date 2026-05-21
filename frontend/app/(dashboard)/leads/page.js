@@ -7356,14 +7356,33 @@ function LumaBillUploadModal({ leadId, onClose, onSaved }) {
 
   const inputId = 'luma-bill-upload';
 
+  const remoteLog = (msg, extra = {}) => {
+    try {
+      fetch('/backend/api/public/clientlog', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tag: 'LUMA-UPLOAD', msg, leadId, ...extra }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {}
+  };
+
   const handleSubmit = async () => {
     if (!file) { alert('Selecciona un archivo'); return; }
     setSaving(true);
+    remoteLog('start', { fileName: file.name, fileSize: file.size, fileType: file.type });
     try {
-      const payload = await compressIfNeeded(file);
+      let payload;
+      try {
+        payload = await compressIfNeeded(file);
+        remoteLog('compressed', { outMime: payload.mime, outSize: payload.base64?.length || 0 });
+      } catch (cErr) {
+        remoteLog('compress-fail', { err: String(cErr?.message || cErr) });
+        throw new Error('No se pudo procesar el archivo: ' + (cErr?.message || cErr));
+      }
       const { base64, mime, filename } = payload;
       if (!base64) throw new Error('Archivo vacío');
       const sizeMB = (base64.length * 3 / 4) / (1024 * 1024);
+      remoteLog('post-prepare', { sizeMB: sizeMB.toFixed(2) });
       setProcessing(true);
 
       const body = {
@@ -7374,20 +7393,23 @@ function LumaBillUploadModal({ leadId, onClose, onSaved }) {
       };
 
       try {
-        await api.uploadLumaBill(leadId, body);
+        const r = await api.uploadLumaBill(leadId, body);
+        remoteLog('upload-ok', { billId: r?.id });
       } catch (err) {
-        // Si falla por tamaño, reintentar sin el archivo (solo metadata)
-        if (sizeMB > 3 || /413|too large|payload|network/i.test(err.message || '')) {
-          if (!confirm(`El archivo es muy pesado (${sizeMB.toFixed(1)} MB) y no se pudo subir. ¿Guardar solo los datos sin el PDF?`)) {
-            throw err;
-          }
-          await api.uploadLumaBill(leadId, { ...body, base64: '' });
-        } else {
+        remoteLog('upload-fail', { sizeMB: sizeMB.toFixed(2), err: String(err?.message || err), status: err?.status });
+        // Auto-fallback: reintentar sin archivo
+        try {
+          const r2 = await api.uploadLumaBill(leadId, { ...body, base64: '' });
+          remoteLog('upload-metadata-only-ok', { billId: r2?.id });
+          alert(`El PDF era muy pesado (${sizeMB.toFixed(1)} MB) y no se guardó, pero los datos quedaron registrados.`);
+        } catch (err2) {
+          remoteLog('upload-metadata-fail', { err: String(err2?.message || err2) });
           throw err;
         }
       }
       onSaved();
     } catch (e) {
+      remoteLog('fatal', { err: String(e?.message || e) });
       alert('Error subiendo factura: ' + (e.message || e));
     } finally {
       setSaving(false); setProcessing(false);

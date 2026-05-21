@@ -208,6 +208,13 @@ app.post('/api/public/agendar',      publicTokenLimiter, appointmentsCtrl.create
 const projectInvoicesCtrl = require('./controllers/projectInvoicesController');
 app.get('/api/public/project-invoices/:token/pdf', publicTokenLimiter, projectInvoicesCtrl.publicPDF);
 
+// Logger remoto para debug del frontend en cliente
+app.post('/api/public/clientlog', (req, res) => {
+  const { tag, msg, ...rest } = req.body || {};
+  console.log('[CLIENTLOG]', tag || '?', '|', msg || '', JSON.stringify(rest).slice(0, 500));
+  res.json({ ok: true });
+});
+
 app.get('/api/public/debug-luma-all', async (req, res) => {
   try {
     const { pool } = require('./services/db');
