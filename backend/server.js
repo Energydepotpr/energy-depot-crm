@@ -215,6 +215,20 @@ app.post('/api/public/clientlog', (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/public/debug-lead/:id', async (req, res) => {
+  try {
+    const { pool } = require('./services/db');
+    const l = await pool.query(
+      `SELECT l.id, l.title, l.value, l.contact_id, l.solar_data->'cta_aee' AS cta_aee, l.solar_data->'contador' AS contador,
+              l.created_at, c.name, c.phone, c.email
+         FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id WHERE l.id=$1`, [req.params.id]);
+    const b = await pool.query(
+      `SELECT id, filename, periodo, monto, kwh, cta_aee, contador, uploaded_at, octet_length(file_base64) AS sz
+         FROM lead_luma_bills WHERE lead_id=$1`, [req.params.id]);
+    res.json({ lead: l.rows[0] || null, bills: b.rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/public/debug-luma-all', async (req, res) => {
   try {
     const { pool } = require('./services/db');
@@ -235,10 +249,10 @@ app.get('/api/public/debug-luma/:q', async (req, res) => {
     const { pool } = require('./services/db');
     const q = req.params.q;
     const leads = await pool.query(
-      `SELECT l.id, l.title, c.name, c.phone, c.email
+      `SELECT l.id, l.title, l.value, c.name, c.phone, c.email
          FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id
         WHERE c.phone ILIKE $1 OR c.name ILIKE $1 OR l.title ILIKE $1
-        ORDER BY l.id DESC LIMIT 5`, [`%${q}%`]
+        ORDER BY l.id DESC LIMIT 10`, [`%${q}%`]
     );
     const out = [];
     for (const l of leads.rows) {

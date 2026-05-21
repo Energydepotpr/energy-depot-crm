@@ -67,7 +67,7 @@ async function createPublicLead(req, res) {
       name, email, phonenumber, address, city, zip,
       fuente, referido, meses = [], batteries, pagoLuz,
       propiedad, ingresos, credito, sistema, calc: clientCalc,
-      cuenta_luma, contador,
+      cuenta_luma, contador, luma_factura,
       source,
       quotation_id,        // si viene → REEMPLAZAR esa quotation (Feature 2: editar)
       quotations: multiQuotations, // si viene array → crear N cotizaciones (Feature 1)
@@ -248,6 +248,43 @@ async function createPublicLead(req, res) {
         [title, contactId, pid, sid, value, JSON.stringify(solarData), leadSource]
       );
       leadId = leadR.rows[0].id;
+    }
+
+    // Guardar factura LUMA (PDF + datos OCR) en lead_luma_bills si vino con la submission
+    if (leadId && luma_factura && luma_factura.base64) {
+      try {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS lead_luma_bills (
+            id SERIAL PRIMARY KEY,
+            lead_id INT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+            filename VARCHAR(255), mime_type VARCHAR(80), file_base64 TEXT,
+            periodo VARCHAR(40), monto NUMERIC(12,2), kwh NUMERIC(10,2),
+            cta_aee VARCHAR(80), contador VARCHAR(80),
+            uploaded_at TIMESTAMP DEFAULT NOW(), uploaded_by INT, notes TEXT
+          );`);
+        const sz = (luma_factura.base64 || '').length * 3 / 4;
+        const fileToStore = sz < 8 * 1024 * 1024 ? luma_factura.base64 : null;
+        await pool.query(
+          `INSERT INTO lead_luma_bills
+             (lead_id, filename, mime_type, file_base64, periodo, monto, kwh, cta_aee, contador, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [
+            leadId,
+            luma_factura.filename || 'factura-luma.pdf',
+            luma_factura.mime_type || 'application/pdf',
+            fileToStore,
+            luma_factura.periodo || null,
+            luma_factura.monto != null ? luma_factura.monto : null,
+            luma_factura.kwh != null ? luma_factura.kwh : null,
+            luma_factura.cta_aee || cuenta_luma || null,
+            luma_factura.contador || contador || null,
+            'Auto-subida desde cotizador público',
+          ]
+        );
+        console.log('[publicLead] factura LUMA guardada para lead', leadId);
+      } catch (e) {
+        console.error('[publicLead] no se pudo guardar factura LUMA:', e.message);
+      }
     }
 
     // Anti-abuso: máx 10 cotizaciones por lead

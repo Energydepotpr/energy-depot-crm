@@ -18,6 +18,12 @@ EXTRAE estos campos SI aparecen en la factura:
 
 3b. **Número de contador** (página 3, sección "INFORMACIÓN DEL MEDIDOR Y DEL SERVICIO", columna "Número de contador". Puede ser alfanumérico, ej: "NXC2155960616").
 
+3c. **periodo**: mes/año de esta factura ("Abril 2026" o similar — basado en "Para el periodo del X al Y" o la fecha de expedición).
+
+3d. **monto**: "Cantidad Total Adeudada" de esta factura en USD (número, sin símbolo $). Ej: 293.62
+
+3e. **kwh**: Consumo de kWh de ESTA factura (mes actual), ej: 1080.
+
 4. **Dirección completa del servicio** (página 3, "Dirección del servicio:", ej: "A7 IMPERIO URB MANSIONES DE COAMO COAMO PR 00769"). Si tiene varias líneas en la página 1 ("MANS DE COAMO\\n231 CALLE IMPERIO\\nCOAMO PR 00769") únelo con comas.
 
 5. **Email del cliente** y **teléfono del cliente**: extrae SOLO si aparecen claramente asociados al cliente (en la sección con su nombre y dirección, o etiquetados como "tel cliente", "email cliente", "celular", etc.).
@@ -36,7 +42,7 @@ REGLAS:
 - Si no encuentras un campo, ponlo como null.
 
 Formato exacto:
-{"meses":[756,759,922,778,1140,1360,1254,938,892,660,1031,658,758],"labels":["mar-22","abr","may","jun","jul","ago","sep","oct","nov","dic","ene","feb","mar-23"],"nombre":"Carlos R Colon Miranda","cuenta_luma":"3601731000","contador":"NXC2155960616","direccion":"A7 Imperio Urb Mansiones de Coamo, Coamo PR 00769","email":null,"telefono":null,"notes":"Histórico de página 4."}
+{"meses":[756,759,922,778,1140,1360,1254,938,892,660,1031,658,758],"labels":["mar-22","abr","may","jun","jul","ago","sep","oct","nov","dic","ene","feb","mar-23"],"nombre":"Carlos R Colon Miranda","cuenta_luma":"3601731000","contador":"NXC2155960616","direccion":"A7 Imperio Urb Mansiones de Coamo, Coamo PR 00769","email":null,"telefono":null,"periodo":"Abril 2026","monto":293.62,"kwh":1080,"notes":"Histórico de página 4."}
 
 Si no puedes extraer nada útil:
 {"meses":[0,0,0,0,0,0,0,0,0,0,0,0,0],"labels":null,"nombre":null,"cuenta_luma":null,"contador":null,"direccion":null,"email":null,"telefono":null,"notes":"No pude leer la factura."}
@@ -138,6 +144,9 @@ async function extractFactura(req, res) {
       cuenta_luma: parsed.cuenta_luma || null,
       contador: parsed.contador || null,
       direccion: parsed.direccion || null,
+      periodo: parsed.periodo || null,
+      monto: parsed.monto != null ? Number(parsed.monto) : null,
+      kwh: parsed.kwh != null ? Number(parsed.kwh) : null,
       email: cleanEmail,
       telefono: cleanPhone,
       notes: parsed.notes || '',

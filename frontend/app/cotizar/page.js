@@ -56,6 +56,8 @@ export default function CotizarPage() {
   const [city, setCity] = useState('');
   const [cuentaLuma, setCuentaLuma] = useState('');
   const [contador, setContador] = useState('');
+  // Guardamos los datos crudos de la factura para enviarlos al backend cuando se cree el lead
+  const [facturaPayload, setFacturaPayload] = useState(null);
   const [meses, setMeses] = useState(Array(13).fill(''));
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -241,6 +243,17 @@ export default function CotizarPage() {
       if (data.nombre && !name) setName(data.nombre);
       if (data.cuenta_luma) setCuentaLuma(data.cuenta_luma);
       if (data.contador) setContador(data.contador);
+      // Guardamos el archivo + datos OCR para subirlo como factura LUMA al crear el lead
+      setFacturaPayload({
+        filename: f.name,
+        mime_type: f.type || 'application/pdf',
+        base64: b64,
+        periodo: data.periodo || null,
+        monto: data.monto != null ? Number(data.monto) : null,
+        kwh: data.kwh != null ? Number(data.kwh) : null,
+        cta_aee: data.cuenta_luma || null,
+        contador: data.contador || null,
+      });
       if (data.direccion && !city) {
         // Intenta extraer ciudad de "Calle ... CIUDAD PR ZIP"
         const m = data.direccion.match(/([A-Z][A-Za-zñÑáéíóú ]+?)\s+PR\s*\d{5}/);
@@ -299,6 +312,7 @@ export default function CotizarPage() {
         pagoLuz: c?.pagoLuma || 0,
         cuenta_luma: cuentaLuma || null,
         contador: contador || null,
+        luma_factura: facturaPayload || null,
         source: 'autocotizar-web',
       };
       let multiResults = [];
