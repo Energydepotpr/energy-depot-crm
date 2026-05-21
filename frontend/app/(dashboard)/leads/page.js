@@ -6471,10 +6471,10 @@ function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSa
       // Total completo de la cotización activa (FV + baterías), no solo el FV
       const qs = Array.isArray(sd?.quotations) ? sd.quotations : [];
       const active = qs.find(q => q.id === sd?.activeQuotationId) || qs[qs.length - 1];
-      const totalQ = Number(active?.calc?.sub) || (
-        Number(active?.calc?.costBase || 0) +
-        (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0)
-      );
+      // FV: probar active.calc.costBase primero, luego sd.calc.costBase (calc global del lead)
+      const fv = Number(active?.calc?.costBase) || Number(sd?.calc?.costBase) || 0;
+      const bats = (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0);
+      const totalQ = Number(active?.calc?.sub) || (fv + bats);
       return sd?.contrato_config?.precioTotal || totalQ || Number(lead?.value) || sd?.calc?.precio_total || '';
     })(),
   };
@@ -6651,10 +6651,10 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
     cantidad_solicitada: (() => {
       const qs = Array.isArray(sd?.quotations) ? sd.quotations : [];
       const active = qs.find(q => q.id === sd?.activeQuotationId) || qs[qs.length - 1];
-      const totalQ = Number(active?.calc?.sub) || (
-        Number(active?.calc?.costBase || 0) +
-        (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0)
-      );
+      // FV: probar active.calc.costBase primero, luego sd.calc.costBase (calc global del lead)
+      const fv = Number(active?.calc?.costBase) || Number(sd?.calc?.costBase) || 0;
+      const bats = (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0);
+      const totalQ = Number(active?.calc?.sub) || (fv + bats);
       return sd?.contrato_config?.precioTotal || totalQ || Number(lead?.value) || sd?.calc?.precio_total || '';
     })(),
     firma_fecha: new Date().toLocaleDateString('es-PR'),
