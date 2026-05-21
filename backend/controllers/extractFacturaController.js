@@ -14,7 +14,9 @@ EXTRAE estos campos SI aparecen en la factura:
 
 2. **Nombre del cliente** (página 1, en mayúsculas, ej: "COLON MIRANDA,CARLOS R"). Devuélvelo en formato Title Case sin coma: "Carlos R Colon Miranda".
 
-3. **Número de cuenta LUMA** (página 1, ej: "3601731000" — 10 dígitos).
+3. **Número de cuenta LUMA** (página 1 esquina superior derecha, ej: "4626533108" — típicamente 10 dígitos).
+
+3b. **Número de contador** (página 3, sección "INFORMACIÓN DEL MEDIDOR Y DEL SERVICIO", columna "Número de contador". Puede ser alfanumérico, ej: "NXC2155960616").
 
 4. **Dirección completa del servicio** (página 3, "Dirección del servicio:", ej: "A7 IMPERIO URB MANSIONES DE COAMO COAMO PR 00769"). Si tiene varias líneas en la página 1 ("MANS DE COAMO\\n231 CALLE IMPERIO\\nCOAMO PR 00769") únelo con comas.
 
@@ -34,10 +36,10 @@ REGLAS:
 - Si no encuentras un campo, ponlo como null.
 
 Formato exacto:
-{"meses":[756,759,922,778,1140,1360,1254,938,892,660,1031,658,758],"labels":["mar-22","abr","may","jun","jul","ago","sep","oct","nov","dic","ene","feb","mar-23"],"nombre":"Carlos R Colon Miranda","cuenta_luma":"3601731000","direccion":"A7 Imperio Urb Mansiones de Coamo, Coamo PR 00769","email":null,"telefono":null,"notes":"Histórico de página 4."}
+{"meses":[756,759,922,778,1140,1360,1254,938,892,660,1031,658,758],"labels":["mar-22","abr","may","jun","jul","ago","sep","oct","nov","dic","ene","feb","mar-23"],"nombre":"Carlos R Colon Miranda","cuenta_luma":"3601731000","contador":"NXC2155960616","direccion":"A7 Imperio Urb Mansiones de Coamo, Coamo PR 00769","email":null,"telefono":null,"notes":"Histórico de página 4."}
 
 Si no puedes extraer nada útil:
-{"meses":[0,0,0,0,0,0,0,0,0,0,0,0,0],"labels":null,"nombre":null,"cuenta_luma":null,"direccion":null,"email":null,"telefono":null,"notes":"No pude leer la factura."}
+{"meses":[0,0,0,0,0,0,0,0,0,0,0,0,0],"labels":null,"nombre":null,"cuenta_luma":null,"contador":null,"direccion":null,"email":null,"telefono":null,"notes":"No pude leer la factura."}
 `;
 
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -134,6 +136,7 @@ async function extractFactura(req, res) {
       labels,
       nombre: parsed.nombre || null,
       cuenta_luma: parsed.cuenta_luma || null,
+      contador: parsed.contador || null,
       direccion: parsed.direccion || null,
       email: cleanEmail,
       telefono: cleanPhone,

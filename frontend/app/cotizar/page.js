@@ -54,6 +54,8 @@ export default function CotizarPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
+  const [cuentaLuma, setCuentaLuma] = useState('');
+  const [contador, setContador] = useState('');
   const [meses, setMeses] = useState(Array(13).fill(''));
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -237,6 +239,8 @@ export default function CotizarPage() {
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error');
       if (data.nombre && !name) setName(data.nombre);
+      if (data.cuenta_luma) setCuentaLuma(data.cuenta_luma);
+      if (data.contador) setContador(data.contador);
       if (data.direccion && !city) {
         // Intenta extraer ciudad de "Calle ... CIUDAD PR ZIP"
         const m = data.direccion.match(/([A-Z][A-Za-zñÑáéíóú ]+?)\s+PR\s*\d{5}/);
@@ -269,8 +273,9 @@ export default function CotizarPage() {
 
   const submit = async () => {
     setErr('');
-    if (!name.trim()) { setErr('Falta tu nombre'); return; }
-    if (!email && !phone) { setErr('Falta email o teléfono'); return; }
+    if (!name.trim())  { setErr('Falta tu nombre');   return; }
+    if (!email.trim()) { setErr('Falta tu email');    return; }
+    if (!phone.trim()) { setErr('Falta tu teléfono'); return; }
     if (!c) { setErr('Llena al menos un mes de consumo'); return; }
     setSubmitting(true);
     try {
@@ -292,6 +297,8 @@ export default function CotizarPage() {
         name, email, phonenumber: phone, city,
         meses,
         pagoLuz: c?.pagoLuma || 0,
+        cuenta_luma: cuentaLuma || null,
+        contador: contador || null,
         source: 'autocotizar-web',
       };
       let multiResults = [];
@@ -405,14 +412,20 @@ export default function CotizarPage() {
               {extractMsg && <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: extractMsg.startsWith('✓') ? '#10b981' : '#ef4444' }}>{extractMsg}</div>}
             </div>
 
-            <Field label="Nombre completo" value={name} onChange={setName} placeholder="Juan Pérez" />
-            <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="tu@correo.com" />
-            <Field label="Teléfono" type="tel" value={phone} onChange={setPhone} placeholder="787-555-0000" />
+            <Field label="Nombre completo *" value={name} onChange={setName} placeholder="Juan Pérez" />
+            <Field label="Email *" type="email" value={email} onChange={setEmail} placeholder="tu@correo.com" />
+            <Field label="Teléfono *" type="tel" value={phone} onChange={setPhone} placeholder="787-555-0000" />
             <Field label="Pueblo / Ciudad" value={city} onChange={setCity} placeholder="San Juan" optional />
 
             {err && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 12, fontWeight: 500 }}>{err}</div>}
 
-            <button onClick={() => { setErr(''); if (!name.trim()) { setErr('Falta tu nombre'); return; } if (!email && !phone) { setErr('Necesitamos email o teléfono'); return; } setStep(2); }}
+            <button onClick={() => {
+              setErr('');
+              if (!name.trim())  { setErr('Falta tu nombre');    return; }
+              if (!email.trim()) { setErr('Falta tu email');     return; }
+              if (!phone.trim()) { setErr('Falta tu teléfono');  return; }
+              setStep(2);
+            }}
               style={{ marginTop: 20, width: '100%', background: 'linear-gradient(135deg, #1a3c8f, #0f2a5c)', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 700, color: '#fff', cursor: 'pointer', boxShadow: '0 4px 12px rgba(26,60,143,0.25)' }}>
               Siguiente →
             </button>

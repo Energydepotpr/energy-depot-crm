@@ -67,6 +67,7 @@ async function createPublicLead(req, res) {
       name, email, phonenumber, address, city, zip,
       fuente, referido, meses = [], batteries, pagoLuz,
       propiedad, ingresos, credito, sistema, calc: clientCalc,
+      cuenta_luma, contador,
       source,
       quotation_id,        // si viene → REEMPLAZAR esa quotation (Feature 2: editar)
       quotations: multiQuotations, // si viene array → crear N cotizaciones (Feature 1)
@@ -159,6 +160,8 @@ async function createPublicLead(req, res) {
       source: source || 'cotizacion-web',
       quotations: newQuotations,
       activeQuotationId: newQuotation.id,
+      ...(cuenta_luma ? { cta_aee: cuenta_luma, ctaAee: cuenta_luma } : {}),
+      ...(contador ? { contador, num_contador: contador, numContador: contador } : {}),
     };
 
     const title = quotationName;
@@ -217,6 +220,12 @@ async function createPublicLead(req, res) {
           source: oldSd.source || solarData.source,
           quotations: mergedQuotations,
           activeQuotationId: mergedActiveId,
+          // Merge cta LUMA / contador: no sobrescribir si ya estaban
+          cta_aee:      oldSd.cta_aee      || solarData.cta_aee      || null,
+          ctaAee:       oldSd.ctaAee       || solarData.ctaAee       || null,
+          contador:     oldSd.contador     || solarData.contador     || null,
+          num_contador: oldSd.num_contador || solarData.num_contador || null,
+          numContador:  oldSd.numContador  || solarData.numContador  || null,
         };
         // Mantener el title viejo (no sobrescribir con el nuevo nombre del form)
         const keepTitle = oldRow.title || title;
