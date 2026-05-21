@@ -246,7 +246,7 @@ app.get('/api/public/debug-luma/:q', async (req, res) => {
       try {
         bills = await pool.query(
           `SELECT id, filename, mime_type, periodo, monto, kwh, uploaded_at,
-                  octet_length(file_base64) AS file_size, uploaded_by
+                  octet_length(file_base64) AS file_size, uploaded_by, cta_aee, contador
              FROM lead_luma_bills WHERE lead_id=$1 ORDER BY uploaded_at DESC`, [l.id]
         );
       } catch (e) { bills = { rows: [], err: e.message }; }

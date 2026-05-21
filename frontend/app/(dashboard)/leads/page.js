@@ -183,12 +183,14 @@ function SidebarContratoBtn({ leadId, lead }) {
   // Precargar inputs desde solar_data.contrato_config cuando se abre el modal
   useEffect(() => {
     if (!show) return;
-    const cfg = lead?.solar_data?.contrato_config;
-    if (!cfg) return;
+    const sd  = lead?.solar_data || {};
+    const cfg = sd.contrato_config || {};
     if (cfg.modalidad) setMod(cfg.modalidad);
     if (cfg.prontoDado !== undefined && cfg.prontoDado !== null) setPronto(String(cfg.prontoDado || ''));
-    if (cfg.numCtaLuma) setCtaLuma(cfg.numCtaLuma);
-    if (cfg.numContador) setContador(cfg.numContador);
+    const ctaFromSd = cfg.numCtaLuma || sd.cta_aee || sd.ctaAee || sd.cuenta_luma || '';
+    const contFromSd = cfg.numContador || sd.num_contador || sd.numContador || sd.contador || '';
+    if (ctaFromSd) setCtaLuma(ctaFromSd);
+    if (contFromSd) setContador(contFromSd);
     if (cfg.direccionPostal) setDirPostal(cfg.direccionPostal);
     if (Array.isArray(cfg.pcts)) {
       // Defer pcts setting until after modalidad-effect runs
@@ -2912,12 +2914,15 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   // Precargar inputs del modal de contrato desde solar_data.contrato_config
   useEffect(() => {
     if (!showContrato) return;
-    const cfg = lead?.solar_data?.contrato_config;
-    if (!cfg) return;
+    const sd  = lead?.solar_data || {};
+    const cfg = sd.contrato_config || {};
     if (cfg.modalidad) setModalidad(cfg.modalidad);
     if (cfg.prontoDado !== undefined && cfg.prontoDado !== null) setProntoDado(String(cfg.prontoDado || ''));
-    if (cfg.numCtaLuma) setContratoCtaLuma(cfg.numCtaLuma);
-    if (cfg.numContador) setContratoContador(cfg.numContador);
+    // Cta LUMA + contador: priorizar contrato_config; sino solar_data (auto-extraído de factura)
+    const ctaFromSd = cfg.numCtaLuma || sd.cta_aee || sd.ctaAee || sd.cuenta_luma || '';
+    const contFromSd = cfg.numContador || sd.num_contador || sd.numContador || sd.contador || '';
+    if (ctaFromSd) setContratoCtaLuma(ctaFromSd);
+    if (contFromSd) setContratoContador(contFromSd);
     if (cfg.direccionPostal) setContratoDirPostal(cfg.direccionPostal);
     if (Array.isArray(cfg.pcts)) {
       setTimeout(() => {
