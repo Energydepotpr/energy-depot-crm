@@ -5780,7 +5780,13 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
       .filter(d => (d.cooperativa || '') === (coopName || '') && (d.etapa_id || '') === (etapaId || ''))
       .map(d => [d.doc_key, d])
   );
-  const uploaded = etapaDocs.filter(d => byKey[d.key]).length;
+  const hasSignedLoanApp = (loanApps || []).some(la => la.signed_at);
+  const uploaded = etapaDocs.filter(d => {
+    if (byKey[d.key]) return true;
+    // La solicitud firmada electrónicamente cuenta como presente aunque no esté en financing_docs
+    if (d.key === 'solicitud' && hasSignedLoanApp) return true;
+    return false;
+  }).length;
   const total = etapaDocs.length;
   const allReady = total > 0 && uploaded >= total;
 
