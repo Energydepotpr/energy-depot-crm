@@ -303,4 +303,75 @@ async function overview(req, res) {
   }
 }
 
-module.exports = { overview, resolvePeriod };
+// ── Breakdown: leads detrás de cada KPI ───────────────────────────────────────
+async function breakdown(req, res) {
+  try {
+    const { kind = 'ventas', period = 'mes', from: fromStr, to: toStr } = req.query;
+    const range = resolvePeriod(period, fromStr, toStr);
+
+    const q = `
+      SELECT l.id, l.title, l.value, l.solar_data, l.created_at,
+             c.name AS contact_name, c.phone, c.email,
+             ps.name AS stage_name, ps.color AS stage_color
+      FROM leads l
+      LEFT JOIN contacts c ON c.id = l.contact_id
+      LEFT JOIN pipeline_stages ps ON ps.id = l.stage_id
+      WHERE l.created_at >= $1 AND l.created_at < $2
+      ORDER BY l.created_at DESC
+    `;
+    const r = await pool.query(q, [range.from, range.to]);
+
+    const out = [];
+    for (const row of r.rows) {
+      const sd = row.solar_data || {};
+      const stage = (row.stage_name || '').toLowerCase();
+      const tieneCotiz = hasQuotation(sd);
+      const lowest = lowestQuotationAmount(sd);
+
+      let include = false;
+      let monto = 0;
+
+      if (kind === 'leads') {
+        const name = row.contact_name || row.title || '';
+        const hasContact = (row.email && row.email.includes('@')) ||
+                           (row.phone && row.phone.replace(/\D/g, '').length >= 7);
+        include = !!(name && name.length > 2 && hasContact);
+        monto = 0;
+      } else if (kind === 'cotizaciones') {
+        include = tieneCotiz || stage.includes('cotiz');
+        monto = lowest;
+      } else if (kind === 'financiamiento') {
+        include = stage.includes('financ') || !!sd.financiamiento_iniciado_at;
+        monto = lowest || safeNum(row.value);
+      } else if (kind === 'ventas') {
+        include = stage.includes('complet') || stage.includes('ganad') ||
+                  stage.includes('instal') || !!sd.contrato_firmado_at;
+        monto = safeNum(sd?.contrato_config?.precio) ||
+                safeNum(sd?.contrato_config?.total) ||
+                lowest || safeNum(row.value);
+      }
+
+      if (include) {
+        out.push({
+          id: row.id,
+          title: row.title,
+          contact_name: row.contact_name,
+          phone: row.phone,
+          email: row.email,
+          stage_name: row.stage_name,
+          stage_color: row.stage_color,
+          created_at: row.created_at,
+          monto,
+        });
+      }
+    }
+
+    const total = out.reduce((s, x) => s + (Number(x.monto) || 0), 0);
+    res.json({ kind, count: out.length, monto: total, items: out });
+  } catch (e) {
+    console.error('[STATS BREAKDOWN]', e.message);
+    res.status(200).json({ kind: req.query.kind, count: 0, monto: 0, items: [], error: e.message });
+  }
+}
+
+module.exports = { overview, breakdown, resolvePeriod };

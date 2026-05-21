@@ -64,13 +64,24 @@ function Delta({ value }) {
   );
 }
 
-function KpiCard({ label, value, monto, delta, icon, color }) {
+function KpiCard({ label, value, monto, delta, icon, color, onClick, showMonto = false }) {
+  const [hover, setHover] = useState(false);
   return (
-    <div style={{
-      background: 'var(--surface)', border: '1px solid var(--border)',
-      borderRadius: 14, padding: 18,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-    }}>
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        textAlign: 'left',
+        background: 'var(--surface)',
+        border: '1px solid ' + (hover ? color : 'var(--border)'),
+        borderRadius: 14, padding: 18,
+        boxShadow: hover ? `0 8px 24px ${color}33` : '0 1px 3px rgba(0,0,0,0.06)',
+        transform: hover ? 'translateY(-2px)' : 'none',
+        transition: 'all .18s ease',
+        cursor: onClick ? 'pointer' : 'default',
+        font: 'inherit', color: 'inherit', width: '100%',
+      }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div style={{
           width: 44, height: 44, borderRadius: 12,
@@ -85,11 +96,104 @@ function KpiCard({ label, value, monto, delta, icon, color }) {
         {value != null ? fmtN(value) : '—'}
       </div>
       <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
-      {monto != null && monto > 0 && (
+      {showMonto && (
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed var(--border)', fontSize: 14, fontWeight: 700, color: color }}>
-          {fmt$(monto)}
+          {monto != null && monto > 0 ? fmt$(monto) : <span style={{ color: 'var(--muted)', fontWeight: 600 }}>—</span>}
         </div>
       )}
+      {onClick && (
+        <div style={{ marginTop: 8, fontSize: 11, color: hover ? color : 'var(--muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+          Ver detalle →
+        </div>
+      )}
+    </button>
+  );
+}
+
+function BreakdownDrawer({ kind, period, customFrom, customTo, onClose, color, label }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let qs = `?kind=${kind}&period=${period}`;
+    if (period === 'custom' && customFrom) {
+      qs += `&from=${encodeURIComponent(customFrom)}`;
+      if (customTo) qs += `&to=${encodeURIComponent(customTo)}`;
+    }
+    setLoading(true);
+    api.statsBreakdown(qs)
+      .then(setData)
+      .catch(e => setData({ items: [], error: e.message }))
+      .finally(() => setLoading(false));
+  }, [kind, period, customFrom, customTo]);
+
+  const items = data?.items || [];
+  const total = data?.monto || 0;
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+      zIndex: 1000, display: 'flex', justifyContent: 'flex-end',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 540, height: '100%',
+        background: 'var(--surface)', boxShadow: '-4px 0 24px rgba(0,0,0,0.2)',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>
+              {fmtN(items.length)} {items.length === 1 ? 'lead' : 'leads'}
+              {total > 0 && <span style={{ color, marginLeft: 10, fontSize: 16 }}>· {fmt$(total)}</span>}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            width: 36, height: 36, borderRadius: 10, border: '1px solid var(--border)',
+            background: 'transparent', cursor: 'pointer', fontSize: 20, color: 'var(--text)',
+          }}>×</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+          {loading && (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>Cargando…</div>
+          )}
+          {!loading && items.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>
+              Sin leads en este período
+            </div>
+          )}
+          {!loading && items.map(it => (
+            <Link key={it.id} href={`/leads?lead=${it.id}`} onClick={onClose} style={{
+              display: 'block', textDecoration: 'none',
+              padding: '12px 14px', borderRadius: 10, marginBottom: 8,
+              background: 'var(--surface-2, rgba(0,0,0,0.02))',
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, flex: 1 }}>
+                  {it.contact_name || it.title || `Lead #${it.id}`}
+                </div>
+                {it.monto > 0 && (
+                  <div style={{ fontSize: 14, fontWeight: 700, color }}>{fmt$(it.monto)}</div>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {it.stage_name && (
+                  <span style={{
+                    padding: '2px 8px', borderRadius: 999,
+                    background: `${it.stage_color || color}22`,
+                    color: it.stage_color || color,
+                    fontWeight: 600,
+                  }}>{it.stage_name}</span>
+                )}
+                {it.phone && <span>{it.phone}</span>}
+                {it.email && <span>{it.email}</span>}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -275,6 +379,7 @@ export default function DashboardPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [isNarrow, setIsNarrow] = useState(false);
   const [userName, setUserName] = useState('');
+  const [drawer, setDrawer] = useState(null); // { kind, color, label }
 
   useEffect(() => {
     const check = () => {
@@ -435,22 +540,26 @@ export default function DashboardPage() {
               <KpiCard label="Leads reales"
                        value={data.kpis.leads.count}
                        delta={data.kpis.leads.delta}
-                       icon={I.users} color={NAVY} />
+                       icon={I.users} color={NAVY}
+                       onClick={() => setDrawer({ kind: 'leads', color: NAVY, label: 'Leads reales' })} />
               <KpiCard label="Cotizaciones"
                        value={data.kpis.cotizaciones.count}
                        monto={data.kpis.cotizaciones.monto}
                        delta={data.kpis.cotizaciones.delta}
-                       icon={I.dollar} color={ORANGE} />
+                       icon={I.dollar} color={ORANGE} showMonto
+                       onClick={() => setDrawer({ kind: 'cotizaciones', color: ORANGE, label: 'Cotizaciones' })} />
               <KpiCard label="Financiamiento"
                        value={data.kpis.financiamiento.count}
                        monto={data.kpis.financiamiento.monto}
                        delta={data.kpis.financiamiento.delta}
-                       icon={I.bank} color={PURPLE} />
+                       icon={I.bank} color={PURPLE} showMonto
+                       onClick={() => setDrawer({ kind: 'financiamiento', color: PURPLE, label: 'Financiamiento' })} />
               <KpiCard label="Ventas cerradas"
                        value={data.kpis.ventas.count}
                        monto={data.kpis.ventas.monto}
                        delta={data.kpis.ventas.delta}
-                       icon={I.check} color={GREEN} />
+                       icon={I.check} color={GREEN} showMonto
+                       onClick={() => setDrawer({ kind: 'ventas', color: GREEN, label: 'Ventas cerradas' })} />
             </div>
 
             {/* FUNNEL + TTFC */}
@@ -482,6 +591,18 @@ export default function DashboardPage() {
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {drawer && (
+        <BreakdownDrawer
+          kind={drawer.kind}
+          color={drawer.color}
+          label={drawer.label}
+          period={period}
+          customFrom={customFrom}
+          customTo={customTo}
+          onClose={() => setDrawer(null)}
+        />
+      )}
     </div>
   );
 }

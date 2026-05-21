@@ -42,6 +42,7 @@ export const api = {
   me:           ()                   => req('GET',  '/api/me'),
   stats:        ()                   => req('GET',  '/api/stats'),
   statsOverview:(q = '')             => req('GET',  `/api/stats/overview${q}`),
+  statsBreakdown:(q = '')            => req('GET',  `/api/stats/breakdown${q}`),
   weather:      (city = 'San Juan,PR,US') => req('GET', `/api/weather?city=${encodeURIComponent(city)}`),
   assistant:    (messages, leadId) => req('POST', '/api/assistant', { messages, ...(leadId ? { leadId } : {}) }),
 

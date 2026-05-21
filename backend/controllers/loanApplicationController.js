@@ -5,6 +5,7 @@ const { generatePDF } = require('../services/puppeteerPool');
 const { getConfigValue } = require('../services/configService');
 const { buildSolicitudHTML } = require('../templates/solicitudPrestamo.html.js');
 const { LOAN_FORM_SECTIONS, LOAN_FORM_FIELDS, LOAN_REQUIRED_KEYS } = require('../templates/solicitudPrestamoForm');
+const { generateTuCoopPdf } = require('../services/tuCoopPdf');
 
 let _ensured = false;
 async function ensureLoanApplicationsTable() {
@@ -28,8 +29,82 @@ async function ensureLoanApplicationsTable() {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_la_lead  ON loan_applications(lead_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_la_token ON loan_applications(token)`);
+    // Columna para variantes específicas por cooperativa (tu_coop, etc.)
+    try {
+      await pool.query(`ALTER TABLE loan_applications ADD COLUMN IF NOT EXISTS coop_template VARCHAR(40)`);
+    } catch (e) { /* noop */ }
     _ensured = true;
   } catch (e) { console.error('[loan_apps] ensure:', e.message); }
+}
+
+// POST /api/leads/:id/loan-applications/tu-coop-pdf
+// Body: { form_data, signature_base64 }
+// Genera el PDF Tu Coop (template específico) firmado, lo guarda como
+// financing-doc (etapa1 / solicitud_prestamo) y persiste en loan_applications
+// con coop_template='tu_coop'.
+async function generateTuCoopSigned(req, res) {
+  try {
+    await ensureLoanApplicationsTable();
+    const leadId = Number(req.params.id);
+    if (!leadId) return res.status(400).json({ error: 'lead inválido' });
+    const { form_data, signature_base64 } = req.body || {};
+    const fd = form_data && typeof form_data === 'object' ? form_data : {};
+    if (!signature_base64) return res.status(400).json({ error: 'Firma requerida' });
+
+    const pdfBuf = await generateTuCoopPdf(fd, signature_base64);
+    const pdfB64 = pdfBuf.toString('base64');
+    const signedAt = new Date();
+    const ip = (req.headers['x-forwarded-for'] || req.connection?.remoteAddress || '').toString().split(',')[0].trim();
+    const signedName = (fd.nombre_completo || '').toString().trim();
+
+    // Persistir como loan_application firmada
+    const token = genToken(leadId);
+    const ins = await pool.query(
+      `INSERT INTO loan_applications
+         (lead_id, cooperativa, token, form_data, signature_base64, signed_name, signed_at, signed_ip, pdf_base64, coop_template)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'tu_coop') RETURNING id`,
+      [leadId, 'Tu Coop', token, fd, signature_base64, signedName, signedAt, ip, pdfB64]
+    );
+
+    // Subir como financing-doc (doc_key='solicitud_prestamo' para Tu Coop)
+    const fname = `Solicitud-TuCoop-${(signedName || 'cliente').replace(/\s+/g,'-')}.pdf`;
+    try {
+      await pool.query(
+        `INSERT INTO lead_financing_docs
+           (lead_id, cooperativa, etapa_id, doc_key, filename, mime_type, file_base64, uploaded_at)
+         VALUES ($1,'Tu Coop','etapa1','solicitud_prestamo',$2,'application/pdf',$3, NOW())
+         ON CONFLICT (lead_id, cooperativa, etapa_id, doc_key)
+         DO UPDATE SET filename=EXCLUDED.filename, mime_type=EXCLUDED.mime_type,
+                       file_base64=EXCLUDED.file_base64, uploaded_at=NOW()`,
+        [leadId, fname, pdfB64]
+      );
+    } catch (e) {
+      // Fallback: si doc_key 'solicitud_prestamo' no existe en constraint, usar 'solicitud'
+      console.error('[tuCoop financing-doc]', e.message);
+      try {
+        await pool.query(
+          `INSERT INTO lead_financing_docs
+             (lead_id, cooperativa, etapa_id, doc_key, filename, mime_type, file_base64, uploaded_at)
+           VALUES ($1,'Tu Coop','etapa1','solicitud',$2,'application/pdf',$3, NOW())
+           ON CONFLICT (lead_id, cooperativa, etapa_id, doc_key)
+           DO UPDATE SET filename=EXCLUDED.filename, mime_type=EXCLUDED.mime_type,
+                         file_base64=EXCLUDED.file_base64, uploaded_at=NOW()`,
+          [leadId, fname, pdfB64]
+        );
+      } catch (e2) { console.error('[tuCoop financing-doc fallback]', e2.message); }
+    }
+
+    res.json({
+      ok: true,
+      id: ins.rows[0].id,
+      filename: fname,
+      pdf: pdfB64,
+      signed_at: signedAt,
+    });
+  } catch (e) {
+    console.error('[loan_apps generateTuCoopSigned]', e.message);
+    res.status(500).json({ error: e.message });
+  }
 }
 
 function frontendBase() {
@@ -302,5 +377,6 @@ module.exports = {
   downloadPdf,
   getPublic,
   signPublic,
+  generateTuCoopSigned,
   ensureLoanApplicationsTable,
 };
