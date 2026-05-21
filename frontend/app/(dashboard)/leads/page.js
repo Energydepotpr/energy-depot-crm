@@ -6736,6 +6736,43 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
     </div>
   );
 
+  const autollenar = async () => {
+    // Recolectar todo lo conocido del lead, contrato y solicitud previa
+    const cfg = sd?.contrato_config || {};
+    const fromLead = {
+      nombre_completo: lead?.contact_name || lead?.title || formData.nombre_completo || '',
+      correo: lead?.contact_email || cfg.email || formData.correo || '',
+      telefono: lead?.contact_phone || formData.telefono || '',
+      celular: lead?.contact_phone || formData.celular || '',
+      direccion_fisica: sd?.direccion_fisica || cfg.direccionFisica || lead?.address || sd?.address || formData.direccion_fisica || '',
+      direccion_postal: cfg.direccionPostal || sd?.address_postal || formData.direccion_postal || '',
+      cantidad_solicitada: cfg.precioTotal || cfg.precio || sd?.calc?.precio_total || lead?.value || formData.cantidad_solicitada || '',
+      proposito: formData.proposito || 'mejoras',
+      firma_fecha: new Date().toLocaleDateString('es-PR'),
+    };
+    let latestFd = {};
+    try {
+      const latest = await api.getLatestLoanFormData(leadId);
+      if (latest?.form_data && typeof latest.form_data === 'object') latestFd = latest.form_data;
+    } catch {}
+    setFormData(prev => {
+      const next = { ...prev };
+      // Latest solicitud previa rellena lo vacío
+      for (const k in latestFd) {
+        const v = latestFd[k];
+        if ((next[k] == null || next[k] === '') && v != null && v !== '') next[k] = v;
+      }
+      // Lead overrides para campos básicos solo si están vacíos
+      for (const k in fromLead) {
+        if ((next[k] == null || next[k] === '') && fromLead[k]) next[k] = fromLead[k];
+      }
+      return next;
+    });
+    if (!name && (fromLead.nombre_completo || latestFd.nombre_completo)) {
+      setName(fromLead.nombre_completo || latestFd.nombre_completo);
+    }
+  };
+
   const submit = async () => {
     if (!String(formData.nombre_completo || name || '').trim()) {
       alert('El nombre del solicitante es requerido'); return;
@@ -6761,7 +6798,14 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
             <div style={{ fontSize:16, fontWeight:800, color:'var(--text)' }}>📝 Solicitud Tu Coop</div>
             <div style={{ fontSize:12, color:'var(--muted)' }}>Template oficial · Firma electrónica</div>
           </div>
-          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'var(--muted)' }}>×</button>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button onClick={autollenar} style={{
+              background:'linear-gradient(135deg,#10b981,#059669)', color:'#fff', border:'none',
+              padding:'8px 14px', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer',
+              boxShadow:'0 2px 8px rgba(16,185,129,0.3)',
+            }}>⚡ Autollenar con info del lead</button>
+            <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'var(--muted)' }}>×</button>
+          </div>
         </div>
 
         <div style={{ padding:'16px 18px' }}>
