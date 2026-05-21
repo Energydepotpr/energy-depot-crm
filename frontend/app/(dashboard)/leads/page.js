@@ -6467,7 +6467,16 @@ function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSa
     direccion_postal: sd?.contrato_config?.direccionPostal || '',
     cta_luma: sd?.contrato_config?.numCtaLuma || sd?.cta_luma || '',
     contador: sd?.contrato_config?.numContador || '',
-    cantidad_solicitada: sd?.contrato_config?.precioTotal || sd?.calc?.precio_total || '',
+    cantidad_solicitada: (() => {
+      // Total completo de la cotización activa (FV + baterías), no solo el FV
+      const qs = Array.isArray(sd?.quotations) ? sd.quotations : [];
+      const active = qs.find(q => q.id === sd?.activeQuotationId) || qs[qs.length - 1];
+      const totalQ = Number(active?.calc?.sub) || (
+        Number(active?.calc?.costBase || 0) +
+        (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0)
+      );
+      return sd?.contrato_config?.precioTotal || totalQ || Number(lead?.value) || sd?.calc?.precio_total || '';
+    })(),
   };
 
   // Merge: empezar con autoFill, después sobreescribir con los valores NO VACÍOS de existing.
@@ -6639,7 +6648,15 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
     celular: lead?.contact_phone || '',
     direccion_fisica: sd?.direccion_fisica || sd?.contrato_config?.direccionFisica || lead?.address || '',
     direccion_postal: sd?.contrato_config?.direccionPostal || '',
-    cantidad_solicitada: sd?.contrato_config?.precioTotal || sd?.calc?.precio_total || '',
+    cantidad_solicitada: (() => {
+      const qs = Array.isArray(sd?.quotations) ? sd.quotations : [];
+      const active = qs.find(q => q.id === sd?.activeQuotationId) || qs[qs.length - 1];
+      const totalQ = Number(active?.calc?.sub) || (
+        Number(active?.calc?.costBase || 0) +
+        (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0)
+      );
+      return sd?.contrato_config?.precioTotal || totalQ || Number(lead?.value) || sd?.calc?.precio_total || '';
+    })(),
     firma_fecha: new Date().toLocaleDateString('es-PR'),
   };
 
@@ -6746,7 +6763,15 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
       celular: lead?.contact_phone || formData.celular || '',
       direccion_fisica: sd?.direccion_fisica || cfg.direccionFisica || lead?.address || sd?.address || formData.direccion_fisica || '',
       direccion_postal: cfg.direccionPostal || sd?.address_postal || formData.direccion_postal || '',
-      cantidad_solicitada: cfg.precioTotal || cfg.precio || sd?.calc?.precio_total || lead?.value || formData.cantidad_solicitada || '',
+      cantidad_solicitada: (() => {
+        const qs = Array.isArray(sd?.quotations) ? sd.quotations : [];
+        const active = qs.find(q => q.id === sd?.activeQuotationId) || qs[qs.length - 1];
+        const totalQ = Number(active?.calc?.sub) || (
+          Number(active?.calc?.costBase || 0) +
+          (active?.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0)
+        );
+        return cfg.precioTotal || cfg.precio || totalQ || Number(lead?.value) || sd?.calc?.precio_total || formData.cantidad_solicitada || '';
+      })(),
       proposito: formData.proposito || 'mejoras',
       firma_fecha: new Date().toLocaleDateString('es-PR'),
     };

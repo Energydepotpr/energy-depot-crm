@@ -4,3 +4,5 @@ node_modules/
 .secrets/
 *-service-account*.json
 *service_account*.json
+
+.vercel

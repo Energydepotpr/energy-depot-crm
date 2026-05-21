@@ -18,7 +18,7 @@ const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
 const TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'coops', 'tu-coop-solicitud.pdf');
-const PAGE_HEIGHT = 792;
+const PAGE_HEIGHT = 1008;
 const PAGE_WIDTH  = 612;
 
 // Util: convertir Y "desde arriba" a Y de pdf-lib (desde abajo).
@@ -39,59 +39,59 @@ const yt = (yFromTop) => PAGE_HEIGHT - yFromTop;
  */
 const COORDS = {
   // ── Información del Préstamo ───────────────────────────────────────────────
-  proposito_vacaciones:   { x: 92,  y: yt(168), check: true },
-  proposito_consolidacion:{ x: 200, y: yt(168), check: true },
-  proposito_mejoras:      { x: 330, y: yt(168), check: true },
-  proposito_otro:         { x: 440, y: yt(168), check: true },
-  cantidad_solicitada:    { x: 175, y: yt(195) },
+  proposito_vacaciones:   { x: 250, y: yt(125), check: true },
+  proposito_consolidacion:{ x: 425, y: yt(125), check: true },
+  proposito_mejoras:      { x: 438, y: yt(125), check: true },
+  proposito_otro:         { x: 540, y: yt(125), check: true },
+  cantidad_solicitada:    { x: 50,  y: yt(160) },
 
   // ── Información del Solicitante ───────────────────────────────────────────
-  nombre_completo:        { x: 175, y: yt(238) },
-  seguro_social:          { x: 175, y: yt(258) },
-  fecha_nacimiento:       { x: 425, y: yt(258) },
-  telefono:               { x: 175, y: yt(278) },
-  licencia_conducir:      { x: 425, y: yt(278) },
-  licencia_vencimiento:   { x: 175, y: yt(298) },
-  licencia_emitida_en:    { x: 425, y: yt(298) },
-  correo:                 { x: 175, y: yt(318) },
-  celular:                { x: 425, y: yt(318) },
+  nombre_completo:        { x: 50,  y: yt(217) },
+  seguro_social:          { x: 50,  y: yt(247) },
+  fecha_nacimiento:       { x: 285, y: yt(247) },
+  telefono:               { x: 505, y: yt(247) },
+  licencia_conducir:      { x: 50,  y: yt(270) },
+  licencia_vencimiento:   { x: 285, y: yt(270) },
+  licencia_emitida_en:    { x: 510, y: yt(270) },
+  correo:                 { x: 50,  y: yt(317) },
+  celular:                { x: 510, y: yt(317) },
 
-  estado_civil_casado:    { x: 215, y: yt(338), check: true },
-  estado_civil_separado:  { x: 295, y: yt(338), check: true },
-  estado_civil_soltero:   { x: 380, y: yt(338), check: true },
-  dependientes:           { x: 480, y: yt(338) },
+  estado_civil_casado:    { x: 155, y: yt(340), check: true },
+  estado_civil_separado:  { x: 268, y: yt(340), check: true },
+  estado_civil_soltero:   { x: 385, y: yt(340), check: true },
+  dependientes:           { x: 565, y: yt(340) },
 
-  direccion_fisica:       { x: 175, y: yt(358) },
-  direccion_postal:       { x: 175, y: yt(378) },
+  direccion_fisica:       { x: 50,  y: yt(363) },
+  direccion_postal:       { x: 50,  y: yt(387) },
 
-  vive_propia:            { x: 215, y: yt(398), check: true },
-  vive_alquilada:         { x: 280, y: yt(398), check: true },
-  vive_familiar:          { x: 360, y: yt(398), check: true },
-  vive_otro:              { x: 425, y: yt(398), check: true },
-  tiempo_residencia:      { x: 500, y: yt(398) },
+  vive_propia:            { x: 155, y: yt(410), check: true },
+  vive_alquilada:         { x: 233, y: yt(410), check: true },
+  vive_familiar:          { x: 318, y: yt(410), check: true },
+  vive_otro:              { x: 395, y: yt(410), check: true },
+  tiempo_residencia:      { x: 540, y: yt(410) },
 
-  pariente_nombre_direccion: { x: 175, y: yt(420) },
-  pariente_correo:        { x: 175, y: yt(440) },
-  pariente_telefono:      { x: 425, y: yt(440) },
+  pariente_nombre_direccion: { x: 50,  y: yt(435) },
+  pariente_correo:        { x: 320, y: yt(435) },
+  pariente_telefono:      { x: 510, y: yt(435) },
 
   // ── Empleo ────────────────────────────────────────────────────────────────
-  empleado_regular:       { x: 215, y: yt(484), check: true },
-  empleado_probatorio:    { x: 285, y: yt(484), check: true },
-  empleado_contrato:      { x: 370, y: yt(484), check: true },
-  empleado_cuenta_propia: { x: 445, y: yt(484), check: true },
-  tiempo_empleo:          { x: 175, y: yt(504) },
-  patrono:                { x: 425, y: yt(504) },
-  ocupacion:              { x: 175, y: yt(524) },
-  patrono_telefono:       { x: 425, y: yt(524) },
-  supervisor:             { x: 175, y: yt(544) },
-  telefono_empleo:        { x: 425, y: yt(544) },
-  direccion_empleo:       { x: 175, y: yt(564) },
-  salario_bruto:          { x: 425, y: yt(564) },
+  empleado_regular:       { x: 168, y: yt(463), check: true },
+  empleado_probatorio:    { x: 253, y: yt(463), check: true },
+  empleado_contrato:      { x: 333, y: yt(463), check: true },
+  empleado_cuenta_propia: { x: 433, y: yt(463), check: true },
+  tiempo_empleo:          { x: 555, y: yt(463) },
+  patrono:                { x: 50,  y: yt(487) },
+  ocupacion:              { x: 350, y: yt(487) },
+  patrono_telefono:       { x: 540, y: yt(487) },
+  supervisor:             { x: 50,  y: yt(510) },
+  direccion_empleo:       { x: 260, y: yt(510) },
+  telefono_empleo:        { x: 540, y: yt(510) },
+  salario_bruto:          { x: 50,  y: yt(538) },
 
-  // ── Footer firmas ─────────────────────────────────────────────────────────
-  firma_fecha:            { x: 410, y: yt(720) },
-  // recuadro firma solicitante (imagen PNG)
-  firma_box: { x: 80, y: yt(740), w: 240, h: 50 },
+  // ── Footer firmas (parte inferior del PDF) ────────────────────────────────
+  firma_fecha:            { x: 175, y: yt(945) },
+  // recuadro firma solicitante (PNG) — sobre la línea "Firma Solicitante"
+  firma_box: { x: 50,  y: yt(942), w: 130, h: 20 },
 };
 
 /**
@@ -142,7 +142,7 @@ async function generateTuCoopPdf(formData = {}, signaturePngBase64 = null) {
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const page = pdfDoc.getPages()[0];
 
-  const draw = (key, value, size = 9) => {
+  const draw = (key, value, size = 8) => {
     const c = COORDS[key];
     if (!c || value == null || value === '') return;
     page.drawText(String(value), { x: c.x, y: c.y, size, font, color: rgb(0, 0, 0) });
@@ -152,7 +152,7 @@ async function generateTuCoopPdf(formData = {}, signaturePngBase64 = null) {
     if (!on) return;
     const c = COORDS[key];
     if (!c) return;
-    page.drawText('X', { x: c.x, y: c.y, size: 10, font, color: rgb(0, 0, 0) });
+    page.drawText('X', { x: c.x, y: c.y, size: 9, font, color: rgb(0, 0, 0) });
   };
 
   // ── Propósito ──────────────────────────────────────────────────────────────
