@@ -6269,6 +6269,19 @@ function SolicitudCard({ doc, docLabel, leadId, lead, cooperativa, loanApps, onO
             background:'transparent', color:'#0891b2', border:'1px solid rgba(8,145,178,0.4)',
             padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
           }}>📝 Nueva solicitud</button>
+          <button onClick={async () => {
+            if (!confirm('¿Eliminar esta solicitud firmada? Vas a poder llenar y firmar una nueva.')) return;
+            try {
+              await api.deleteLoanApplication(leadId, signed.id);
+              // Borrar también el doc subido en financing-docs si existe
+              try { await api.deleteFinancingDoc(leadId, { cooperativa, etapa_id: 'etapa1', doc_key: 'solicitud' }); } catch {}
+              try { await api.deleteFinancingDoc(leadId, { cooperativa, etapa_id: 'etapa1', doc_key: 'solicitud_prestamo' }); } catch {}
+              if (onChanged) onChanged();
+            } catch (e) { alert('Error: ' + e.message); }
+          }} style={{
+            background:'transparent', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)',
+            padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>🗑 Eliminar</button>
         </div>
       </div>
     );
@@ -6358,6 +6371,16 @@ function SolicitudCard({ doc, docLabel, leadId, lead, cooperativa, loanApps, onO
             background:'transparent', color:'#475569', border:'1px solid var(--border)',
             padding:'7px 10px', borderRadius:6, fontSize:12, cursor:'pointer',
           }}>Ver borrador</button>
+          <button onClick={async () => {
+            if (!confirm('¿Eliminar este borrador y empezar de cero?')) return;
+            try {
+              await api.deleteLoanApplication(leadId, pending.id);
+              if (onChanged) onChanged();
+            } catch (e) { alert('Error: ' + e.message); }
+          }} style={{
+            background:'transparent', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)',
+            padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>🗑</button>
         </div>
       </div>
     );

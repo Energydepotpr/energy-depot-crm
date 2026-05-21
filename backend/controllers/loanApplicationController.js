@@ -370,6 +370,21 @@ async function signPublic(req, res) {
   }
 }
 
+async function deleteLoanApp(req, res) {
+  try {
+    await ensureLoanApplicationsTable();
+    const r = await pool.query(
+      `DELETE FROM loan_applications WHERE id=$1 AND lead_id=$2 RETURNING id`,
+      [req.params.la_id, req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'No encontrada' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[loanApp delete]', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+}
+
 module.exports = {
   createOrUpdate,
   listForLead,
@@ -378,5 +393,6 @@ module.exports = {
   getPublic,
   signPublic,
   generateTuCoopSigned,
+  deleteLoanApp,
   ensureLoanApplicationsTable,
 };

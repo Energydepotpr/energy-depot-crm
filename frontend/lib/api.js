@@ -468,6 +468,7 @@ export const api = {
   getLoanApplications:   (leadId, coop)                     => req('GET',    `/api/leads/${leadId}/loan-applications${coop != null ? `?cooperativa=${encodeURIComponent(coop)}` : ''}`),
   getLatestLoanFormData: (leadId)                           => req('GET',    `/api/leads/${leadId}/loan-applications/latest-form-data`),
   getLoanApplicationPdf: (leadId, laId)                     => req('GET',    `/api/leads/${leadId}/loan-applications/${laId}/pdf`),
+  deleteLoanApplication: (leadId, laId)                     => req('DELETE', `/api/leads/${leadId}/loan-applications/${laId}`),
   generateTuCoopSolicitudPdf: (leadId, formData, signatureBase64) =>
     req('POST', `/api/leads/${leadId}/loan-applications/tu-coop-pdf`, {
       form_data: formData, signature_base64: signatureBase64,
