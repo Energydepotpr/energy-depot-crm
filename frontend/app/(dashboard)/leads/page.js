@@ -5804,6 +5804,8 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
   const load = () => {
     setLoading(true);
     api.financingDocs(leadId).then(d => setDocs(Array.isArray(d) ? d : [])).catch(() => setDocs([])).finally(() => setLoading(false));
+    // También refrescar el lead para que contrato_config (pronto, etc.) se vea actualizado en la solicitud
+    if (onUpdated) onUpdated();
   };
   useEffect(() => { load(); }, [leadId]);
 
