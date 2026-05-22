@@ -64,6 +64,22 @@ export default function ClienteDocsPage() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [token]);
 
+  const handlePickQuotation = async (quotation_id) => {
+    setOkMsg('');
+    try {
+      const r = await fetch(`${BACKEND}/api/public/client-docs/${token}/pick-quotation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quotation_id }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Error');
+      setOkMsg('Cotización elegida correctamente.');
+      await load();
+      setTimeout(() => setOkMsg(''), 4000);
+    } catch (e) { alert('Error: ' + e.message); }
+  };
+
   const handleUpload = async (etapa_id, doc_key, file) => {
     if (!file) return;
     const key = `${etapa_id}|${doc_key}`;
@@ -136,6 +152,8 @@ export default function ClienteDocsPage() {
               <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {etapa.docs.map(d => {
                   const isUp = uploading === `${etapa.id}|${d.key}`;
+                  // Caso especial: cotización en etapa 1 → mostrar selector de cotizaciones existentes del lead
+                  const isCotizPicker = d.key === 'cotizacion' && etapa.id === 'etapa1' && (data.quotations || []).length > 0;
                   return (
                     <div key={d.key} style={{
                       border: '1px solid #e5e7eb', borderRadius: 10, padding: 14,
@@ -155,29 +173,60 @@ export default function ClienteDocsPage() {
                           {d.filename}
                         </div>
                       )}
-                      <label style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        gap: 8, minHeight: 48, padding: '12px 16px',
-                        background: d.uploaded ? '#fff' : NAVY,
-                        color: d.uploaded ? NAVY : '#fff',
-                        border: `2px solid ${NAVY}`,
-                        borderRadius: 8, fontSize: 14, fontWeight: 700,
-                        cursor: isUp ? 'wait' : 'pointer',
-                        opacity: isUp ? 0.6 : 1,
-                      }}>
-                        {isUp ? 'Subiendo…' : (d.uploaded ? '🔄 Reemplazar' : '📎 Adjuntar PDF / Foto')}
-                        <input
-                          type="file"
-                          accept="application/pdf,image/*"
-                          disabled={isUp}
-                          onChange={e => {
-                            const f = e.target.files?.[0];
-                            if (f) handleUpload(etapa.id, d.key, f);
-                            e.target.value = '';
-                          }}
-                          style={{ display: 'none' }}
-                        />
-                      </label>
+                      {isCotizPicker ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ fontSize: 12, color: '#475569', marginBottom: 2 }}>Elige tu cotización:</div>
+                          {(data.quotations || []).map(q => {
+                            const sel = q.id === data.activeQuotationId;
+                            return (
+                              <button key={q.id} onClick={() => handlePickQuotation(q.id)}
+                                disabled={isUp}
+                                style={{
+                                  textAlign: 'left', padding: '12px 14px', borderRadius: 8,
+                                  border: sel ? `2px solid ${NAVY}` : '1px solid #e5e7eb',
+                                  background: sel ? '#eff6ff' : '#fff',
+                                  cursor: isUp ? 'wait' : 'pointer',
+                                  fontFamily: 'inherit',
+                                }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{q.name}</div>
+                                  {sel && <div style={{ fontSize: 10, color: NAVY, fontWeight: 700 }}>✓ Elegida</div>}
+                                </div>
+                                <div style={{ fontSize: 11, color: '#64748b' }}>{q.batteries}</div>
+                                {q.total > 0 && (
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginTop: 4 }}>
+                                    ${q.total.toLocaleString('en-US')}
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <label style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          gap: 8, minHeight: 48, padding: '12px 16px',
+                          background: d.uploaded ? '#fff' : NAVY,
+                          color: d.uploaded ? NAVY : '#fff',
+                          border: `2px solid ${NAVY}`,
+                          borderRadius: 8, fontSize: 14, fontWeight: 700,
+                          cursor: isUp ? 'wait' : 'pointer',
+                          opacity: isUp ? 0.6 : 1,
+                        }}>
+                          {isUp ? 'Subiendo…' : (d.uploaded ? '🔄 Reemplazar' : '📎 Adjuntar PDF / Foto')}
+                          <input
+                            type="file"
+                            accept="application/pdf,image/*"
+                            disabled={isUp}
+                            onChange={e => {
+                              const f = e.target.files?.[0];
+                              if (f) handleUpload(etapa.id, d.key, f);
+                              e.target.value = '';
+                            }}
+                            style={{ display: 'none' }}
+                          />
+                        </label>
+                      )}
                     </div>
                   );
                 })}

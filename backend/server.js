@@ -212,6 +212,7 @@ app.get('/api/public/project-invoices/:token/pdf', publicTokenLimiter, projectIn
 const clientDocsLinkCtrl = require('./controllers/clientDocsLinkController');
 app.get ('/api/public/client-docs/:token', publicTokenLimiter, clientDocsLinkCtrl.getPublic);
 app.post('/api/public/client-docs/:token', publicTokenLimiter, clientDocsLinkCtrl.uploadPublic);
+app.post('/api/public/client-docs/:token/pick-quotation', publicTokenLimiter, clientDocsLinkCtrl.pickQuotation);
 
 // Logger remoto para debug del frontend en cliente
 app.post('/api/public/clientlog', (req, res) => {

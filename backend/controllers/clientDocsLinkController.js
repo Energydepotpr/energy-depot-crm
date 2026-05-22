@@ -214,10 +214,20 @@ async function getPublic(req, res) {
       hasSignedLoanApp = la.rows.length > 0;
     } catch {}
 
+    // Orden lógico forzado para Etapa 1 (mismo que el CRM): cotización → contrato → solicitud → resto
+    const ORDER_E1 = ['cotizacion', 'contrato', 'solicitud'];
+    const sortDocs = (etapaId, docs) => {
+      if (etapaId !== 'etapa1') return docs;
+      const byKey = Object.fromEntries(docs.map(d => [d.key, d]));
+      const head = ORDER_E1.filter(k => byKey[k]).map(k => byKey[k]);
+      const rest = docs.filter(d => !ORDER_E1.includes(d.key));
+      return [...head, ...rest];
+    };
+
     const etapas = (coop.etapas || []).map(e => ({
       id: e.id,
       name: e.name,
-      docs: (e.docs || []).map(d => {
+      docs: sortDocs(e.id, (e.docs || []).map(d => {
         const up = uploadedMap[`${e.id}::${d.key}`] || (d.key === 'solicitud' && hasSignedLoanApp ? { filename: 'solicitud-firmada.pdf', uploaded_at: null } : null);
         return {
           key: d.key,
@@ -225,13 +235,31 @@ async function getPublic(req, res) {
           uploaded: !!up,
           filename: up?.filename || null,
         };
-      }),
+      })),
     }));
+
+    // Cotizaciones existentes del lead para que el cliente las elija desde el link
+    const quotations = (Array.isArray(sd.quotations) ? sd.quotations : []).map(q => {
+      const bats = (q.batteries || []).filter(b => b?.qty > 0)
+        .map(b => `${b.qty > 1 ? b.qty + '× ' : ''}${b.name}`).join(' + ') || 'Sin batería';
+      const fv = Number(q?.calc?.costBase) || Number(sd?.calc?.costBase) || 0;
+      const batsTotal = (q.batteries || []).reduce((s, b) => s + (Number(b.unitPrice) || 0) * (Number(b.qty) || 0), 0);
+      const total = Number(q?.calc?.sub) || (fv + batsTotal);
+      return {
+        id: q.id,
+        name: q.name || `Cotización ${bats}`,
+        batteries: bats,
+        total: Math.round(total),
+      };
+    });
+    const activeQuotationId = sd.activeQuotationId || sd.financing_cotizacion_id || null;
 
     res.json({
       leadName: lead.contact_name || lead.title || 'Cliente',
       cooperativa: coopName,
       etapas,
+      quotations,
+      activeQuotationId,
     });
   } catch (e) {
     console.error('[clientDocsLink getPublic]', e.message);
@@ -383,4 +411,37 @@ async function sendLinkByEmail(req, res) {
   }
 }
 
-module.exports = { getOrCreateLink, getPublic, uploadPublic, sendLinkByEmail };
+// ─── POST /api/public/client-docs/:token/pick-quotation ──────────────────────
+// body: { quotation_id }
+async function pickQuotation(req, res) {
+  try {
+    await ensureTokensTable();
+    const leadId = await resolveLeadIdByToken(req.params.token);
+    if (!leadId) return res.status(404).json({ error: 'Link inválido o expirado' });
+    const { quotation_id } = req.body || {};
+    if (!quotation_id) return res.status(400).json({ error: 'quotation_id requerido' });
+
+    // Validar que la quotation existe en el lead
+    const r = await pool.query(`SELECT solar_data FROM leads WHERE id=$1`, [leadId]);
+    const sd = r.rows[0]?.solar_data || {};
+    const qs = Array.isArray(sd.quotations) ? sd.quotations : [];
+    const q = qs.find(x => x.id === quotation_id);
+    if (!q) return res.status(404).json({ error: 'Cotización no encontrada' });
+
+    const newSd = { ...sd, activeQuotationId: quotation_id, financing_cotizacion_id: quotation_id };
+    await pool.query(`UPDATE leads SET solar_data=$1, updated_at=NOW() WHERE id=$2`,
+      [JSON.stringify(newSd), leadId]);
+
+    try {
+      await pool.query(`INSERT INTO notes (lead_id, content) VALUES ($1, $2)`,
+        [leadId, `📲 Cliente eligió cotización "${q.name || quotation_id}" desde link público`]);
+    } catch {}
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[clientDocsLink pickQuotation]', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+}
+
+module.exports = { getOrCreateLink, getPublic, uploadPublic, sendLinkByEmail, pickQuotation };
