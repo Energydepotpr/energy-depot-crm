@@ -219,7 +219,7 @@ app.get('/api/public/debug-lead/:id', async (req, res) => {
   try {
     const { pool } = require('./services/db');
     const l = await pool.query(
-      `SELECT l.id, l.title, l.value, l.contact_id, l.solar_data->'cta_aee' AS cta_aee, l.solar_data->'contador' AS contador,
+      `SELECT l.id, l.title, l.value, l.contact_id, l.solar_data,
               l.created_at, c.name, c.phone, c.email
          FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id WHERE l.id=$1`, [req.params.id]);
     const b = await pool.query(

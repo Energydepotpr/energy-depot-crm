@@ -6707,11 +6707,18 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
     firma_fecha: new Date().toLocaleDateString('es-PR'),
   };
 
-  // Merge inicial (existing no-vacío sobre autoFill)
+  // Merge inicial: existing no-vacío sobre autoFill, EXCEPTO cantidad_solicitada que se recalcula siempre desde la cotización vigente
   const initial = (() => {
     const out = { ...autoFill };
     const ef = existing?.form_data || {};
-    for (const k in ef) { const v = ef[k]; if (v != null && v !== '') out[k] = v; }
+    for (const k in ef) {
+      if (k === 'cantidad_solicitada') continue; // siempre usar cálculo fresco
+      const v = ef[k]; if (v != null && v !== '') out[k] = v;
+    }
+    // Asegurar que cantidad_solicitada sea entero
+    if (out.cantidad_solicitada != null && out.cantidad_solicitada !== '') {
+      out.cantidad_solicitada = Math.round(Number(out.cantidad_solicitada)) || out.cantidad_solicitada;
+    }
     return out;
   })();
 
@@ -6731,6 +6738,7 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
           setFormData(p => {
             const merged = { ...p };
             for (const k in ld) {
+              if (k === 'cantidad_solicitada') continue; // no sobrescribir el cálculo fresco
               const v = ld[k];
               if ((merged[k] === undefined || merged[k] === '' || merged[k] === null) && v != null && v !== '') {
                 merged[k] = v;
