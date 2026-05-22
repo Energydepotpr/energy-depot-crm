@@ -231,14 +231,60 @@ async function getPublic(req, res) {
       q => q.id === (sd.financing_cotizacion_id || sd.activeQuotationId)
     );
 
+    // Contrato de compra-venta: detectar si hay un contrato generado (firmado o pendiente)
+    // para mostrar link de firma electrónica en vez de upload manual.
+    let contratoFirma = null;
+    try {
+      const cf = await pool.query(
+        `SELECT id, token, signed_at FROM contratos_firma
+          WHERE lead_id=$1 ORDER BY id DESC LIMIT 1`,
+        [leadId]
+      );
+      if (cf.rows[0]) {
+        contratoFirma = {
+          token: cf.rows[0].token,
+          isSigned: !!cf.rows[0].signed_at,
+          signingUrl: `${publicBaseUrl(req)}/firmar/${cf.rows[0].token}`,
+        };
+      }
+    } catch {}
+
+    // Solicitud Tu Coop: detectar si hay borrador pending para mostrar link de firma
+    let tuCoopSolicitud = null;
+    if (/tu\s*coop/i.test(coopName)) {
+      try {
+        const la = await pool.query(
+          `SELECT id, token, form_data, signed_at, coop_template
+             FROM loan_applications
+            WHERE lead_id=$1 AND cooperativa=$2 AND coop_template='tu_coop'
+            ORDER BY id DESC LIMIT 1`,
+          [leadId, coopName]
+        );
+        if (la.rows[0]) {
+          const row = la.rows[0];
+          const hasData = row.form_data && typeof row.form_data === 'object'
+            && Object.values(row.form_data).some(v => v != null && v !== '');
+          tuCoopSolicitud = {
+            token: row.token,
+            isSigned: !!row.signed_at,
+            hasData,
+            signingUrl: `${publicBaseUrl(req)}/solicitud/${row.token}`,
+          };
+        }
+      } catch {}
+    }
+
     let etapas = (coop.etapas || []).map(e => ({
       id: e.id,
       name: e.name,
       docs: sortDocs(e.id, (e.docs || []).map(d => {
         let up = uploadedMap[`${e.id}::${d.key}`]
-          || (d.key === 'solicitud' && hasSignedLoanApp ? { filename: 'solicitud-firmada.pdf', uploaded_at: null } : null)
+          || (d.key === 'solicitud' && (hasSignedLoanApp || tuCoopSolicitud?.isSigned)
+              ? { filename: 'solicitud-firmada.pdf', uploaded_at: null } : null)
           || (d.key === 'cotizacion' && e.id === 'etapa1' && hasPickedQuotation
-              ? { filename: `Cotización: ${pickedQ?.name || 'elegida'}`, uploaded_at: null } : null);
+              ? { filename: `Cotización: ${pickedQ?.name || 'elegida'}`, uploaded_at: null } : null)
+          || (d.key === 'contrato' && e.id === 'etapa1' && contratoFirma?.isSigned
+              ? { filename: 'contrato-firmado.pdf', uploaded_at: null } : null);
         return {
           key: d.key,
           label: d.label,
@@ -276,6 +322,8 @@ async function getPublic(req, res) {
       etapas,
       quotations,
       activeQuotationId,
+      tuCoopSolicitud, // null o { token, isSigned, hasData, signingUrl }
+      contratoFirma,   // null o { token, isSigned, signingUrl }
     });
   } catch (e) {
     console.error('[clientDocsLink getPublic]', e.message);

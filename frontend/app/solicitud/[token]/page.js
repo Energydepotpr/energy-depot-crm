@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import SignaturePad from '../../components/SignaturePad';
 
 const BACKEND = typeof window !== 'undefined' ? '/backend' : (process.env.API_URL || 'http://localhost:3001');
 
@@ -52,9 +53,7 @@ export default function SolicitudPrestamoPage() {
   const [name, setName]       = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone]       = useState(false);
-  const canvasRef = useRef(null);
-  const drawing   = useRef(false);
-  const isEmpty   = useRef(true);
+  const [sig, setSig]         = useState('');
 
   useEffect(() => {
     (async () => {
@@ -70,33 +69,6 @@ export default function SolicitudPrestamoPage() {
     })();
   }, [token]);
 
-  // Canvas setup
-  useEffect(() => {
-    const c = canvasRef.current;
-    if (!c) return;
-    const ratio = window.devicePixelRatio || 1;
-    const rect  = c.getBoundingClientRect();
-    c.width  = rect.width  * ratio;
-    c.height = rect.height * ratio;
-    const ctx = c.getContext('2d');
-    ctx.scale(ratio, ratio);
-    ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#0f172a';
-  }, [data, done]);
-
-  const getPos = (e) => {
-    const c = canvasRef.current;
-    const rect = c.getBoundingClientRect();
-    const t = e.touches?.[0];
-    const x = (t ? t.clientX : e.clientX) - rect.left;
-    const y = (t ? t.clientY : e.clientY) - rect.top;
-    return { x, y };
-  };
-  const start = (e) => { e.preventDefault(); drawing.current = true; const { x,y } = getPos(e); const ctx = canvasRef.current.getContext('2d'); ctx.beginPath(); ctx.moveTo(x,y); };
-  const move  = (e) => { if (!drawing.current) return; e.preventDefault(); const { x,y } = getPos(e); const ctx = canvasRef.current.getContext('2d'); ctx.lineTo(x,y); ctx.stroke(); isEmpty.current = false; };
-  const end   = () => { drawing.current = false; };
-  const clear = () => { const c = canvasRef.current; const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); isEmpty.current = true; };
-
   const setField = (k, v) => setFormData(p => ({ ...p, [k]: v }));
 
   const isTuCoop = data?.template === 'tu_coop';
@@ -111,11 +83,10 @@ export default function SolicitudPrestamoPage() {
       const missing = required.filter(f => !formData[f.key] || String(formData[f.key]).trim() === '');
       if (missing.length) { alert('Faltan campos requeridos:\n- ' + missing.map(m => m.label).join('\n- ')); return; }
     }
-    if (isEmpty.current) return alert('Por favor dibuja tu firma antes de continuar.');
+    if (!sig) return alert('Por favor firma antes de continuar.');
     if (!name.trim()) return alert('Escribe tu nombre completo para firmar.');
     setSubmitting(true);
     try {
-      const sig = canvasRef.current.toDataURL('image/png');
       const fd = isTuCoop
         ? { ...formData, nombre_completo: formData.nombre_completo || name, firma_fecha: formData.firma_fecha || new Date().toLocaleDateString('es-PR') }
         : formData;
@@ -208,19 +179,8 @@ export default function SolicitudPrestamoPage() {
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Ej. Juan Pérez Rivera"
             style={{ width:'100%', padding:'10px 12px', border:'1px solid #cbd5e1', borderRadius:8, fontSize:14, marginBottom:14 }} />
 
-          <div style={{ fontSize:12, color:'#475569', fontWeight:600, marginBottom:4 }}>Dibuja tu firma abajo</div>
-          <div style={{ border:'2px dashed #94a3b8', borderRadius:8, background:'#f8fafc' }}>
-            <canvas
-              ref={canvasRef}
-              style={{ width:'100%', height:180, touchAction:'none', display:'block', borderRadius:6 }}
-              onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
-              onTouchStart={start} onTouchMove={move} onTouchEnd={end}
-            />
-          </div>
-          <div style={{ display:'flex', justifyContent:'space-between', marginTop:8 }}>
-            <button onClick={clear} style={{ background:'transparent', border:'1px solid #cbd5e1', borderRadius:6, padding:'6px 12px', fontSize:12, cursor:'pointer', color:'#475569' }}>Limpiar</button>
-            <span style={{ fontSize:11, color:'#94a3b8' }}>Usa el dedo o el mouse para firmar</span>
-          </div>
+          <div style={{ fontSize:12, color:'#475569', fontWeight:600, marginBottom:6 }}>Firma</div>
+          <SignaturePad value={sig} onChange={setSig} defaultName={name} height={180} />
 
           <button onClick={submit} disabled={submitting}
             style={{ marginTop:18, width:'100%', background:'#1a3c8f', color:'#fff', border:0, padding:'14px', borderRadius:10, fontSize:15, fontWeight:800, cursor:'pointer', opacity: submitting ? 0.6 : 1 }}>

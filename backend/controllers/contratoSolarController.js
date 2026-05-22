@@ -135,7 +135,7 @@ function buildContratoHTML(d) {
 <meta charset="UTF-8"/>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  @page{size:Letter;margin:16mm 14mm 18mm 14mm}
+  @page{size:Legal;margin:16mm 14mm 18mm 14mm}
   body{font-family:'Times New Roman',Times,serif;color:#1f2937;background:#fff;font-size:11pt;line-height:1.5}
   .sans{font-family:'Plus Jakarta Sans',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
 
@@ -625,7 +625,7 @@ async function generarContratoSolar(req, res) {
     });
 
     const pdfBuf = await generatePDF(html, {
-      format: 'Letter',
+      format: 'Legal', // 8.5" × 14" — tamaño oficial requerido por cooperativas
       printBackground: true,
       margin: { top: '16mm', right: '14mm', bottom: '18mm', left: '14mm' },
     });
@@ -849,7 +849,7 @@ async function postFirmaPublic(req, res) {
       signedAt: signedAt.toLocaleString('es-PR'),
     });
     const pdfBuf = await generatePDF(signedHtml, {
-      format: 'Letter', printBackground: true,
+      format: 'Legal', printBackground: true, // 8.5" × 14" — tamaño oficial
       margin: { top: '16mm', right: '14mm', bottom: '18mm', left: '14mm' },
     });
     const signedB64 = Buffer.from(pdfBuf).toString('base64');
@@ -857,6 +857,25 @@ async function postFirmaPublic(req, res) {
 
     // Guardamos el PDF firmado reemplazando el anterior
     await pool.query(`UPDATE contratos_firma SET pdf_base64 = $1 WHERE token = $2`, [signedB64, token]);
+
+    // why: además, copiar a lead_financing_docs como 'contrato' para que el tab
+    // Financiamiento y el link público lo vean como subido automáticamente.
+    try {
+      const sdR = await pool.query(`SELECT solar_data FROM leads WHERE id=$1`, [row.lead_id]);
+      const coopName = sdR.rows[0]?.solar_data?.financing_coop || '';
+      if (coopName) {
+        await pool.query(
+          `DELETE FROM lead_financing_docs WHERE lead_id=$1 AND cooperativa=$2 AND etapa_id='etapa1' AND doc_key='contrato'`,
+          [row.lead_id, coopName]
+        );
+        await pool.query(
+          `INSERT INTO lead_financing_docs
+             (lead_id, cooperativa, etapa_id, doc_key, filename, mime_type, file_base64, uploaded_at)
+           VALUES ($1, $2, 'etapa1', 'contrato', $3, 'application/pdf', $4, NOW())`,
+          [row.lead_id, coopName, fname, signedB64]
+        );
+      }
+    } catch (e) { console.error('[contrato firma → financing-doc]', e.message); }
 
     // Email al cliente + BCC
     let emailSent = false;

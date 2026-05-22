@@ -184,7 +184,7 @@ async function generatePdfForApp(row) {
     createdAt: row.created_at || new Date(),
   });
   const buf = await generatePDF(html, {
-    format: 'Letter',
+    format: 'Legal', // 8.5" × 14" — tamaño oficial cooperativas
     printBackground: true,
     margin: { top: '16mm', right: '14mm', bottom: '18mm', left: '14mm' },
   });

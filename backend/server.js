@@ -102,13 +102,25 @@ app.use(cors({
 
 // Body size limit
 // Default global: 2MB (cubre 99% de requests).
-// Las rutas que necesitan subir archivos base64 usan middleware específico de 20MB
-// abajo (extract-factura, luma-bills, financing-docs, client-docs uploads).
-const largeBody = express.json({ limit: '20mb' });
-const largeBodyUrl = express.urlencoded({ extended: true, limit: '20mb' });
+// Las rutas que necesitan subir archivos base64 usan 20MB.
+const smallJson = express.json({ limit: '2mb' });
+const smallUrl  = express.urlencoded({ extended: true, limit: '2mb' });
+const largeJson = express.json({ limit: '20mb' });
+const largeUrl  = express.urlencoded({ extended: true, limit: '20mb' });
+// why: cada middleware debe propagar errores (PayloadTooLargeError) al callback siguiente
+// con next(err) — sin eso, el body simplemente no se parsea pero el request continúa.
+function chain(jsonMw, urlMw) {
+  return (req, res, next) => {
+    jsonMw(req, res, (err) => {
+      if (err) return next(err);
+      urlMw(req, res, next);
+    });
+  };
+}
+const smallParser = chain(smallJson, smallUrl);
+const largeParser = chain(largeJson, largeUrl);
 app.use((req, res, next) => {
   const p = req.path || '';
-  // Rutas que aceptan archivos grandes (base64 de PDFs/fotos)
   const isFileUpload =
     p.includes('/luma-bills') ||
     p.includes('/financing-docs') ||
@@ -116,8 +128,7 @@ app.use((req, res, next) => {
     p.includes('/extract-factura') ||
     p.includes('/contrato-solar') ||
     p.includes('/loan-applications');
-  if (isFileUpload) return largeBody(req, res, () => largeBodyUrl(req, res, next));
-  return express.json({ limit: '2mb' })(req, res, () => express.urlencoded({ extended: true, limit: '2mb' })(req, res, next));
+  return isFileUpload ? largeParser(req, res, next) : smallParser(req, res, next);
 });
 
 // Rate limit on login (max 10 attempts per minute per IP)
@@ -360,6 +371,24 @@ app.get('/api/stats', settings.stats);
 app.get('/api/stats/chart', settings.statsChart);
 app.get('/api/stats/overview', require('./controllers/statsOverviewController').overview);
 app.get('/api/stats/breakdown', require('./controllers/statsOverviewController').breakdown);
+
+// Source of truth para constantes solares (consumido por frontend para no duplicar)
+app.get('/api/config/solar', async (req, res) => {
+  try {
+    const { DEFAULTS } = require('./services/solarFormula');
+    let pricing = DEFAULTS;
+    try {
+      const r = await dbPool.query(`SELECT value FROM config WHERE key = 'solar_pricing' LIMIT 1`);
+      if (r.rows[0]?.value) {
+        const v = typeof r.rows[0].value === 'string' ? JSON.parse(r.rows[0].value) : r.rows[0].value;
+        pricing = { ...DEFAULTS, ...v };
+      }
+    } catch {}
+    res.json({ pricing });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 app.get('/api/search', search.buscar);
 
 // AI Assistant — Energy Depot PR
@@ -936,6 +965,13 @@ app.post('/api/admin/recalc-solar', authMiddleware, async (req, res) => {
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.message);
   if (err.message === 'Not allowed by CORS') return res.status(403).json({ error: 'CORS policy' });
+  // body-parser tira PayloadTooLargeError con err.type / err.status
+  if (err.type === 'entity.too.large' || err.status === 413) {
+    return res.status(413).json({ error: 'Archivo o petición demasiado grande. Máx 2MB para datos / 20MB para archivos.' });
+  }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'JSON malformado' });
+  }
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 

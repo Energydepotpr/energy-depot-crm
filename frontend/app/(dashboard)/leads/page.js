@@ -8,6 +8,7 @@ import { useAuth } from '../../../lib/auth';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
 import { ProjectInvoicesLeadTab } from '../facturas/page';
+import SignaturePad from '../../components/SignaturePad';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -6919,34 +6920,8 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
 
   const setField = (k, v) => setFormData(p => ({ ...p, [k]: v }));
 
-  // Canvas firma (mismo patrón que /solicitud/[token])
-  const canvasRef = useRef(null);
-  const drawing = useRef(false);
-  const isEmpty = useRef(true);
-  useEffect(() => {
-    const c = canvasRef.current;
-    if (!c) return;
-    const ratio = window.devicePixelRatio || 1;
-    const rect  = c.getBoundingClientRect();
-    c.width  = rect.width  * ratio;
-    c.height = rect.height * ratio;
-    const ctx = c.getContext('2d');
-    ctx.scale(ratio, ratio);
-    ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#0f172a';
-  }, []);
-  const getPos = (e) => {
-    const c = canvasRef.current;
-    const rect = c.getBoundingClientRect();
-    const t = e.touches?.[0];
-    const x = (t ? t.clientX : e.clientX) - rect.left;
-    const y = (t ? t.clientY : e.clientY) - rect.top;
-    return { x, y };
-  };
-  const start = (e) => { e.preventDefault(); drawing.current = true; const { x,y } = getPos(e); const ctx = canvasRef.current.getContext('2d'); ctx.beginPath(); ctx.moveTo(x,y); };
-  const move  = (e) => { if (!drawing.current) return; e.preventDefault(); const { x,y } = getPos(e); const ctx = canvasRef.current.getContext('2d'); ctx.lineTo(x,y); ctx.stroke(); isEmpty.current = false; };
-  const end   = () => { drawing.current = false; };
-  const clear = () => { const c = canvasRef.current; const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); isEmpty.current = true; };
+  // Firma (SignaturePad reutilizable)
+  const [sig, setSig] = useState('');
 
 
   const autollenar = async () => {
@@ -6998,10 +6973,9 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
     if (!String(formData.nombre_completo || name || '').trim()) {
       alert('El nombre del solicitante es requerido'); return;
     }
-    if (isEmpty.current) { alert('Por favor dibuja tu firma'); return; }
+    if (!sig) { alert('Por favor firma'); return; }
     setSubmitting(true);
     try {
-      const sig = canvasRef.current.toDataURL('image/png');
       const fd = { ...formData, nombre_completo: formData.nombre_completo || name };
       const r = await api.generateTuCoopSolicitudPdf(leadId, fd, sig);
       if (!r?.ok) throw new Error(r?.error || 'Error generando PDF');
@@ -7122,16 +7096,7 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
             <TCField k="firma_fecha" label="Fecha" value={formData.firma_fecha} onChange={setField} />
           </div>
-          <div style={{ border:'2px dashed #94a3b8', borderRadius:8, background:'#f8fafc' }}>
-            <canvas ref={canvasRef}
-              style={{ width:'100%', height:160, touchAction:'none', display:'block', borderRadius:6 }}
-              onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
-              onTouchStart={start} onTouchMove={move} onTouchEnd={end} />
-          </div>
-          <div style={{ display:'flex', justifyContent:'space-between', marginTop:8 }}>
-            <button onClick={clear} style={{ background:'transparent', border:'1px solid var(--border)', borderRadius:6, padding:'6px 12px', fontSize:12, cursor:'pointer', color:'var(--muted)' }}>Limpiar firma</button>
-            <span style={{ fontSize:11, color:'var(--muted)' }}>Usa dedo o mouse</span>
-          </div>
+          <SignaturePad value={sig} onChange={setSig} defaultName={formData.nombre_completo || name} height={160} />
         </div>
 
         {signingUrl && (
