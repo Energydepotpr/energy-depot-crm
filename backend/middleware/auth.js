@@ -43,4 +43,23 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { authMiddleware, requireAdmin };
+// Middleware: valida que req.user tenga acceso al lead :id en la URL.
+// Admins pasan siempre. Otros usuarios solo si lead.assigned_to coincide.
+async function requireLeadAccess(req, res, next) {
+  if (req.user?.role === 'admin') return next();
+  const leadId = Number(req.params.id || req.params.leadId);
+  if (!leadId) return res.status(400).json({ error: 'lead id requerido' });
+  try {
+    const { rows } = await pool.query('SELECT assigned_to FROM leads WHERE id = $1', [leadId]);
+    if (!rows[0]) return res.status(404).json({ error: 'Lead no encontrado' });
+    if (rows[0].assigned_to && rows[0].assigned_to !== req.user.id) {
+      return res.status(403).json({ error: 'Sin acceso a este lead' });
+    }
+    next();
+  } catch (e) {
+    console.error('[requireLeadAccess]', e.message);
+    res.status(500).json({ error: 'Error verificando acceso' });
+  }
+}
+
+module.exports = { authMiddleware, requireAdmin, requireLeadAccess };

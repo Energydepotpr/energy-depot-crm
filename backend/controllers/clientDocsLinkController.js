@@ -49,7 +49,8 @@ async function ensureTokensTable() {
 }
 
 function deriveToken(leadId) {
-  const SECRET = process.env.PUBLIC_LEAD_SECRET || 'energy-depot-public-2026';
+  const SECRET = process.env.PUBLIC_LEAD_SECRET;
+  if (!SECRET) throw new Error('PUBLIC_LEAD_SECRET no configurado');
   return crypto.createHash('sha256').update(`client-docs-${leadId}-${SECRET}`).digest('hex').slice(0, 40);
 }
 

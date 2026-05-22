@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { initDB, pool: dbPool } = require('./services/db');
-const { authMiddleware, requireAdmin } = require('./middleware/auth');
+const { authMiddleware, requireAdmin, requireLeadAccess } = require('./middleware/auth');
 
 const auth         = require('./controllers/authController');
 const contacts     = require('./controllers/contactsController');
@@ -61,6 +61,15 @@ const { syncTwilioMessages } = require('./services/twilioSync');
 const { syncLeadgogo } = require('./services/leadgogoSync');
 const { enrichAllMissingNames, enqueueEnrich } = require('./services/leadEnrich');
 const jwt           = require('jsonwebtoken');
+
+// Validar secrets críticos al startup (fail fast)
+const REQUIRED_SECRETS = ['JWT_SECRET', 'PUBLIC_LEAD_SECRET'];
+for (const k of REQUIRED_SECRETS) {
+  if (!process.env[k]) {
+    console.error(`[FATAL] Env var ${k} no está configurada. El servidor no puede iniciar.`);
+    process.exit(1);
+  }
+}
 
 const app = express();
 
@@ -221,60 +230,11 @@ app.post('/api/public/clientlog', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/public/debug-lead/:id', async (req, res) => {
-  try {
-    const { pool } = require('./services/db');
-    const l = await pool.query(
-      `SELECT l.id, l.title, l.value, l.contact_id, l.solar_data,
-              l.created_at, c.name, c.phone, c.email
-         FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id WHERE l.id=$1`, [req.params.id]);
-    const b = await pool.query(
-      `SELECT id, filename, periodo, monto, kwh, cta_aee, contador, uploaded_at, octet_length(file_base64) AS sz
-         FROM lead_luma_bills WHERE lead_id=$1`, [req.params.id]);
-    res.json({ lead: l.rows[0] || null, bills: b.rows });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/public/debug-luma-all', async (req, res) => {
-  try {
-    const { pool } = require('./services/db');
-    const t = await pool.query(`SELECT to_regclass('public.lead_luma_bills') AS exists`);
-    let count = null, all = [];
-    if (t.rows[0].exists) {
-      const c = await pool.query(`SELECT COUNT(*)::int AS n FROM lead_luma_bills`);
-      count = c.rows[0].n;
-      const a = await pool.query(`SELECT id, lead_id, filename, periodo, monto, kwh, uploaded_at FROM lead_luma_bills ORDER BY uploaded_at DESC LIMIT 20`);
-      all = a.rows;
-    }
-    res.json({ tableExists: !!t.rows[0].exists, count, recent: all });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/public/debug-luma/:q', async (req, res) => {
-  try {
-    const { pool } = require('./services/db');
-    const q = req.params.q;
-    const leads = await pool.query(
-      `SELECT l.id, l.title, l.value, c.name, c.phone, c.email
-         FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id
-        WHERE c.phone ILIKE $1 OR c.name ILIKE $1 OR l.title ILIKE $1
-        ORDER BY l.id DESC LIMIT 10`, [`%${q}%`]
-    );
-    const out = [];
-    for (const l of leads.rows) {
-      let bills = { rows: [] };
-      try {
-        bills = await pool.query(
-          `SELECT id, filename, mime_type, periodo, monto, kwh, uploaded_at,
-                  octet_length(file_base64) AS file_size, uploaded_by, cta_aee, contador
-             FROM lead_luma_bills WHERE lead_id=$1 ORDER BY uploaded_at DESC`, [l.id]
-        );
-      } catch (e) { bills = { rows: [], err: e.message }; }
-      out.push({ lead: l, bills: bills.rows, billsErr: bills.err });
-    }
-    res.json({ q, leads: out });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
+// ── DEBUG ENDPOINTS REMOVIDOS (2026-05-22) ──
+// Antes existían /api/public/debug-lead, /api/public/debug-luma-all,
+// /api/public/debug-luma sin auth. Exponían PII de cualquier lead por ID.
+// Si se necesita debug, usar los endpoints autenticados o agregar uno
+// detrás de authMiddleware + requireAdmin.
 
 // Protected
 app.use('/api', authMiddleware);
@@ -318,26 +278,26 @@ app.delete('/api/appointments/:id',  appointmentsCtrl.deleteAppointment);
 const financingCtrl = require('./controllers/financingController');
 app.get   ('/api/cooperativas',                            financingCtrl.listCoops);
 app.put   ('/api/cooperativas',                            financingCtrl.saveCoops);
-app.get   ('/api/leads/:id/financing-docs',                financingCtrl.listDocs);
-app.post  ('/api/leads/:id/financing-docs',                financingCtrl.uploadDoc);
+app.get   ('/api/leads/:id/financing-docs',                requireLeadAccess, financingCtrl.listDocs);
+app.post  ('/api/leads/:id/financing-docs',                requireLeadAccess, financingCtrl.uploadDoc);
 // Nuevos (query params: cooperativa, etapa_id, doc_key)
-app.get   ('/api/leads/:id/financing-docs/file',           financingCtrl.getFile);
-app.delete('/api/leads/:id/financing-docs',                financingCtrl.deleteDoc);
+app.get   ('/api/leads/:id/financing-docs/file',           requireLeadAccess, financingCtrl.getFile);
+app.delete('/api/leads/:id/financing-docs',                requireLeadAccess, financingCtrl.deleteDoc);
 // Legacy (compat con docs viejos sin etapa)
-app.get   ('/api/leads/:id/financing-docs/:doc_key/file',  financingCtrl.getFile);
-app.delete('/api/leads/:id/financing-docs/:doc_key',       financingCtrl.deleteDoc);
-app.post  ('/api/leads/:id/financing/send',                financingCtrl.sendToCoop);
-app.post  ('/api/leads/:id/financing/auto-invoice',        financingCtrl.autoInvoice);
-app.get   ('/api/leads/:id/financing/client-link',         clientDocsLinkCtrl.getOrCreateLink);
-app.post  ('/api/leads/:id/financing/client-link/send-email', clientDocsLinkCtrl.sendLinkByEmail);
+app.get   ('/api/leads/:id/financing-docs/:doc_key/file',  requireLeadAccess, financingCtrl.getFile);
+app.delete('/api/leads/:id/financing-docs/:doc_key',       requireLeadAccess, financingCtrl.deleteDoc);
+app.post  ('/api/leads/:id/financing/send',                requireLeadAccess, financingCtrl.sendToCoop);
+app.post  ('/api/leads/:id/financing/auto-invoice',        requireLeadAccess, financingCtrl.autoInvoice);
+app.get   ('/api/leads/:id/financing/client-link',         requireLeadAccess, clientDocsLinkCtrl.getOrCreateLink);
+app.post  ('/api/leads/:id/financing/client-link/send-email', requireLeadAccess, clientDocsLinkCtrl.sendLinkByEmail);
 
 // Facturas LUMA del cliente (las que el cliente envía a Energy Depot)
 const lumaBillsCtrl = require('./controllers/lumaBillsController');
-app.get   ('/api/leads/:id/luma-bills',                    lumaBillsCtrl.listBills);
-app.post  ('/api/leads/:id/luma-bills',                    lumaBillsCtrl.createBill);
-app.get   ('/api/leads/:id/luma-bills/:bill_id/file',      lumaBillsCtrl.getFile);
-app.patch ('/api/leads/:id/luma-bills/:bill_id',           lumaBillsCtrl.updateBill);
-app.delete('/api/leads/:id/luma-bills/:bill_id',           lumaBillsCtrl.deleteBill);
+app.get   ('/api/leads/:id/luma-bills',                    requireLeadAccess, lumaBillsCtrl.listBills);
+app.post  ('/api/leads/:id/luma-bills',                    requireLeadAccess, lumaBillsCtrl.createBill);
+app.get   ('/api/leads/:id/luma-bills/:bill_id/file',      requireLeadAccess, lumaBillsCtrl.getFile);
+app.patch ('/api/leads/:id/luma-bills/:bill_id',           requireLeadAccess, lumaBillsCtrl.updateBill);
+app.delete('/api/leads/:id/luma-bills/:bill_id',           requireLeadAccess, lumaBillsCtrl.deleteBill);
 
 // DEBUG temporal — buscar lead por phone/nombre y listar sus luma bills
 app.get('/api/debug/luma/:q', async (req, res) => {
@@ -372,12 +332,12 @@ app.get('/api/debug/luma/:q', async (req, res) => {
 
 // Loan applications (Solicitud de préstamo con firma electrónica)
 app.post  ('/api/leads/:id/loan-application',                    loanAppsCtrl.createOrUpdate);
-app.get   ('/api/leads/:id/loan-applications',                   loanAppsCtrl.listForLead);
-app.get   ('/api/leads/:id/loan-applications/latest-form-data',  loanAppsCtrl.latestFormData);
-app.get   ('/api/leads/:id/loan-applications/:la_id/pdf',        loanAppsCtrl.downloadPdf);
-app.post  ('/api/leads/:id/loan-applications/tu-coop-pdf',       loanAppsCtrl.generateTuCoopSigned);
-app.post  ('/api/leads/:id/loan-applications/tu-coop-draft',     loanAppsCtrl.createTuCoopDraft);
-app.delete('/api/leads/:id/loan-applications/:la_id',            loanAppsCtrl.deleteLoanApp);
+app.get   ('/api/leads/:id/loan-applications',                   requireLeadAccess, loanAppsCtrl.listForLead);
+app.get   ('/api/leads/:id/loan-applications/latest-form-data',  requireLeadAccess, loanAppsCtrl.latestFormData);
+app.get   ('/api/leads/:id/loan-applications/:la_id/pdf',        requireLeadAccess, loanAppsCtrl.downloadPdf);
+app.post  ('/api/leads/:id/loan-applications/tu-coop-pdf',       requireLeadAccess, loanAppsCtrl.generateTuCoopSigned);
+app.post  ('/api/leads/:id/loan-applications/tu-coop-draft',     requireLeadAccess, loanAppsCtrl.createTuCoopDraft);
+app.delete('/api/leads/:id/loan-applications/:la_id',            requireLeadAccess, loanAppsCtrl.deleteLoanApp);
 
 app.get('/api/me', auth.me);
 app.get('/api/stats', settings.stats);

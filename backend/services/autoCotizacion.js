@@ -152,7 +152,8 @@ async function tryAutoCotizar({ leadId, mediaUrls }) {
       try {
         const { enviarWhatsApp } = require('./twilioService');
         const crypto = require('crypto');
-        const SECRET = process.env.PUBLIC_LEAD_SECRET || 'energy-depot-public-2026';
+        const SECRET = process.env.PUBLIC_LEAD_SECRET;
+        if (!SECRET) throw new Error('PUBLIC_LEAD_SECRET no configurado');
         const token = crypto.createHash('sha256').update(`${leadId}-${SECRET}`).digest('hex').slice(0, 32);
         const baseFront = process.env.PUBLIC_FRONTEND_URL || 'https://crm-energydepotpr.com';
         const propUrl = `${baseFront}/p/${leadId}?token=${token}&q=${qId}`;

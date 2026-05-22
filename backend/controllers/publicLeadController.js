@@ -297,7 +297,8 @@ async function createPublicLead(req, res) {
 
     // Token simple para sesión cliente (sha256 del lead_id + secret)
     const crypto = require('crypto');
-    const SECRET = process.env.PUBLIC_LEAD_SECRET || 'energy-depot-public-2026';
+    const SECRET = process.env.PUBLIC_LEAD_SECRET;
+    if (!SECRET) throw new Error('PUBLIC_LEAD_SECRET no configurado');
     const token = crypto.createHash('sha256').update(`${leadId}-${SECRET}`).digest('hex').slice(0, 32);
 
     // IDs reales que quedaron persistidos (replace mantiene id original; append usa nuevos)
@@ -633,7 +634,8 @@ async function publicLeadLookup(req, res) {
     if (!leadId || !token) return res.status(400).json({ error: 'lead_id y token requeridos' });
 
     const crypto = require('crypto');
-    const SECRET = process.env.PUBLIC_LEAD_SECRET || 'energy-depot-public-2026';
+    const SECRET = process.env.PUBLIC_LEAD_SECRET;
+    if (!SECRET) throw new Error('PUBLIC_LEAD_SECRET no configurado');
     const expected = crypto.createHash('sha256').update(`${leadId}-${SECRET}`).digest('hex').slice(0, 32);
     if (token !== expected) return res.status(403).json({ error: 'Token inválido' });
 
@@ -678,7 +680,8 @@ async function publicPropuestaHTML(req, res) {
     const quotationId = req.query.q || req.query.quotation_id;
     if (!leadId || !token) return res.status(400).send('Link inválido');
     const crypto = require('crypto');
-    const SECRET = process.env.PUBLIC_LEAD_SECRET || 'energy-depot-public-2026';
+    const SECRET = process.env.PUBLIC_LEAD_SECRET;
+    if (!SECRET) throw new Error('PUBLIC_LEAD_SECRET no configurado');
     const expected = crypto.createHash('sha256').update(`${leadId}-${SECRET}`).digest('hex').slice(0, 32);
     if (token !== expected) return res.status(403).send('Link inválido o expirado');
 
@@ -698,7 +701,8 @@ async function getShareLink(req, res) {
     const leadId = Number(req.params.id);
     const quotationId = req.query.quotation_id;
     const crypto = require('crypto');
-    const SECRET = process.env.PUBLIC_LEAD_SECRET || 'energy-depot-public-2026';
+    const SECRET = process.env.PUBLIC_LEAD_SECRET;
+    if (!SECRET) throw new Error('PUBLIC_LEAD_SECRET no configurado');
     const token = crypto.createHash('sha256').update(`${leadId}-${SECRET}`).digest('hex').slice(0, 32);
     const baseFront = process.env.PUBLIC_FRONTEND_URL || `https://crm-energydepotpr.com`;
     const qParam = quotationId ? `&q=${encodeURIComponent(quotationId)}` : '';
