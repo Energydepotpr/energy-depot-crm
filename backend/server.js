@@ -328,6 +328,7 @@ app.delete('/api/leads/:id/financing-docs/:doc_key',       financingCtrl.deleteD
 app.post  ('/api/leads/:id/financing/send',                financingCtrl.sendToCoop);
 app.post  ('/api/leads/:id/financing/auto-invoice',        financingCtrl.autoInvoice);
 app.get   ('/api/leads/:id/financing/client-link',         clientDocsLinkCtrl.getOrCreateLink);
+app.post  ('/api/leads/:id/financing/client-link/send-email', clientDocsLinkCtrl.sendLinkByEmail);
 
 // Facturas LUMA del cliente (las que el cliente envía a Energy Depot)
 const lumaBillsCtrl = require('./controllers/lumaBillsController');

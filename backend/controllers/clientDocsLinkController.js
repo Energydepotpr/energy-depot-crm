@@ -23,6 +23,12 @@ async function ensureTokensTable() {
       );
       CREATE INDEX IF NOT EXISTS idx_cdt_lead ON client_doc_tokens(lead_id);
     `);
+    try {
+      await pool.query(`ALTER TABLE client_doc_tokens ADD COLUMN IF NOT EXISTS slug VARCHAR(80)`);
+    } catch (e) { /* ignore */ }
+    try {
+      await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_cdt_slug ON client_doc_tokens(slug) WHERE slug IS NOT NULL`);
+    } catch (e) { /* ignore */ }
     // Tabla lead_financing_docs ya la asegura financingController; igual la garantizamos
     await pool.query(`
       CREATE TABLE IF NOT EXISTS lead_financing_docs (
@@ -47,6 +53,38 @@ function deriveToken(leadId) {
   return crypto.createHash('sha256').update(`client-docs-${leadId}-${SECRET}`).digest('hex').slice(0, 40);
 }
 
+function kebabCase(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // quitar acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'cliente';
+}
+
+async function generateUniqueSlug(leadId, token) {
+  const nameR = await pool.query(
+    `SELECT c.name FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id WHERE l.id = $1`,
+    [leadId]
+  );
+  const name = nameR.rows[0]?.name || `lead-${leadId}`;
+  const base = kebabCase(name);
+  const code = String(token).slice(0, 4).toUpperCase();
+  let candidate = `${base}-${code}`;
+  let n = 2;
+  // Garantizar unicidad (no choca con otro lead)
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const r = await pool.query(
+      `SELECT lead_id FROM client_doc_tokens WHERE slug=$1 LIMIT 1`,
+      [candidate]
+    );
+    if (!r.rows[0] || r.rows[0].lead_id === leadId) return candidate;
+    candidate = `${base}-${code}-${n++}`;
+    if (n > 50) return `${base}-${code}-${Date.now().toString(36)}`;
+  }
+}
+
 function publicBaseUrl(req) {
   // Dominio público canónico, preferido por encima de los vercel.app
   const FORCE = 'https://crm-energydepotpr.com';
@@ -68,10 +106,11 @@ async function getOrCreateLink(req, res) {
     if (!leadR.rows[0]) return res.status(404).json({ error: 'Lead no encontrado' });
 
     // Upsert: si ya existe token para el lead, devolverlo; sino crearlo (determinístico)
-    const exist = await pool.query(`SELECT token FROM client_doc_tokens WHERE lead_id=$1 LIMIT 1`, [leadId]);
-    let token;
+    const exist = await pool.query(`SELECT token, slug FROM client_doc_tokens WHERE lead_id=$1 LIMIT 1`, [leadId]);
+    let token, slug;
     if (exist.rows[0]) {
       token = exist.rows[0].token;
+      slug  = exist.rows[0].slug;
     } else {
       token = deriveToken(leadId);
       await pool.query(
@@ -81,20 +120,34 @@ async function getOrCreateLink(req, res) {
       );
     }
 
-    const url = `${publicBaseUrl(req)}/cliente/${token}`;
-    res.json({ url, token });
+    if (!slug) {
+      slug = await generateUniqueSlug(leadId, token);
+      try {
+        await pool.query(`UPDATE client_doc_tokens SET slug=$1 WHERE lead_id=$2`, [slug, leadId]);
+      } catch (e) { console.error('[clientDocsLink slug update]', e.message); }
+    }
+
+    const url = `${publicBaseUrl(req)}/cliente/${slug}`;
+    res.json({ url, token, slug });
   } catch (e) {
     console.error('[clientDocsLink getOrCreateLink]', e.message);
     res.status(500).json({ error: 'Error interno' });
   }
 }
 
-async function resolveLeadIdByToken(token) {
-  if (!token || typeof token !== 'string') return null;
-  const r = await pool.query(
-    `SELECT lead_id, expires_at FROM client_doc_tokens WHERE token=$1 LIMIT 1`,
-    [token]
+async function resolveLeadIdByToken(tokenOrSlug) {
+  if (!tokenOrSlug || typeof tokenOrSlug !== 'string') return null;
+  // Probar slug primero, luego token
+  let r = await pool.query(
+    `SELECT lead_id, expires_at FROM client_doc_tokens WHERE slug=$1 LIMIT 1`,
+    [tokenOrSlug]
   );
+  if (!r.rows[0]) {
+    r = await pool.query(
+      `SELECT lead_id, expires_at FROM client_doc_tokens WHERE token=$1 LIMIT 1`,
+      [tokenOrSlug]
+    );
+  }
   const row = r.rows[0];
   if (!row) return null;
   if (row.expires_at && new Date(row.expires_at) < new Date()) return null;
@@ -250,4 +303,82 @@ async function uploadPublic(req, res) {
   }
 }
 
-module.exports = { getOrCreateLink, getPublic, uploadPublic };
+// ─── POST /api/leads/:id/financing/client-link/send-email ────────────────────
+// body: { to, subject, message }
+async function sendLinkByEmail(req, res) {
+  try {
+    await ensureTokensTable();
+    const leadId = Number(req.params.id);
+    if (!leadId) return res.status(400).json({ error: 'lead id requerido' });
+
+    const { to, subject, message } = req.body || {};
+    if (!to || typeof to !== 'string' || !to.includes('@')) {
+      return res.status(400).json({ error: 'Email destino inválido' });
+    }
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Mensaje requerido' });
+    }
+    const subj = (subject && String(subject).trim()) ||
+      'Energy Depot — Sube tus documentos para tu financiamiento';
+
+    // Asegurar que exista el link (genera token+slug si no hay)
+    const leadR = await pool.query(`SELECT id FROM leads WHERE id=$1`, [leadId]);
+    if (!leadR.rows[0]) return res.status(404).json({ error: 'Lead no encontrado' });
+
+    const exist = await pool.query(
+      `SELECT token, slug FROM client_doc_tokens WHERE lead_id=$1 LIMIT 1`,
+      [leadId]
+    );
+    let token, slug;
+    if (exist.rows[0]) { token = exist.rows[0].token; slug = exist.rows[0].slug; }
+    else {
+      token = deriveToken(leadId);
+      await pool.query(
+        `INSERT INTO client_doc_tokens (token, lead_id) VALUES ($1, $2)
+         ON CONFLICT (token) DO NOTHING`, [token, leadId]
+      );
+    }
+    if (!slug) {
+      slug = await generateUniqueSlug(leadId, token);
+      try { await pool.query(`UPDATE client_doc_tokens SET slug=$1 WHERE lead_id=$2`, [slug, leadId]); } catch {}
+    }
+    const url = `${publicBaseUrl(req)}/cliente/${slug}`;
+
+    const toAddr = String(to).trim();
+    const htmlBody = `<div style="font-family:Arial,sans-serif;max-width:600px;padding:20px;color:#1f2937;line-height:1.6;">
+        <p>${String(message).replace(/{{\s*link\s*}}/gi, url).replace(/\n/g, '<br>')}</p>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:18px 0;">
+        <div style="font-size:12px;color:#6b7280;">Energy Depot LLC · (787) 627-8585 · info@energydepotpr.com</div>
+      </div>`;
+    const textBody = String(message).replace(/{{\s*link\s*}}/gi, url);
+
+    try {
+      const { sendEmail } = require('../services/gmailService');
+      await sendEmail({
+        from: '"Energy Depot LLC" <info@energydepotpr.com>',
+        to: [toAddr],
+        subject: subj,
+        text: textBody,
+        html: htmlBody,
+      });
+    } catch (e) {
+      console.error('[clientDocsLink sendEmail]', e.message);
+      return res.status(500).json({ error: 'No se pudo enviar el email: ' + e.message });
+    }
+
+    try {
+      const fecha = new Date().toLocaleString('es-PR', { dateStyle: 'short', timeStyle: 'short' });
+      await pool.query(
+        `INSERT INTO notes (lead_id, content) VALUES ($1, $2)`,
+        [leadId, `📧 Link de subir documentos enviado a ${toAddr} el ${fecha}`]
+      );
+    } catch (e) { console.error('[clientDocsLink note]', e.message); }
+
+    res.json({ ok: true, url, slug });
+  } catch (e) {
+    console.error('[clientDocsLink sendLinkByEmail]', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+}
+
+module.exports = { getOrCreateLink, getPublic, uploadPublic, sendLinkByEmail };

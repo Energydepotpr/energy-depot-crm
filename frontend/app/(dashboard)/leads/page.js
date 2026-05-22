@@ -5734,6 +5734,7 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
   const [showLoanForm, setShowLoanForm] = useState(false);
   const [clientLink, setClientLink] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showEmailLinkModal, setShowEmailLinkModal] = useState(false);
 
   useEffect(() => {
     if (!leadId) return;
@@ -6010,8 +6011,25 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
             }}>
               💬 WhatsApp
             </button>
+            <button onClick={() => setShowEmailLinkModal(true)} style={{
+              flexShrink: 0, padding: '8px 14px',
+              background: '#0ea5e9', color: '#fff', border: 'none',
+              borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}>
+              📧 Email
+            </button>
           </div>
         </div>
+      )}
+      {showEmailLinkModal && (
+        <EnviarLinkClienteModal
+          leadId={leadId}
+          lead={lead}
+          link={clientLink}
+          onClose={() => setShowEmailLinkModal(false)}
+          onSent={() => setShowEmailLinkModal(false)}
+        />
       )}
 
       {/* Doc cards */}
@@ -7189,6 +7207,84 @@ function EnviarCooperativaModal({ leadId, lead, coops: coopsProp, presetCoopName
             color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700,
             cursor: sending ? 'wait' : 'pointer', opacity: sending ? 0.7 : 1,
           }}>{sending ? 'Enviando…' : '📤 Enviar'}</button>
+          <button onClick={onClose} disabled={sending} style={{
+            padding: '11px 16px', background: 'transparent', color: 'var(--muted)',
+            border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, cursor: 'pointer',
+          }}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EnviarLinkClienteModal({ leadId, lead, link, onClose, onSent }) {
+  const clientName = lead?.contact_name || lead?.title || 'Cliente';
+  const defaultMsg = `Hola ${clientName},
+
+Gracias por elegir Energy Depot para tu proyecto solar. Para avanzar con el financiamiento, necesitamos que subas los documentos requeridos a través del siguiente link:
+
+${link}
+
+Es rápido y lo puedes hacer desde tu celular. Si tienes cualquier duda, llámanos al (787) 627-8585.
+
+Saludos,
+Energy Depot LLC`;
+
+  const [to, setTo] = useState(lead?.contact_email || '');
+  const [subject, setSubject] = useState('Energy Depot — Sube tus documentos para tu financiamiento');
+  const [message, setMessage] = useState(defaultMsg);
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    const dest = (to || '').trim();
+    if (!dest || !dest.includes('@')) { alert('Email destino inválido'); return; }
+    setSending(true);
+    try {
+      await api.sendClientDocsLinkEmail(leadId, { to: dest, subject, message });
+      alert(`✅ Email enviado a ${dest}`);
+      onSent && onSent();
+    } catch (e) {
+      alert('Error: ' + (e.message || e));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200, display: 'flex',
+      alignItems: 'center', justifyContent: 'center', padding: 16,
+      background: 'rgba(0,0,0,0.7)',
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 14, padding: 22, maxWidth: 560, width: '100%',
+        maxHeight: '90vh', overflowY: 'auto',
+      }}>
+        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>
+          📧 Enviar link por email
+        </div>
+
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Para</label>
+        <input type="email" value={to} onChange={e => setTo(e.target.value)}
+          placeholder="cliente@email.com"
+          style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 14, marginBottom: 14 }} />
+
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Asunto</label>
+        <input type="text" value={subject} onChange={e => setSubject(e.target.value)}
+          style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 14, marginBottom: 14 }} />
+
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Mensaje</label>
+        <textarea value={message} onChange={e => setMessage(e.target.value)}
+          rows={10}
+          style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13, marginBottom: 18, resize: 'vertical', fontFamily: 'inherit' }} />
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={handleSend} disabled={sending} style={{
+            flex: 1, padding: '11px', background: 'linear-gradient(135deg,#10b981,#059669)',
+            color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700,
+            cursor: sending ? 'wait' : 'pointer', opacity: sending ? 0.7 : 1,
+          }}>{sending ? 'Enviando…' : '📤 Enviar email'}</button>
           <button onClick={onClose} disabled={sending} style={{
             padding: '11px 16px', background: 'transparent', color: 'var(--muted)',
             border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, cursor: 'pointer',
