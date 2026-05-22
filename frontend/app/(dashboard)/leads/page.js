@@ -7544,6 +7544,13 @@ function getCoopPcts(coopName) { return COOP_PCTS[coopName] || DEFAULT_COOP_PCTS
 function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, onChanged, onUploadManual, handleView, handleDelete, isUploading, fmtDate }) {
   const [busy, setBusy] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [firmaInfo, setFirmaInfo] = useState(null); // { signed_at, token, signing_url }
+  useEffect(() => {
+    api.listContratosFirma(leadId).then(arr => {
+      const latest = (Array.isArray(arr) ? arr : [])[0] || null;
+      setFirmaInfo(latest);
+    }).catch(() => {});
+  }, [leadId, doc?.id]);
   const cfg = getCoopPcts(cooperativa);
   const expectedPcts = cfg.pcts;
   const contratoCfg = lead?.solar_data?.contrato_config || null;
@@ -7585,15 +7592,29 @@ function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, 
   const generarContrato = () => setShowModal(true);
 
   if (doc) {
+    const isSigned = !!firmaInfo?.signed_at;
+    // why: si el contrato fue generado pero el cliente no lo firmó aún, mostrar
+    // "Pendiente firma del cliente" en amarillo. Si está firmado, verde.
+    const statusColor = isSigned ? '#10b981' : '#f59e0b';
+    const statusText = isSigned
+      ? `Firmado por ${firmaInfo.signed_name || 'cliente'} · ${fmtDate(firmaInfo.signed_at)}`
+      : 'Contrato generado · Pendiente firma del cliente';
+    const copyLink = async () => {
+      if (!firmaInfo?.signing_url) return;
+      try { await navigator.clipboard.writeText(firmaInfo.signing_url); alert('✓ Link de firma copiado'); }
+      catch { alert(firmaInfo.signing_url); }
+    };
+    const phone = (lead?.contact_phone || '').replace(/\D/g, '');
     return (
-      <div style={card(pctsMatch ? '#10b981' : '#f59e0b')}>
+      <div style={card(statusColor)}>
         <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-          <div style={{ width:28, height:28, borderRadius:'50%', background: pctsMatch ? '#10b981' : 'rgba(245,158,11,0.18)', color: pctsMatch ? '#fff' : '#b45309', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700 }}>{pctsMatch ? '✓' : '!'}</div>
+          <div style={{ width:28, height:28, borderRadius:'50%', background: isSigned ? '#10b981' : 'rgba(245,158,11,0.18)', color: isSigned ? '#fff' : '#b45309', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700 }}>{isSigned ? '✓' : '⏳'}</div>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{docLabel}</div>
-            <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>📎 {doc.filename} · {fmtDate(doc.uploaded_at)}</div>
+            <div style={{ fontSize:11, color: isSigned ? '#059669' : '#b45309', marginTop:4, fontWeight:600 }}>{statusText}</div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>📎 {doc.filename} · {fmtDate(doc.uploaded_at)}</div>
             {currentPcts && (
-              <div style={{ fontSize:11, color: pctsMatch ? '#059669' : '#b45309', marginTop:3 }}>
+              <div style={{ fontSize:11, color: pctsMatch ? 'var(--muted)' : '#b45309', marginTop:3 }}>
                 Porcentajes: {currentPcts.map(p => Math.round(Number(p))).join('/')}% {pctsMatch ? '(correctos)' : `(esperado ${expectedPcts.join('/')}%)`}
               </div>
             )}
@@ -7601,6 +7622,16 @@ function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, 
         </div>
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           <button onClick={handleView} style={{ background:'#1a3c8f', color:'#fff', border:'none', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>👁 Ver</button>
+          {!isSigned && firmaInfo?.signing_url && (
+            <>
+              <button onClick={copyLink} style={{ background:'rgba(245,158,11,0.15)', color:'#b45309', border:'1px solid rgba(245,158,11,0.35)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>🔗 Copiar link firma</button>
+              <a href={`https://wa.me/${phone}?text=${encodeURIComponent('Hola, completa la firma del contrato Energy Depot aquí: ' + firmaInfo.signing_url)}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ background:'#25d366', color:'#fff', borderRadius:6, padding:'7px 10px', fontSize:12, fontWeight:600, textDecoration:'none', textAlign:'center' }}>
+                WhatsApp
+              </a>
+            </>
+          )}
           {!pctsMatch && (
             <button onClick={generarContrato} disabled={busy} style={{ background:'rgba(245,158,11,0.15)', color:'#b45309', border:'1px solid rgba(245,158,11,0.4)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>
               {busy ? '…' : `🔄 Regenerar (${expectedPcts.join('/')}%)`}

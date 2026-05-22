@@ -171,8 +171,13 @@ export default function ClienteDocsPage() {
                           {d.label}
                         </div>
                         <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 12,
-                          background: d.uploaded ? '#10b981' : '#f59e0b', color: '#fff', whiteSpace: 'nowrap' }}>
-                          {d.uploaded ? '✓ Subido' : 'Pendiente'}
+                          background: d.status === 'signed' ? '#10b981'
+                                   : d.status === 'pending-signature' ? '#f59e0b'
+                                   : d.uploaded ? '#10b981' : '#f59e0b',
+                          color: '#fff', whiteSpace: 'nowrap' }}>
+                          {d.status === 'signed' ? '✓ Firmado'
+                           : d.status === 'pending-signature' ? 'Pendiente firma'
+                           : d.uploaded ? '✓ Subido' : 'Pendiente'}
                         </div>
                       </div>
                       {d.uploaded && d.filename && (
