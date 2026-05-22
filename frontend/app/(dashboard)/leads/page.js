@@ -4373,14 +4373,29 @@ export default function LeadsPage() {
 
   useEffect(() => { cargar(); }, []);
 
-  // Auto-open lead from URL param ?open=ID (e.g., from llamadas page)
+  // Auto-open lead from URL param ?open=ID (e.g., from llamadas page o link compartido)
   useEffect(() => {
     const openId = searchParams?.get('open');
-    if (openId) {
+    if (openId && Number(openId) !== panelLeadId) {
       setPanelLeadId(Number(openId));
-      router.replace('/leads');
     }
   }, [searchParams]);
+
+  // Sincronizar la URL del navegador con el lead abierto (para que se pueda compartir)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const u = new URL(window.location.href);
+    if (panelLeadId) {
+      if (u.searchParams.get('open') !== String(panelLeadId)) {
+        u.searchParams.set('open', String(panelLeadId));
+        window.history.replaceState(null, '', u.pathname + '?' + u.searchParams.toString());
+      }
+    } else if (u.searchParams.has('open')) {
+      u.searchParams.delete('open');
+      const qs = u.searchParams.toString();
+      window.history.replaceState(null, '', u.pathname + (qs ? '?' + qs : ''));
+    }
+  }, [panelLeadId]);
 
   // Real-time: refresh leads list when new message arrives
   useEffect(() => {
