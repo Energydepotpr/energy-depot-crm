@@ -5989,22 +5989,25 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
         </div>
       </div>
 
-      {/* Link público para que el cliente suba sus documentos */}
-      {clientLink && (
+      {/* Link público (por etapa) para que el cliente suba sus documentos */}
+      {clientLink && (() => {
+        const etapaLink = `${clientLink}${etapaId ? `?etapa=${encodeURIComponent(etapaId)}` : ''}`;
+        const etapaLabel = etapa?.name || etapaId;
+        return (
         <div style={{
           background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
           border: '1px solid #6ee7b7', borderRadius: 12, padding: 14,
         }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 4 }}>
-            🔗 Link para que el cliente suba sus documentos
+            🔗 Link del cliente — solo docs de "{etapaLabel}"
           </div>
           <div style={{ fontSize: 12, color: '#047857', marginBottom: 10 }}>
-            Compartí este link con el cliente y suba sus requerimientos directamente desde su celular.
+            Este link muestra al cliente únicamente los documentos requeridos para esta etapa.
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'stretch', flexWrap: 'wrap' }}>
             <input
               readOnly
-              value={clientLink}
+              value={etapaLink}
               onClick={e => e.target.select()}
               style={{
                 flex: '1 1 220px', minWidth: 0, padding: '8px 10px', fontSize: 11,
@@ -6013,7 +6016,13 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
                 fontFamily: 'monospace',
               }}
             />
-            <button onClick={copyClientLink} style={{
+            <button onClick={() => {
+              try {
+                navigator.clipboard.writeText(etapaLink);
+                setLinkCopied(true);
+                setTimeout(() => setLinkCopied(false), 2000);
+              } catch {}
+            }} style={{
               flexShrink: 0, padding: '8px 14px',
               background: linkCopied ? '#10b981' : '#1a3c8f',
               color: '#fff', border: 'none',
@@ -6022,7 +6031,11 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
             }}>
               {linkCopied ? '✓ Copiado' : '📋 Copiar'}
             </button>
-            <button onClick={sendClientLinkWhatsApp} style={{
+            <button onClick={() => {
+              const phone = (lead?.contact_phone || '').replace(/\D/g, '');
+              const msg = `Hola, soy de Energy Depot. Por favor sube tus documentos de ${etapaLabel} desde este link: ${etapaLink}`;
+              window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+            }} style={{
               flexShrink: 0, padding: '8px 14px',
               background: '#25d366', color: '#fff', border: 'none',
               borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
@@ -6040,12 +6053,14 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
             </button>
           </div>
         </div>
-      )}
+        );
+      })()}
       {showEmailLinkModal && (
         <EnviarLinkClienteModal
           leadId={leadId}
           lead={lead}
-          link={clientLink}
+          link={`${clientLink}${etapaId ? `?etapa=${encodeURIComponent(etapaId)}` : ''}`}
+          etapaName={etapa?.name || etapaId}
           onClose={() => setShowEmailLinkModal(false)}
           onSent={() => setShowEmailLinkModal(false)}
         />

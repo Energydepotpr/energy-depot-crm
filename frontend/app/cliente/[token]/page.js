@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 
 const BACKEND = typeof window !== 'undefined' ? '/backend' : (process.env.API_URL || 'http://localhost:3001');
 
@@ -44,6 +44,8 @@ const CYAN = '#67e8f9';
 
 export default function ClienteDocsPage() {
   const { token } = useParams();
+  const searchParams = useSearchParams();
+  const etapaParam = searchParams?.get('etapa') || '';
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,7 +55,8 @@ export default function ClienteDocsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${BACKEND}/api/public/client-docs/${token}`);
+      const qs = etapaParam ? `?etapa=${encodeURIComponent(etapaParam)}` : '';
+      const r = await fetch(`${BACKEND}/api/public/client-docs/${token}${qs}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Error cargando');
       setData(j);

@@ -224,11 +224,20 @@ async function getPublic(req, res) {
       return [...head, ...rest];
     };
 
-    const etapas = (coop.etapas || []).map(e => ({
+    // Si la cotización ya fue elegida (financing_cotizacion_id) cuenta como subida
+    const hasPickedQuotation = !!(sd.financing_cotizacion_id || sd.activeQuotationId);
+    const pickedQ = (Array.isArray(sd.quotations) ? sd.quotations : []).find(
+      q => q.id === (sd.financing_cotizacion_id || sd.activeQuotationId)
+    );
+
+    let etapas = (coop.etapas || []).map(e => ({
       id: e.id,
       name: e.name,
       docs: sortDocs(e.id, (e.docs || []).map(d => {
-        const up = uploadedMap[`${e.id}::${d.key}`] || (d.key === 'solicitud' && hasSignedLoanApp ? { filename: 'solicitud-firmada.pdf', uploaded_at: null } : null);
+        let up = uploadedMap[`${e.id}::${d.key}`]
+          || (d.key === 'solicitud' && hasSignedLoanApp ? { filename: 'solicitud-firmada.pdf', uploaded_at: null } : null)
+          || (d.key === 'cotizacion' && e.id === 'etapa1' && hasPickedQuotation
+              ? { filename: `Cotización: ${pickedQ?.name || 'elegida'}`, uploaded_at: null } : null);
         return {
           key: d.key,
           label: d.label,
@@ -237,6 +246,12 @@ async function getPublic(req, res) {
         };
       })),
     }));
+
+    // Filtro opcional: ?etapa=etapaX limita la respuesta a esa etapa
+    const onlyEtapa = String(req.query?.etapa || '').trim();
+    if (onlyEtapa) {
+      etapas = etapas.filter(e => e.id === onlyEtapa);
+    }
 
     // Cotizaciones existentes del lead para que el cliente las elija desde el link
     const quotations = (Array.isArray(sd.quotations) ? sd.quotations : []).map(q => {
