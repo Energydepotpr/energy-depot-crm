@@ -6483,7 +6483,7 @@ function SolicitudLoanModal({ leadId, lead, cooperativa, existing, onClose, onSa
         totalQ = Math.max(0, subBruto - dAmt);
       }
       const pronto = Number(sd?.contrato_config?.prontoDado) || 0;
-      const cantidadFinanciar = Math.max(0, totalQ - pronto);
+      const cantidadFinanciar = Math.round(Math.max(0, totalQ - pronto));
       return sd?.contrato_config?.precioTotal || cantidadFinanciar || Number(lead?.value) || sd?.calc?.precio_total || '';
     })(),
   };
@@ -6701,7 +6701,7 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
         totalQ = Math.max(0, subBruto - dAmt);
       }
       const pronto = Number(sd?.contrato_config?.prontoDado) || 0;
-      const cantidadFinanciar = Math.max(0, totalQ - pronto);
+      const cantidadFinanciar = Math.round(Math.max(0, totalQ - pronto));
       return sd?.contrato_config?.precioTotal || cantidadFinanciar || Number(lead?.value) || sd?.calc?.precio_total || '';
     })(),
     firma_fecha: new Date().toLocaleDateString('es-PR'),
