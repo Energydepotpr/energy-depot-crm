@@ -7546,9 +7546,14 @@ function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, 
   const [showModal, setShowModal] = useState(false);
   const [firmaInfo, setFirmaInfo] = useState(null); // { signed_at, token, signing_url }
   useEffect(() => {
-    api.listContratosFirma(leadId).then(arr => {
-      const latest = (Array.isArray(arr) ? arr : [])[0] || null;
-      setFirmaInfo(latest);
+    // why: el backend devuelve { ok:true, contratos:[...] } — NO un array plano
+    api.listContratosFirma(leadId).then(d => {
+      const list = d && Array.isArray(d.contratos) ? d.contratos
+                 : Array.isArray(d) ? d : [];
+      // El backend ya ordena por created_at DESC, así que [0] es el más reciente.
+      // Preferimos el firmado si existe, sino el más reciente.
+      const signed = list.find(c => c.signed_at);
+      setFirmaInfo(signed || list[0] || null);
     }).catch(() => {});
   }, [leadId, doc?.id]);
   const cfg = getCoopPcts(cooperativa);
