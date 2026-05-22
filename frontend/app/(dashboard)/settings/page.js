@@ -1182,12 +1182,13 @@ function PipelinesEditorSection() {
   };
 
   const moverEtapa = async (pipeline, idx, delta) => {
-    const stages = pipeline.stages || [];
+    // why: el backend espera 'position', no 'order_index'. Bug detectado en E2E.
+    const stages = (pipeline.stages || []).slice().sort((a,b) => (a.position||0)-(b.position||0));
     const j = idx + delta;
     if (j < 0 || j >= stages.length) return;
     const a = stages[idx], b = stages[j];
-    await actualizarEtapa(pipeline.id, a.id, { order_index: b.order_index ?? j });
-    await actualizarEtapa(pipeline.id, b.id, { order_index: a.order_index ?? idx });
+    await actualizarEtapa(pipeline.id, a.id, { position: b.position ?? j });
+    await actualizarEtapa(pipeline.id, b.id, { position: a.position ?? idx });
   };
 
   const eliminarEtapa = (pipelineId, stageId) => {
