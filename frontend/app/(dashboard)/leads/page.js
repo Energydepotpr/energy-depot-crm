@@ -7487,6 +7487,7 @@ function getCoopPcts(coopName) { return COOP_PCTS[coopName] || DEFAULT_COOP_PCTS
 
 function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, onChanged, onUploadManual, handleView, handleDelete, isUploading, fmtDate }) {
   const [busy, setBusy] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const cfg = getCoopPcts(cooperativa);
   const expectedPcts = cfg.pcts;
   const contratoCfg = lead?.solar_data?.contrato_config || null;
@@ -7500,23 +7501,22 @@ function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, 
     borderRadius:10, padding:14, display:'flex', flexDirection:'column', gap:10,
   });
 
-  const generarContrato = async () => {
-    if (!confirm(`Generar contrato para ${cooperativa} con porcentajes ${expectedPcts.join('/')}?`)) return;
+  const generarContratoConDatos = async ({ pronto, vendedor, numCtaLuma, numContador, direccionPostal }) => {
     setBusy(true);
     try {
-      const pronto = Number(contratoCfg?.prontoDado) || 0;
       const r = await api.generarContrato(leadId, {
         modalidad: 'financiamiento',
-        prontoDado: pronto,
+        prontoDado: Number(pronto) || 0,
         pcts: expectedPcts,
-        vendedor: contratoCfg?.vendedor || 'Gilberto J. Díaz',
-        numCtaLuma: contratoCfg?.numCtaLuma || '',
-        numContador: contratoCfg?.numContador || '',
-        direccionPostal: contratoCfg?.direccionPostal || '',
+        vendedor: vendedor || 'Gilberto J. Díaz',
+        numCtaLuma: numCtaLuma || '',
+        numContador: numContador || '',
+        direccionPostal: direccionPostal || '',
       });
       if (!r?.pdf) throw new Error('No se generó PDF');
       const filename = r.filename || `Contrato-${cooperativa}.pdf`;
       await api.uploadFinancingDocFromBase64(leadId, cooperativa, 'etapa1', 'contrato', r.pdf, filename, 'application/pdf');
+      setShowModal(false);
       if (onChanged) onChanged();
       alert(`✓ Contrato generado para ${cooperativa} (${expectedPcts.join('/')}%)`);
     } catch (e) {
@@ -7525,6 +7525,8 @@ function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, 
       setBusy(false);
     }
   };
+
+  const generarContrato = () => setShowModal(true);
 
   if (doc) {
     return (
@@ -7580,6 +7582,61 @@ function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, 
           </>
         );
       })()}
+      {showModal && (
+        <ContratoCoopModal
+          cooperativa={cooperativa}
+          expectedPcts={expectedPcts}
+          initialCfg={contratoCfg || {}}
+          onClose={() => setShowModal(false)}
+          onConfirm={generarContratoConDatos}
+          busy={busy}
+        />
+      )}
+    </div>
+  );
+}
+
+function ContratoCoopModal({ cooperativa, expectedPcts, initialCfg, onClose, onConfirm, busy }) {
+  const [pronto, setPronto] = useState(String(initialCfg?.prontoDado || ''));
+  const [vendedor, setVendedor] = useState(initialCfg?.vendedor || 'Gilberto J. Díaz');
+  const [numCtaLuma, setNumCtaLuma] = useState(initialCfg?.numCtaLuma || '');
+  const [numContador, setNumContador] = useState(initialCfg?.numContador || '');
+  const [direccionPostal, setDireccionPostal] = useState(initialCfg?.direccionPostal || '');
+  const inp = { width:'100%', padding:'10px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, boxSizing:'border-box' };
+  const lbl = { fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:4 };
+  return (
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:400, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:22, maxWidth:520, width:'100%', maxHeight:'92vh', overflowY:'auto' }}>
+        <div style={{ fontSize:17, fontWeight:700, color:'var(--text)', marginBottom:4 }}>📝 Generar contrato — {cooperativa}</div>
+        <div style={{ fontSize:12, color:'var(--muted)', marginBottom:16 }}>Modalidad: financiamiento · Porcentajes: {expectedPcts.join('/')}%</div>
+
+        <label style={lbl}>¿Pronto que da el cliente? ($)</label>
+        <input type="number" step="1" value={pronto} onChange={e=>setPronto(e.target.value)} placeholder="0 si no da pronto" style={{ ...inp, marginBottom:14 }} />
+
+        <label style={lbl}>Vendedor</label>
+        <input value={vendedor} onChange={e=>setVendedor(e.target.value)} style={{ ...inp, marginBottom:14 }} />
+
+        <label style={lbl}>Núm. Cta. AEE / LUMA</label>
+        <input value={numCtaLuma} onChange={e=>setNumCtaLuma(e.target.value)} placeholder="ej: 4626533108" style={{ ...inp, marginBottom:14 }} />
+
+        <label style={lbl}>Núm. Contador</label>
+        <input value={numContador} onChange={e=>setNumContador(e.target.value)} placeholder="ej: NXC2155960616" style={{ ...inp, marginBottom:14 }} />
+
+        <label style={lbl}>Dirección Postal (opcional)</label>
+        <textarea value={direccionPostal} onChange={e=>setDireccionPostal(e.target.value)} rows={2} style={{ ...inp, marginBottom:18, resize:'vertical', fontFamily:'inherit' }} />
+
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={() => onConfirm({ pronto, vendedor, numCtaLuma, numContador, direccionPostal })} disabled={busy} style={{
+            flex:1, padding:'12px', background:'linear-gradient(135deg,#1a3c8f,#0f2558)', color:'#fff',
+            border:'none', borderRadius:8, fontSize:14, fontWeight:700, cursor: busy?'wait':'pointer',
+            opacity: busy?0.7:1,
+          }}>{busy ? 'Generando…' : '✓ Generar contrato'}</button>
+          <button onClick={onClose} disabled={busy} style={{
+            padding:'12px 16px', background:'transparent', color:'var(--muted)',
+            border:'1px solid var(--border)', borderRadius:8, fontSize:14, cursor:'pointer',
+          }}>Cancelar</button>
+        </div>
+      </div>
     </div>
   );
 }
