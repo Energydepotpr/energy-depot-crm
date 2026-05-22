@@ -72,6 +72,19 @@ export default function PipelinesPage() {
     } catch (e) { alert(e.message); }
   };
 
+  // Reordenar etapa: intercambia positions con la etapa adyacente.
+  const moverEtapa = async (pip, idx, dir) => {
+    const stages = (pip.stages || []).slice().sort((a, b) => (a.position || 0) - (b.position || 0));
+    const target = idx + dir;
+    if (target < 0 || target >= stages.length) return;
+    const a = stages[idx], b = stages[target];
+    try {
+      await api.updateStage(pip.id, a.id, { position: b.position ?? target });
+      await api.updateStage(pip.id, b.id, { position: a.position ?? idx });
+      cargar();
+    } catch (e) { alert(e.message); }
+  };
+
   return (
     <div className="p-8 max-w-3xl">
       <h1 className="text-xl font-semibold text-white mb-2">Pipelines</h1>
@@ -110,7 +123,7 @@ export default function PipelinesPage() {
 
               {/* Etapas */}
               <div className="space-y-2 mb-4">
-                {pip.stages?.map(stage => (
+                {pip.stages?.slice().sort((a,b) => (a.position||0)-(b.position||0)).map((stage, idx, arr) => (
                   <div key={stage.id} className="flex items-center gap-3 px-3 py-2 bg-bg rounded-lg border border-border">
                     {editandoEtapa?.id === stage.id ? (
                       <>
@@ -126,6 +139,22 @@ export default function PipelinesPage() {
                       </>
                     ) : (
                       <>
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            onClick={() => moverEtapa(pip, idx, -1)}
+                            disabled={idx === 0}
+                            className="text-xs text-muted hover:text-white disabled:opacity-30 disabled:cursor-not-allowed px-1 leading-none"
+                            title="Subir"
+                            data-compact
+                          >▲</button>
+                          <button
+                            onClick={() => moverEtapa(pip, idx, +1)}
+                            disabled={idx === arr.length - 1}
+                            className="text-xs text-muted hover:text-white disabled:opacity-30 disabled:cursor-not-allowed px-1 leading-none"
+                            title="Bajar"
+                            data-compact
+                          >▼</button>
+                        </div>
                         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
                         <span className="text-sm text-white flex-1">{stage.name}</span>
                         <button

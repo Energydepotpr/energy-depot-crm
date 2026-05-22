@@ -157,6 +157,8 @@ export default function ClienteDocsPage() {
                   const isUp = uploading === `${etapa.id}|${d.key}`;
                   // Caso especial: cotización en etapa 1 → mostrar selector de cotizaciones existentes del lead
                   const isCotizPicker = d.key === 'cotizacion' && etapa.id === 'etapa1' && (data.quotations || []).length > 0;
+                  // Caso especial: solicitud Tu Coop → botón para llenar/firmar inline
+                  const isTuCoopSolicitud = d.key === 'solicitud' && etapa.id === 'etapa1' && data.tuCoopSolicitud;
                   return (
                     <div key={d.key} style={{
                       border: '1px solid #e5e7eb', borderRadius: 10, padding: 14,
@@ -204,6 +206,35 @@ export default function ClienteDocsPage() {
                               </button>
                             );
                           })}
+                        </div>
+                      ) : isTuCoopSolicitud ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {data.tuCoopSolicitud.isSigned ? (
+                            <div style={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>✓ Solicitud firmada</div>
+                          ) : data.tuCoopSolicitud.hasData ? (
+                            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
+                              Tu asesor ya pre-llenó la solicitud. Solo necesitas <strong>revisar y firmar</strong>.
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
+                              Completa los datos del formulario y firma electrónicamente.
+                            </div>
+                          )}
+                          <a href={data.tuCoopSolicitud.signingUrl} target="_blank" rel="noopener noreferrer"
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              gap: 8, minHeight: 48, padding: '12px 16px',
+                              background: data.tuCoopSolicitud.isSigned ? '#10b981' : NAVY,
+                              color: '#fff', border: 'none',
+                              borderRadius: 8, fontSize: 14, fontWeight: 700,
+                              textDecoration: 'none',
+                            }}>
+                            {data.tuCoopSolicitud.isSigned
+                              ? '👁 Ver solicitud firmada'
+                              : data.tuCoopSolicitud.hasData
+                                ? '✍️ Revisar y firmar solicitud'
+                                : '📝 Llenar y firmar solicitud'}
+                          </a>
                         </div>
                       ) : (
                         <label style={{
