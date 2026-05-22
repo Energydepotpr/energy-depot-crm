@@ -7398,14 +7398,44 @@ function CotizacionSelectorCard({ doc, docLabel, leadId, lead, cooperativa, onCh
         </div>
       </div>
       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-        {quotations.map(q => (
-          <button key={q.id} onClick={() => elegirCotizacion(q)} disabled={busy}
-            style={{ textAlign:'left', padding:'10px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, opacity: busy ? 0.6 : 1 }}>
-            <span style={{ fontWeight:600, minWidth:0, overflow:'hidden', textOverflow:'ellipsis' }}>{q.name || `Cotización ${q.id}`}</span>
-            {q?.calc?.precio_total ? <span style={{ color:'#1a3c8f', fontWeight:700, fontSize:12 }}>{fmtMoney(q.calc.precio_total)}</span> : null}
-          </button>
-        ))}
+        {quotations.map(q => {
+          const isSel = q.id === lastUsedId;
+          return (
+            <button key={q.id} onClick={() => elegirCotizacion(q)} disabled={busy}
+              style={{
+                textAlign:'left', padding:'10px 12px',
+                background: isSel ? 'rgba(16,185,129,0.12)' : 'var(--bg)',
+                border: isSel ? '1.5px solid #10b981' : '1px solid var(--border)',
+                borderRadius:7, color:'var(--text)', fontSize:13, cursor:'pointer',
+                display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, opacity: busy ? 0.6 : 1,
+              }}>
+              <span style={{ fontWeight:600, minWidth:0, overflow:'hidden', textOverflow:'ellipsis' }}>
+                {isSel && '✓ '}{q.name || `Cotización ${q.id}`}
+              </span>
+              {q?.calc?.precio_total ? <span style={{ color: isSel ? '#10b981' : '#1a3c8f', fontWeight:700, fontSize:12 }}>{fmtMoney(q.calc.precio_total)}</span> : null}
+            </button>
+          );
+        })}
       </div>
+      {lastUsedId && (
+        <button onClick={async () => {
+          if (!confirm('¿Quitar la cotización elegida? Vas a poder elegir otra.')) return;
+          setBusy(true);
+          try {
+            const sd = { ...(lead?.solar_data || {}) };
+            delete sd.financing_cotizacion_id;
+            await api.saveSolarData(leadId, { solar_data: sd });
+            // Si hay un doc subido, también borrarlo
+            try { await api.deleteFinancingDoc(leadId, { cooperativa, etapa_id: 'etapa1', doc_key: 'cotizacion' }); } catch {}
+            if (onChanged) onChanged();
+          } catch (e) { alert('Error: ' + e.message); }
+          finally { setBusy(false); }
+        }} disabled={busy} style={{
+          background: 'transparent', color: '#ef4444',
+          border: '1px solid rgba(239,68,68,0.4)',
+          padding: '7px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+        }}>🗑 Quitar cotización elegida</button>
+      )}
       <div style={{ borderTop:'1px dashed var(--border)', marginTop:4, paddingTop:8 }}>
         {(() => {
           const inputId = `fin-cot-manual-${cooperativa}`;
