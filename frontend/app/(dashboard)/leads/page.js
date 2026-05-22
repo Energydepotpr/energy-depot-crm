@@ -5772,7 +5772,16 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
   }, [coopName, coop, etapas, etapaId]);
 
   const etapa = etapas.find(e => e.id === etapaId) || null;
-  const etapaDocs = etapa?.docs || [];
+  // Orden lógico forzado para Etapa 1: cotización → contrato → solicitud → resto
+  const ORDER_E1 = ['cotizacion', 'contrato', 'solicitud'];
+  const etapaDocs = (() => {
+    const raw = etapa?.docs || [];
+    if (etapaId !== 'etapa1') return raw;
+    const byKey = Object.fromEntries(raw.map(d => [d.key, d]));
+    const head = ORDER_E1.filter(k => byKey[k]).map(k => byKey[k]);
+    const rest = raw.filter(d => !ORDER_E1.includes(d.key));
+    return [...head, ...rest];
+  })();
 
   // Mapeado de docs subidos para esta coop+etapa
   const byKey = Object.fromEntries(
