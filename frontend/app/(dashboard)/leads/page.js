@@ -5981,29 +5981,32 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
           <div style={{ fontSize: 12, color: '#047857', marginBottom: 10 }}>
             Compartí este link con el cliente y suba sus requerimientos directamente desde su celular.
           </div>
-          <input
-            readOnly
-            value={clientLink}
-            onClick={e => e.target.select()}
-            style={{
-              width: '100%', padding: '10px 12px', fontSize: 12,
-              border: '1px solid #6ee7b7', borderRadius: 8,
-              background: '#fff', color: '#0f172a', marginBottom: 8,
-              fontFamily: 'monospace',
-            }}
-          />
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'stretch', flexWrap: 'wrap' }}>
+            <input
+              readOnly
+              value={clientLink}
+              onClick={e => e.target.select()}
+              style={{
+                flex: '1 1 220px', minWidth: 0, padding: '8px 10px', fontSize: 11,
+                border: '1px solid #6ee7b7', borderRadius: 6,
+                background: '#fff', color: '#0f172a',
+                fontFamily: 'monospace',
+              }}
+            />
             <button onClick={copyClientLink} style={{
-              flex: '1 1 140px', padding: '10px 14px',
-              background: '#1a3c8f', color: '#fff', border: 'none',
-              borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              flexShrink: 0, padding: '8px 14px',
+              background: linkCopied ? '#10b981' : '#1a3c8f',
+              color: '#fff', border: 'none',
+              borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}>
-              {linkCopied ? '✓ Copiado' : '📋 Copiar link'}
+              {linkCopied ? '✓ Copiado' : '📋 Copiar'}
             </button>
             <button onClick={sendClientLinkWhatsApp} style={{
-              flex: '1 1 140px', padding: '10px 14px',
+              flexShrink: 0, padding: '8px 14px',
               background: '#25d366', color: '#fff', border: 'none',
-              borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}>
               💬 WhatsApp
             </button>

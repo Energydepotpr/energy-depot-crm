@@ -48,10 +48,13 @@ function deriveToken(leadId) {
 }
 
 function publicBaseUrl(req) {
-  // Preferimos FRONTEND_URL (donde corre el Next.js público); si tiene varios, usamos el primero
-  const fe = (process.env.FRONTEND_URL || '').split(',').map(s => s.trim()).filter(Boolean)[0];
-  if (fe) return fe.replace(/\/$/, '');
-  return `${req.protocol}://${req.get('host')}`;
+  // Dominio público canónico, preferido por encima de los vercel.app
+  const FORCE = 'https://crm-energydepotpr.com';
+  // Si FRONTEND_URL tiene el dominio bueno, usalo. Si no, forzar el canónico.
+  const candidates = (process.env.FRONTEND_URL || '').split(',').map(s => s.trim()).filter(Boolean);
+  const good = candidates.find(u => /crm-energydepotpr\.com/i.test(u));
+  if (good) return good.replace(/\/$/, '');
+  return FORCE;
 }
 
 // ─── GET /api/leads/:id/financing/client-link (auth) ─────────────────────────
