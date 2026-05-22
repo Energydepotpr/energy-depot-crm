@@ -1011,6 +1011,25 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
               })()}
               <button
                 onClick={async () => {
+                  const url = `${window.location.origin}/leads?open=${lead.id}`;
+                  const text = `📋 Lead Energy Depot: ${lead.title || lead.contact_name || `#${lead.id}`}\n${url}`;
+                  // En móvil intentar share nativo; sino copiar al clipboard
+                  if (navigator.share && /Mobi|Android|iPhone/i.test(navigator.userAgent)) {
+                    try { await navigator.share({ title: 'Lead Energy Depot', text, url }); return; } catch {}
+                  }
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    alert('✓ Link copiado\n\n' + url);
+                  } catch {
+                    prompt('Copiá el link:', url);
+                  }
+                }}
+                title="Compartir link del lead"
+                style={{ background: 'rgba(103,232,249,0.12)', border: '1px solid rgba(103,232,249,0.35)', cursor: 'pointer', color: '#67e8f9', padding: isMobile ? '6px 10px' : '4px 8px', borderRadius: 6, minHeight: isMobile ? 36 : undefined, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width={isMobile ? 17 : 15} height={isMobile ? 17 : 15} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+              </button>
+              <button
+                onClick={async () => {
                   if (!confirm(`¿Eliminar este lead "${lead.title || lead.contact_name || ''}"? Esta acción no se puede deshacer.`)) return;
                   try {
                     await api.deleteLead(lead.id);
