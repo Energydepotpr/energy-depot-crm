@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import SignaturePad from '../../components/SignaturePad';
 
 const BASE_URL = typeof window !== 'undefined'
   ? (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '/backend')
@@ -25,104 +26,6 @@ async function apiPost(path, body) {
   return data;
 }
 
-// ── Canvas signature component ─────────────────────────────────────────────
-function SignatureCanvas({ onReady }) {
-  const canvasRef = useRef(null);
-  const drawing   = useRef(false);
-  const lastPos   = useRef({ x: 0, y: 0 });
-  const hasDrawn  = useRef(false);
-
-  const getPos = (e, canvas) => {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width  / rect.width;
-    const scaleY = canvas.height / rect.height;
-    if (e.touches) {
-      const t = e.touches[0];
-      return { x: (t.clientX - rect.left) * scaleX, y: (t.clientY - rect.top) * scaleY };
-    }
-    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
-  };
-
-  const startDraw = (e) => {
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    drawing.current = true;
-    lastPos.current = getPos(e, canvas);
-    hasDrawn.current = true;
-  };
-
-  const draw = (e) => {
-    e.preventDefault();
-    if (!drawing.current) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const pos = getPos(e, canvas);
-    ctx.beginPath();
-    ctx.moveTo(lastPos.current.x, lastPos.current.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-    lastPos.current = pos;
-  };
-
-  const stopDraw = (e) => {
-    e?.preventDefault();
-    drawing.current = false;
-    if (onReady && hasDrawn.current) {
-      onReady(canvasRef.current);
-    }
-  };
-
-  const clear = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    hasDrawn.current = false;
-    if (onReady) onReady(null);
-  };
-
-  return (
-    <div>
-      <canvas
-        ref={canvasRef}
-        width={600}
-        height={180}
-        onMouseDown={startDraw}
-        onMouseMove={draw}
-        onMouseUp={stopDraw}
-        onMouseLeave={stopDraw}
-        onTouchStart={startDraw}
-        onTouchMove={draw}
-        onTouchEnd={stopDraw}
-        style={{
-          width: '100%',
-          height: 180,
-          border: '2px solid #cbd5e1',
-          borderRadius: 12,
-          background: '#f8fafc',
-          cursor: 'crosshair',
-          display: 'block',
-          touchAction: 'none',
-        }}
-      />
-      <button type="button" onClick={clear}
-        style={{
-          marginTop: 8, background: 'none', border: '1px solid #cbd5e1',
-          borderRadius: 8, padding: '5px 14px', fontSize: 12, color: '#64748b',
-          cursor: 'pointer',
-        }}>
-        Limpiar firma
-      </button>
-    </div>
-  );
-}
-
 // ── Main sign page ─────────────────────────────────────────────────────────
 export default function SignPage() {
   const { token } = useParams();
@@ -133,7 +36,7 @@ export default function SignPage() {
   const [signerName, setSignerName] = useState('');
   const [signerEmail,setSignerEmail]= useState('');
   const [accepted,   setAccepted]   = useState(false);
-  const [sigCanvas,  setSigCanvas]  = useState(null);   // canvas element or null
+  const [sigData,    setSigData]    = useState('');   // dataURL del SignaturePad
   const [submitting, setSubmitting] = useState(false);
   const [formError,  setFormError]  = useState('');
   const [alreadySigned, setAlreadySigned] = useState(null);
@@ -167,9 +70,9 @@ export default function SignPage() {
 
     if (!accepted)       return setFormError('Debes aceptar los términos del contrato.');
     if (!signerName.trim()) return setFormError('Tu nombre completo es requerido.');
-    if (!sigCanvas)      return setFormError('Por favor dibuja tu firma en el área de abajo.');
+    if (!sigData)        return setFormError('Por favor firma en el área de abajo.');
 
-    const signatureData = sigCanvas.toDataURL('image/png');
+    const signatureData = sigData;
 
     setSubmitting(true);
     try {
@@ -331,13 +234,13 @@ export default function SignPage() {
             </div>
           </div>
 
-          {/* Signature canvas */}
+          {/* Signature */}
           <div style={{ marginBottom: 24 }}>
             <label style={styles.label}>Firma *</label>
             <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 10px' }}>
-              Dibuja tu firma con el dedo (móvil) o el mouse (escritorio):
+              Dibujá, escribí tu nombre o subí una imagen/PDF de tu firma:
             </p>
-            <SignatureCanvas onReady={canvas => setSigCanvas(canvas)} />
+            <SignaturePad value={sigData} onChange={setSigData} defaultName={signerName} height={140} />
           </div>
 
           {formError && (
