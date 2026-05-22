@@ -5732,6 +5732,39 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
   const [showSend, setShowSend] = useState(false);
   const [loanApps, setLoanApps] = useState([]); // loan applications de la coop actual
   const [showLoanForm, setShowLoanForm] = useState(false);
+  const [clientLink, setClientLink] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  useEffect(() => {
+    if (!leadId) return;
+    api.financingClientLink(leadId).then(r => setClientLink(r?.url || '')).catch(() => {});
+  }, [leadId]);
+
+  const copyClientLink = async () => {
+    if (!clientLink) return;
+    try {
+      await navigator.clipboard.writeText(clientLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // fallback
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = clientLink; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000);
+      } catch { alert('No se pudo copiar'); }
+    }
+  };
+  const sendClientLinkWhatsApp = () => {
+    if (!clientLink) return;
+    const msg = `Hola, soy de Energy Depot. Por favor sube tus documentos de financiamiento desde este link (desde tu celular): ${clientLink}`;
+    const phone = (lead?.contact_phone || '').replace(/[^\d]/g, '');
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  };
 
   const load = () => {
     setLoading(true);
@@ -5935,6 +5968,48 @@ function FinanciamientoTab({ leadId, lead, onUpdated }) {
           <div style={{ width: total ? `${(uploaded / total) * 100}%` : '0%', height: '100%', background: allReady ? '#10b981' : '#1a3c8f', transition: 'width 0.3s' }} />
         </div>
       </div>
+
+      {/* Link público para que el cliente suba sus documentos */}
+      {clientLink && (
+        <div style={{
+          background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+          border: '1px solid #6ee7b7', borderRadius: 12, padding: 14,
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 4 }}>
+            🔗 Link para que el cliente suba sus documentos
+          </div>
+          <div style={{ fontSize: 12, color: '#047857', marginBottom: 10 }}>
+            Compartí este link con el cliente y suba sus requerimientos directamente desde su celular.
+          </div>
+          <input
+            readOnly
+            value={clientLink}
+            onClick={e => e.target.select()}
+            style={{
+              width: '100%', padding: '10px 12px', fontSize: 12,
+              border: '1px solid #6ee7b7', borderRadius: 8,
+              background: '#fff', color: '#0f172a', marginBottom: 8,
+              fontFamily: 'monospace',
+            }}
+          />
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={copyClientLink} style={{
+              flex: '1 1 140px', padding: '10px 14px',
+              background: '#1a3c8f', color: '#fff', border: 'none',
+              borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            }}>
+              {linkCopied ? '✓ Copiado' : '📋 Copiar link'}
+            </button>
+            <button onClick={sendClientLinkWhatsApp} style={{
+              flex: '1 1 140px', padding: '10px 14px',
+              background: '#25d366', color: '#fff', border: 'none',
+              borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            }}>
+              💬 WhatsApp
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Doc cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>

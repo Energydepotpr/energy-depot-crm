@@ -453,6 +453,7 @@ export const api = {
   },
   sendFinancingToCoop:  (id, data)      => req('POST',   `/api/leads/${id}/financing/send`, data),
   autoFinancingInvoice: (id, data)      => req('POST',   `/api/leads/${id}/financing/auto-invoice`, data),
+  financingClientLink:  (id)            => req('GET',    `/api/leads/${id}/financing/client-link`),
 
   // Facturas LUMA (las que el cliente envía a Energy Depot)
   lumaBills:        (leadId)               => req('GET',    `/api/leads/${leadId}/luma-bills`),

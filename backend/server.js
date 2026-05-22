@@ -208,6 +208,11 @@ app.post('/api/public/agendar',      publicTokenLimiter, appointmentsCtrl.create
 const projectInvoicesCtrl = require('./controllers/projectInvoicesController');
 app.get('/api/public/project-invoices/:token/pdf', publicTokenLimiter, projectInvoicesCtrl.publicPDF);
 
+// Public — Link cliente sube docs de financiamiento (token por lead, sin auth)
+const clientDocsLinkCtrl = require('./controllers/clientDocsLinkController');
+app.get ('/api/public/client-docs/:token', publicTokenLimiter, clientDocsLinkCtrl.getPublic);
+app.post('/api/public/client-docs/:token', publicTokenLimiter, clientDocsLinkCtrl.uploadPublic);
+
 // Logger remoto para debug del frontend en cliente
 app.post('/api/public/clientlog', (req, res) => {
   const { tag, msg, ...rest } = req.body || {};
@@ -322,6 +327,7 @@ app.get   ('/api/leads/:id/financing-docs/:doc_key/file',  financingCtrl.getFile
 app.delete('/api/leads/:id/financing-docs/:doc_key',       financingCtrl.deleteDoc);
 app.post  ('/api/leads/:id/financing/send',                financingCtrl.sendToCoop);
 app.post  ('/api/leads/:id/financing/auto-invoice',        financingCtrl.autoInvoice);
+app.get   ('/api/leads/:id/financing/client-link',         clientDocsLinkCtrl.getOrCreateLink);
 
 // Facturas LUMA del cliente (las que el cliente envía a Energy Depot)
 const lumaBillsCtrl = require('./controllers/lumaBillsController');
