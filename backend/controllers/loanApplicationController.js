@@ -37,6 +37,61 @@ async function ensureLoanApplicationsTable() {
   } catch (e) { console.error('[loan_apps] ensure:', e.message); }
 }
 
+// POST /api/leads/:id/loan-applications/tu-coop-draft
+// Body: { form_data }
+// Crea (o actualiza) un borrador Tu Coop SIN firma. Devuelve token + signing_url
+// para enviarle al cliente para que edite y firme remotamente.
+async function createTuCoopDraft(req, res) {
+  try {
+    await ensureLoanApplicationsTable();
+    const leadId = Number(req.params.id);
+    if (!leadId) return res.status(400).json({ error: 'lead inválido' });
+    const { form_data } = req.body || {};
+    const fd = form_data && typeof form_data === 'object' ? form_data : {};
+
+    // Reusar borrador Tu Coop sin firmar si existe
+    const ex = await pool.query(
+      `SELECT * FROM loan_applications
+        WHERE lead_id=$1 AND cooperativa=$2 AND signed_at IS NULL
+        ORDER BY id DESC LIMIT 1`,
+      [leadId, 'Tu Coop']
+    );
+
+    let row;
+    if (ex.rows[0]) {
+      const u = await pool.query(
+        `UPDATE loan_applications
+            SET form_data=$1, coop_template='tu_coop',
+                expires_at = NOW() + INTERVAL '30 days'
+          WHERE id=$2 RETURNING *`,
+        [fd, ex.rows[0].id]
+      );
+      row = u.rows[0];
+    } else {
+      const token = genToken(leadId);
+      const ins = await pool.query(
+        `INSERT INTO loan_applications (lead_id, cooperativa, token, form_data, coop_template)
+         VALUES ($1,$2,$3,$4,'tu_coop') RETURNING *`,
+        [leadId, 'Tu Coop', token, fd]
+      );
+      row = ins.rows[0];
+    }
+
+    res.json({
+      id: row.id,
+      token: row.token,
+      cooperativa: row.cooperativa,
+      coop_template: 'tu_coop',
+      created_at: row.created_at,
+      expires_at: row.expires_at,
+      signing_url: `${frontendBase()}/solicitud/${row.token}`,
+    });
+  } catch (e) {
+    console.error('[loan_apps createTuCoopDraft]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
 // POST /api/leads/:id/loan-applications/tu-coop-pdf
 // Body: { form_data, signature_base64 }
 // Genera el PDF Tu Coop (template específico) firmado, lo guarda como
@@ -269,9 +324,13 @@ async function getPublic(req, res) {
     if (new Date(row.expires_at) < new Date()) {
       return res.status(410).json({ error: 'Este enlace ha expirado' });
     }
+    const isTuCoop = row.coop_template === 'tu_coop';
     res.json({
       cooperativa: row.cooperativa,
-      form_sections: LOAN_FORM_SECTIONS,
+      template: isTuCoop ? 'tu_coop' : 'generic',
+      // Para template genérico mandamos las secciones; para tu_coop, el frontend
+      // renderiza su propio set de campos (mismos que el modal CRM).
+      form_sections: isTuCoop ? null : LOAN_FORM_SECTIONS,
       form_data: row.form_data || {},
       already_signed: !!row.signed_at,
       signed_at: row.signed_at,
@@ -299,15 +358,23 @@ async function signPublic(req, res) {
     if (new Date(row.expires_at) < new Date()) return res.status(410).json({ error: 'Enlace expirado' });
     if (row.signed_at) return res.status(409).json({ error: 'Esta solicitud ya fue firmada' });
 
-    // Permitir que el cliente actualice form_data antes de firmar
+    const isTuCoop = row.coop_template === 'tu_coop';
+
+    // Permitir que el cliente actualice form_data antes de firmar (REEMPLAZA si viene)
     let fdFinal = row.form_data || {};
     if (form_data && typeof form_data === 'object') {
       fdFinal = { ...fdFinal, ...form_data };
     }
-    // Validar required
-    const missing = LOAN_REQUIRED_KEYS.filter(k => !fdFinal[k] || String(fdFinal[k]).trim() === '');
-    if (missing.length) {
-      return res.status(400).json({ error: 'Faltan campos requeridos: ' + missing.join(', ') });
+    // Validar required solo para template genérico (tu_coop tiene su propio set)
+    if (!isTuCoop) {
+      const missing = LOAN_REQUIRED_KEYS.filter(k => !fdFinal[k] || String(fdFinal[k]).trim() === '');
+      if (missing.length) {
+        return res.status(400).json({ error: 'Faltan campos requeridos: ' + missing.join(', ') });
+      }
+    } else {
+      if (!fdFinal.nombre_completo || !String(fdFinal.nombre_completo).trim()) {
+        fdFinal.nombre_completo = String(signed_name).trim();
+      }
     }
 
     const signedAt = new Date();
@@ -321,26 +388,52 @@ async function signPublic(req, res) {
     );
     const finalRow = u.rows[0];
 
-    // Generar PDF firmado
-    const pdfB64 = await generatePdfForApp(finalRow);
+    // Generar PDF firmado (Tu Coop vs genérico)
+    let pdfB64;
+    if (isTuCoop) {
+      const pdfBuf = await generateTuCoopPdf(fdFinal, signature);
+      pdfB64 = Buffer.from(pdfBuf).toString('base64');
+    } else {
+      pdfB64 = await generatePdfForApp(finalRow);
+    }
     await pool.query(`UPDATE loan_applications SET pdf_base64=$1 WHERE id=$2`, [pdfB64, finalRow.id]);
 
-    // Registrarla como financing-doc (solicitud) en etapa1 de la cooperativa
+    // Registrarla como financing-doc en etapa1 de la cooperativa
+    // Tu Coop usa doc_key='solicitud_prestamo'; genérico usa 'solicitud'
     try {
-      const fname = `Solicitud-Prestamo-${(fdFinal.nombre_completo || 'cliente').toString().replace(/\s+/g,'-')}.pdf`;
+      const docKey = isTuCoop ? 'solicitud_prestamo' : 'solicitud';
+      const fname = isTuCoop
+        ? `Solicitud-TuCoop-${(fdFinal.nombre_completo || 'cliente').toString().replace(/\s+/g,'-')}.pdf`
+        : `Solicitud-Prestamo-${(fdFinal.nombre_completo || 'cliente').toString().replace(/\s+/g,'-')}.pdf`;
       await pool.query(
         `INSERT INTO lead_financing_docs (lead_id, cooperativa, etapa_id, doc_key, filename, mime_type, file_base64, uploaded_at)
-         VALUES ($1,$2,'etapa1','solicitud',$3,'application/pdf',$4, NOW())
+         VALUES ($1,$2,'etapa1',$3,$4,'application/pdf',$5, NOW())
          ON CONFLICT (lead_id, cooperativa, etapa_id, doc_key)
          DO UPDATE SET filename=EXCLUDED.filename, mime_type=EXCLUDED.mime_type,
                        file_base64=EXCLUDED.file_base64, uploaded_at=NOW()`,
-        [finalRow.lead_id, finalRow.cooperativa || '', fname, pdfB64]
+        [finalRow.lead_id, finalRow.cooperativa || '', docKey, fname, pdfB64]
       );
-    } catch (errDoc) { console.error('[loan_apps→financing-doc]', errDoc.message); }
+    } catch (errDoc) {
+      console.error('[loan_apps→financing-doc]', errDoc.message);
+      // Fallback Tu Coop: si doc_key 'solicitud_prestamo' no existe en constraint, intentar 'solicitud'
+      if (isTuCoop) {
+        try {
+          const fname = `Solicitud-TuCoop-${(fdFinal.nombre_completo || 'cliente').toString().replace(/\s+/g,'-')}.pdf`;
+          await pool.query(
+            `INSERT INTO lead_financing_docs (lead_id, cooperativa, etapa_id, doc_key, filename, mime_type, file_base64, uploaded_at)
+             VALUES ($1,$2,'etapa1','solicitud',$3,'application/pdf',$4, NOW())
+             ON CONFLICT (lead_id, cooperativa, etapa_id, doc_key)
+             DO UPDATE SET filename=EXCLUDED.filename, mime_type=EXCLUDED.mime_type,
+                           file_base64=EXCLUDED.file_base64, uploaded_at=NOW()`,
+            [finalRow.lead_id, finalRow.cooperativa || '', fname, pdfB64]
+          );
+        } catch (e2) { console.error('[loan_apps→financing-doc fallback]', e2.message); }
+      }
+    }
 
     // Email al cliente (best-effort)
     try {
-      const email = fdFinal.email;
+      const email = fdFinal.email || fdFinal.correo;
       if (email) {
         const { sendEmail } = require('../services/gmailService');
         const from = await getConfigValue('email_from', 'info@energydepotpr.com');
@@ -393,6 +486,7 @@ module.exports = {
   getPublic,
   signPublic,
   generateTuCoopSigned,
+  createTuCoopDraft,
   deleteLoanApp,
   ensureLoanApplicationsTable,
 };

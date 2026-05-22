@@ -8,6 +8,16 @@ const { sendEmail } = require('../services/gmailService');
 const { getConfigValue } = require('../services/configService');
 const { generateInvoicesFromContract } = require('../services/projectInvoices');
 
+// Firma del vendedor (Gilberto) cargada una sola vez al iniciar el módulo
+let _gilbertoSignatureDataUrl = null;
+try {
+  const sigPath = path.join(__dirname, '..', 'templates', 'firma-gilberto.png');
+  if (fs.existsSync(sigPath)) {
+    const buf = fs.readFileSync(sigPath);
+    _gilbertoSignatureDataUrl = `data:image/png;base64,${buf.toString('base64')}`;
+  }
+} catch (e) { console.error('[contrato] firma vendedor:', e.message); }
+
 async function ensureContratosFirmaTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS contratos_firma (
@@ -510,7 +520,9 @@ function buildContratoHTML(d) {
   <!-- FIRMAS -->
   <div class="firmas">
     <div class="col">
-      <div class="line"></div>
+      <div class="line" style="position:relative">
+        ${_gilbertoSignatureDataUrl ? `<img src="${_gilbertoSignatureDataUrl}" style="position:absolute;bottom:0;left:0;height:44px;max-width:100%;object-fit:contain"/>` : ''}
+      </div>
       <div class="lbl">Vendedor</div>
       <div class="nm">Gilberto J. Díaz Merced</div>
       <div class="tt">CEO &middot; Energy Depot LLC</div>

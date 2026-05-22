@@ -4,11 +4,50 @@ import { useParams } from 'next/navigation';
 
 const BACKEND = typeof window !== 'undefined' ? '/backend' : (process.env.API_URL || 'http://localhost:3001');
 
+// ─── Campos Tu Coop (mismos que TuCoopSolicitudModal en el CRM) ──────────────
+const TU_COOP_SECTIONS = [
+  { title: 'Información del Préstamo', fields: [
+    { key:'proposito', label:'Propósito', type:'select', options:['vacaciones','consolidacion','mejoras','otro'], width:'full' },
+    { key:'cantidad_solicitada', label:'Cantidad Solicitada', type:'text' },
+  ]},
+  { title: 'Información del Solicitante', fields: [
+    { key:'nombre_completo', label:'Nombre Completo', type:'text', width:'full' },
+    { key:'seguro_social', label:'Seguro Social' },
+    { key:'fecha_nacimiento', label:'Fecha de Nacimiento' },
+    { key:'telefono', label:'Teléfono' },
+    { key:'licencia_conducir', label:'Lic. Conducir' },
+    { key:'licencia_vencimiento', label:'Lic. Vencimiento' },
+    { key:'licencia_emitida_en', label:'Lic. Emitida en' },
+    { key:'correo', label:'Correo', type:'email' },
+    { key:'celular', label:'Celular' },
+    { key:'estado_civil', label:'Estado Civil', type:'select', options:['casado','separado','soltero'] },
+    { key:'dependientes', label:'Dependientes' },
+    { key:'direccion_fisica', label:'Dirección Física', width:'full' },
+    { key:'direccion_postal', label:'Dirección Postal', width:'full' },
+    { key:'vive_en_casa', label:'Vive en casa', type:'select', options:['propia','alquilada','familiar','otro'] },
+    { key:'tiempo_residencia', label:'Tiempo de residencia' },
+    { key:'pariente_nombre_direccion', label:'Pariente — Nombre y Dirección', width:'full' },
+    { key:'pariente_correo', label:'Pariente — Correo' },
+    { key:'pariente_telefono', label:'Pariente — Teléfono' },
+  ]},
+  { title: 'Empleo', fields: [
+    { key:'empleado_tipo', label:'Tipo de empleado', type:'select', options:['regular','probatorio','contrato','cuenta_propia'], width:'full' },
+    { key:'tiempo_empleo', label:'Tiempo en el empleo' },
+    { key:'patrono', label:'Patrono' },
+    { key:'ocupacion', label:'Ocupación' },
+    { key:'patrono_telefono', label:'Teléfono del patrono' },
+    { key:'supervisor', label:'Supervisor' },
+    { key:'telefono_empleo', label:'Teléfono empleo' },
+    { key:'direccion_empleo', label:'Dirección del empleo', width:'full' },
+    { key:'salario_bruto', label:'Salario bruto' },
+  ]},
+];
+
 export default function SolicitudPrestamoPage() {
   const { token } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
-  const [data, setData]       = useState(null); // { cooperativa, form_sections, form_data, already_signed, signed_name, signed_at }
+  const [data, setData]       = useState(null); // { cooperativa, template, form_sections, form_data, already_signed, signed_name, signed_at }
   const [formData, setFormData] = useState({});
   const [name, setName]       = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -60,20 +99,30 @@ export default function SolicitudPrestamoPage() {
 
   const setField = (k, v) => setFormData(p => ({ ...p, [k]: v }));
 
+  const isTuCoop = data?.template === 'tu_coop';
+
   const submit = async () => {
-    // Validar requeridos
-    const required = (data?.form_sections || []).flatMap(s => s.fields).filter(f => f.required);
-    const missing = required.filter(f => !formData[f.key] || String(formData[f.key]).trim() === '');
-    if (missing.length) { alert('Faltan campos requeridos:\n- ' + missing.map(m => m.label).join('\n- ')); return; }
+    if (isTuCoop) {
+      if (!String(formData.nombre_completo || name || '').trim()) {
+        return alert('El nombre completo es requerido');
+      }
+    } else {
+      const required = (data?.form_sections || []).flatMap(s => s.fields).filter(f => f.required);
+      const missing = required.filter(f => !formData[f.key] || String(formData[f.key]).trim() === '');
+      if (missing.length) { alert('Faltan campos requeridos:\n- ' + missing.map(m => m.label).join('\n- ')); return; }
+    }
     if (isEmpty.current) return alert('Por favor dibuja tu firma antes de continuar.');
     if (!name.trim()) return alert('Escribe tu nombre completo para firmar.');
     setSubmitting(true);
     try {
       const sig = canvasRef.current.toDataURL('image/png');
+      const fd = isTuCoop
+        ? { ...formData, nombre_completo: formData.nombre_completo || name, firma_fecha: formData.firma_fecha || new Date().toLocaleDateString('es-PR') }
+        : formData;
       const r = await fetch(`${BACKEND}/api/public/solicitud/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signature: sig, signed_name: name.trim(), form_data: formData }),
+        body: JSON.stringify({ signature: sig, signed_name: name.trim(), form_data: fd }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Error firmando');
@@ -89,18 +138,19 @@ export default function SolicitudPrestamoPage() {
     return (
       <div style={S.center}>
         <div style={S.card}>
-          <div style={{ fontSize:48, textAlign:'center' }}>✓</div>
-          <h2 style={{ textAlign:'center', color:'#1a3c8f' }}>Solicitud recibida</h2>
+          <div style={{ fontSize:48, textAlign:'center' }}>✅</div>
+          <h2 style={{ textAlign:'center', color:'#1a3c8f' }}>Solicitud enviada correctamente</h2>
           <p style={{ textAlign:'center', color:'#475569' }}>
-            {data?.already_signed
+            {data?.already_signed && !done
               ? `Esta solicitud fue firmada por ${data.signed_name || 'el solicitante'} el ${data.signed_at ? new Date(data.signed_at).toLocaleString('es-PR') : ''}.`
-              : 'Te enviaremos una copia firmada por correo electrónico.'}
+              : 'Hemos recibido tu solicitud firmada. Te enviaremos una copia por correo electrónico.'}
           </p>
         </div>
       </div>
     );
   }
 
+  // ─── Render campo (input/select/textarea) ──────────────────────────────────
   const fld = (f) => {
     const v = formData[f.key] || '';
     const baseStyle = {
@@ -115,6 +165,11 @@ export default function SolicitudPrestamoPage() {
         </label>
         {f.type === 'textarea' ? (
           <textarea value={v} onChange={e => setField(f.key, e.target.value)} rows={3} style={{ ...baseStyle, resize:'vertical' }} />
+        ) : f.type === 'select' ? (
+          <select value={v} onChange={e => setField(f.key, e.target.value)} style={baseStyle}>
+            <option value="">— Seleccionar —</option>
+            {(f.options || []).map(o => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1).replace(/_/g,' ')}</option>)}
+          </select>
         ) : (
           <input type={f.type || 'text'} value={v} onChange={e => setField(f.key, e.target.value)} style={baseStyle} />
         )}
@@ -122,21 +177,23 @@ export default function SolicitudPrestamoPage() {
     );
   };
 
+  const sections = isTuCoop ? TU_COOP_SECTIONS : (data?.form_sections || []);
+
   return (
     <div style={{ background:'#f1f5f9', minHeight:'100vh', padding:'0 0 60px' }}>
       <div style={{ background:'linear-gradient(135deg,#0f2558 0%,#1a3c8f 100%)', color:'#fff', padding:'20px 20px', textAlign:'center' }}>
         <div style={{ fontSize:11, letterSpacing:1.5, textTransform:'uppercase', color:'#bfdbfe', fontWeight:700 }}>Energy Depot LLC</div>
-        <div style={{ fontSize:18, fontWeight:800, marginTop:4 }}>Solicitud de Préstamo</div>
+        <div style={{ fontSize:18, fontWeight:800, marginTop:4 }}>{isTuCoop ? 'Solicitud Tu Coop' : 'Solicitud de Préstamo'}</div>
         {data?.cooperativa && <div style={{ fontSize:12, color:'#bfdbfe', marginTop:4 }}>Cooperativa: {data.cooperativa}</div>}
       </div>
       <div style={{ background:'#67e8f9', height:4 }} />
 
       <div style={{ maxWidth: 860, margin:'18px auto', padding:'0 12px' }}>
         <div style={{ background:'#fff', borderRadius:10, padding:'18px 16px', boxShadow:'0 1px 3px rgba(0,0,0,.08)', marginBottom:14, fontSize:13, color:'#475569', lineHeight:1.5 }}>
-          Por favor revisa y completa la información a continuación. Una vez la firmes electrónicamente, recibirás una copia por correo electrónico.
+          Por favor revisa y completa la información a continuación. Puedes editar cualquier campo. Una vez firmes electrónicamente, recibirás una copia por correo electrónico.
         </div>
 
-        {(data?.form_sections || []).map(sec => (
+        {sections.map(sec => (
           <div key={sec.title} style={{ background:'#fff', borderRadius:10, padding:'18px 16px', boxShadow:'0 1px 3px rgba(0,0,0,.08)', marginBottom:14 }}>
             <div style={{ fontSize:13, fontWeight:800, color:'#1a3c8f', textTransform:'uppercase', letterSpacing:1, borderBottom:'2px solid #67e8f9', paddingBottom:6, marginBottom:14 }}>{sec.title}</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }} className="grid-resp">
@@ -167,7 +224,7 @@ export default function SolicitudPrestamoPage() {
 
           <button onClick={submit} disabled={submitting}
             style={{ marginTop:18, width:'100%', background:'#1a3c8f', color:'#fff', border:0, padding:'14px', borderRadius:10, fontSize:15, fontWeight:800, cursor:'pointer', opacity: submitting ? 0.6 : 1 }}>
-            {submitting ? 'Procesando…' : '✓ Firmar y enviar solicitud'}
+            {submitting ? 'Procesando…' : '✓ Firmar y enviar'}
           </button>
           <p style={{ fontSize:11, color:'#64748b', marginTop:12, textAlign:'center', lineHeight:1.5 }}>
             Al firmar declaras que la información provista es verdadera y autorizas a la cooperativa a verificarla.

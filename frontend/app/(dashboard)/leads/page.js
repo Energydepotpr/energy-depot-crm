@@ -6511,6 +6511,7 @@ function SolicitudCard({ doc, docLabel, leadId, lead, cooperativa, loanApps, onO
 
   // Estado B: borrador pendiente firma
   if (pending) {
+    const phone = (lead?.contact_phone || '').replace(/\D/g, '');
     return (
       <div style={baseCard('#f59e0b')}>
         {headerLine('✏️', '#f59e0b')}
@@ -6525,11 +6526,15 @@ function SolicitudCard({ doc, docLabel, leadId, lead, cooperativa, loanApps, onO
             background:'#1a3c8f', color:'#fff', border:'none', borderRadius:6,
             padding:'7px 10px', fontSize:12, fontWeight:600, cursor:'pointer', flex:1, minWidth:110,
           }}>🔗 Copiar link</button>
-          <a href={`https://wa.me/?text=${encodeURIComponent('Solicitud de préstamo Energy Depot: ' + pending.signing_url)}`}
+          <a href={`https://wa.me/${phone}?text=${encodeURIComponent('Hola, completa y firma tu Solicitud de préstamo Energy Depot aquí: ' + pending.signing_url)}`}
             target="_blank" rel="noopener noreferrer"
             style={{ background:'#25d366', color:'#fff', borderRadius:6, padding:'7px 10px', fontSize:12, fontWeight:600, textDecoration:'none', textAlign:'center' }}>
             WhatsApp
           </a>
+          <button onClick={() => onOpenForm()} style={{
+            background:'rgba(245,158,11,0.15)', color:'#b45309', border:'1px solid rgba(245,158,11,0.35)',
+            borderRadius:6, padding:'7px 10px', fontSize:12, fontWeight:600, cursor:'pointer',
+          }}>📧 Email</button>
           <button onClick={onOpenForm} style={{
             background:'transparent', color:'#f59e0b', border:'1px solid #f59e0b',
             padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
@@ -6880,6 +6885,9 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
 
   const [formData, setFormData] = useState(initial);
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [signingUrl, setSigningUrl] = useState(existing?.signing_url || '');
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [name, setName] = useState(initial.nombre_completo || '');
   const [seeded, setSeeded] = useState(false);
 
@@ -7003,6 +7011,30 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
     finally { setSubmitting(false); }
   };
 
+  const guardarBorrador = async () => {
+    if (!String(formData.nombre_completo || name || '').trim()) {
+      alert('El nombre del solicitante es requerido para crear el link'); return;
+    }
+    setSavingDraft(true);
+    try {
+      const fd = { ...formData, nombre_completo: formData.nombre_completo || name };
+      const r = await api.saveTuCoopDraft(leadId, fd);
+      if (!r?.signing_url) throw new Error(r?.error || 'Error guardando borrador');
+      setSigningUrl(r.signing_url);
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { setSavingDraft(false); }
+  };
+
+  const copyLink = async () => {
+    if (!signingUrl) return;
+    try { await navigator.clipboard.writeText(signingUrl); alert('✓ Link copiado'); }
+    catch { window.prompt('Copia el link:', signingUrl); }
+  };
+
+  const waUrl = signingUrl
+    ? `https://wa.me/${(lead?.contact_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent('Hola, completa y firma tu Solicitud Tu Coop aquí: ' + signingUrl)}`
+    : '';
+
   return (
     <div style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', padding:12 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, maxWidth:820, width:'100%', maxHeight:'95vh', overflowY:'auto' }}>
@@ -7102,12 +7134,39 @@ function TuCoopSolicitudModal({ leadId, lead, existing, onClose, onSaved }) {
           </div>
         </div>
 
-        <div style={{ position:'sticky', bottom:0, background:'var(--surface)', borderTop:'1px solid var(--border)', padding:'12px 18px', display:'flex', gap:8 }}>
-          <button onClick={onClose} disabled={submitting} style={{ padding:'11px 16px', background:'transparent', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:8, fontSize:13, cursor:'pointer' }}>Cancelar</button>
-          <button onClick={submit} disabled={submitting} style={{ flex:1, padding:'11px', background:'linear-gradient(135deg,#1a3c8f,#0f2558)', color:'#fff', border:'none', borderRadius:8, fontSize:14, fontWeight:700, cursor:'pointer', opacity: submitting ? 0.7 : 1 }}>
+        {signingUrl && (
+          <div style={{ margin:'0 18px 14px', padding:'12px 14px', background:'rgba(103,232,249,0.10)', border:'1px solid rgba(8,145,178,0.35)', borderRadius:10 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#0e7490', marginBottom:6 }}>🔗 Link para que el cliente edite y firme:</div>
+            <div style={{ fontSize:11, color:'var(--muted)', wordBreak:'break-all', background:'var(--bg)', padding:'8px 10px', borderRadius:6, marginBottom:8 }}>{signingUrl}</div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              <button onClick={copyLink} style={{ background:'#1a3c8f', color:'#fff', border:'none', padding:'7px 12px', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>📋 Copiar</button>
+              {lead?.contact_phone && (
+                <a href={waUrl} target="_blank" rel="noopener noreferrer" style={{ background:'#25d366', color:'#fff', padding:'7px 12px', borderRadius:6, fontSize:12, fontWeight:700, textDecoration:'none' }}>💬 WhatsApp</a>
+              )}
+              <button onClick={() => setShowEmailModal(true)} style={{ background:'rgba(245,158,11,0.15)', color:'#b45309', border:'1px solid rgba(245,158,11,0.4)', padding:'7px 12px', borderRadius:6, fontSize:12, fontWeight:700, cursor:'pointer' }}>📧 Email</button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ position:'sticky', bottom:0, background:'var(--surface)', borderTop:'1px solid var(--border)', padding:'12px 18px', display:'flex', gap:8, flexWrap:'wrap' }}>
+          <button onClick={onClose} disabled={submitting || savingDraft} style={{ padding:'11px 16px', background:'transparent', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:8, fontSize:13, cursor:'pointer' }}>Cancelar</button>
+          <button onClick={guardarBorrador} disabled={savingDraft || submitting} style={{ flex:1, minWidth:200, padding:'11px', background:'linear-gradient(135deg,#10b981,#059669)', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer', opacity: savingDraft ? 0.7 : 1 }}>
+            {savingDraft ? 'Guardando…' : (signingUrl ? '💾 Actualizar borrador' : '💾 Guardar y enviar a firma')}
+          </button>
+          <button onClick={submit} disabled={submitting || savingDraft} style={{ flex:1, minWidth:200, padding:'11px', background:'linear-gradient(135deg,#1a3c8f,#0f2558)', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer', opacity: submitting ? 0.7 : 1 }}>
             {submitting ? 'Generando…' : '✓ Generar PDF firmado'}
           </button>
         </div>
+
+        {showEmailModal && (
+          <EnviarLinkClienteModal
+            leadId={leadId}
+            lead={lead}
+            link={signingUrl}
+            onClose={() => setShowEmailModal(false)}
+            onSent={() => setShowEmailModal(false)}
+          />
+        )}
 
         <style jsx>{`
           @media (max-width: 640px) {

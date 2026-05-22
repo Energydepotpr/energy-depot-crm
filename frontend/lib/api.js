@@ -475,6 +475,10 @@ export const api = {
     req('POST', `/api/leads/${leadId}/loan-applications/tu-coop-pdf`, {
       form_data: formData, signature_base64: signatureBase64,
     }),
+  saveTuCoopDraft: (leadId, formData) =>
+    req('POST', `/api/leads/${leadId}/loan-applications/tu-coop-draft`, {
+      form_data: formData,
+    }),
 
   // Helper: subir base64 ya generado (cotización/contrato/factura) como financing-doc
   uploadFinancingDocFromBase64: (leadId, cooperativa, etapa_id, doc_key, base64, filename, mime) =>

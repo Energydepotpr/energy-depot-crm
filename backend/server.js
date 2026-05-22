@@ -376,6 +376,7 @@ app.get   ('/api/leads/:id/loan-applications',                   loanAppsCtrl.li
 app.get   ('/api/leads/:id/loan-applications/latest-form-data',  loanAppsCtrl.latestFormData);
 app.get   ('/api/leads/:id/loan-applications/:la_id/pdf',        loanAppsCtrl.downloadPdf);
 app.post  ('/api/leads/:id/loan-applications/tu-coop-pdf',       loanAppsCtrl.generateTuCoopSigned);
+app.post  ('/api/leads/:id/loan-applications/tu-coop-draft',     loanAppsCtrl.createTuCoopDraft);
 app.delete('/api/leads/:id/loan-applications/:la_id',            loanAppsCtrl.deleteLoanApp);
 
 app.get('/api/me', auth.me);
