@@ -2722,7 +2722,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
           {/* ─── TAB: CITAS ─── */}
           {tab === 'citas' && <CitasTab leadId={leadId} />}
           {tab === 'contratos' && <ContratosTab leadId={leadId} lead={lead} onUpdated={onUpdated} />}
-          {tab === 'financiamiento' && <FinanciamientoTab leadId={leadId} lead={lead} onUpdated={onUpdated} />}
+          {tab === 'financiamiento' && <FinanciamientoTab leadId={leadId} lead={lead} onUpdated={() => { if (onUpdated) onUpdated(); cargarTodo(); }} />}
           {tab === 'facturas'  && <ProjectInvoicesLeadTab leadId={leadId} />}
           {tab === 'luma-bills' && <LumaBillsTab leadId={leadId} onCountChange={setLumaBillsCount} />}
 
