@@ -159,6 +159,8 @@ export default function ClienteDocsPage() {
                   const isCotizPicker = d.key === 'cotizacion' && etapa.id === 'etapa1' && (data.quotations || []).length > 0;
                   // Caso especial: solicitud Tu Coop → botón para llenar/firmar inline
                   const isTuCoopSolicitud = d.key === 'solicitud' && etapa.id === 'etapa1' && data.tuCoopSolicitud;
+                  // Caso especial: contrato → botón de firma electrónica
+                  const isContrato = d.key === 'contrato' && etapa.id === 'etapa1' && data.contratoFirma;
                   return (
                     <div key={d.key} style={{
                       border: '1px solid #e5e7eb', borderRadius: 10, padding: 14,
@@ -206,6 +208,29 @@ export default function ClienteDocsPage() {
                               </button>
                             );
                           })}
+                        </div>
+                      ) : isContrato ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {data.contratoFirma.isSigned ? (
+                            <div style={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>✓ Contrato firmado</div>
+                          ) : (
+                            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
+                              Tu asesor generó el contrato de compra-venta. Revísalo y <strong>firma electrónicamente</strong>.
+                            </div>
+                          )}
+                          <a href={data.contratoFirma.signingUrl} target="_blank" rel="noopener noreferrer"
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              gap: 8, minHeight: 48, padding: '12px 16px',
+                              background: data.contratoFirma.isSigned ? '#10b981' : NAVY,
+                              color: '#fff', border: 'none',
+                              borderRadius: 8, fontSize: 14, fontWeight: 700,
+                              textDecoration: 'none',
+                            }}>
+                            {data.contratoFirma.isSigned
+                              ? '👁 Ver contrato firmado'
+                              : '✍️ Revisar y firmar contrato'}
+                          </a>
                         </div>
                       ) : isTuCoopSolicitud ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
