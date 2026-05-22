@@ -6967,7 +6967,9 @@ function EnviarCooperativaModal({ leadId, lead, coops: coopsProp, presetCoopName
   const [coops, setCoops] = useState(Array.isArray(coopsProp) && coopsProp.length ? coopsProp : []);
   const initialIdx = Math.max(0, coops.findIndex(c => c.name === presetCoopName));
   const [coopIdx, setCoopIdx] = useState(initialIdx >= 0 ? initialIdx : 0);
-  const [emailsText, setEmailsText] = useState('');
+  const [selectedEmails, setSelectedEmails] = useState(new Set());
+  const [extraEmail, setExtraEmail] = useState('');
+  const [customEmails, setCustomEmails] = useState([]);
   const [message, setMessage] = useState('');
   const [moveStage, setMoveStage] = useState(true);
   const [sending, setSending] = useState(false);
@@ -6985,16 +6987,33 @@ function EnviarCooperativaModal({ leadId, lead, coops: coopsProp, presetCoopName
 
   useEffect(() => {
     const c = coops[coopIdx];
-    if (c) setEmailsText((c.emails || []).join('\n'));
+    if (c) setSelectedEmails(new Set(c.emails || []));
+    setCustomEmails([]);
+    setExtraEmail('');
   }, [coopIdx, coops]);
+
+  const toggleEmail = (em) => {
+    setSelectedEmails(prev => {
+      const next = new Set(prev);
+      if (next.has(em)) next.delete(em); else next.add(em);
+      return next;
+    });
+  };
+  const addExtra = () => {
+    const e = extraEmail.trim().toLowerCase();
+    if (!e || !e.includes('@')) { alert('Email inválido'); return; }
+    setCustomEmails(prev => prev.includes(e) ? prev : [...prev, e]);
+    setSelectedEmails(prev => { const n = new Set(prev); n.add(e); return n; });
+    setExtraEmail('');
+  };
 
   useEffect(() => {
     setMessage(`Buenas tardes, adjuntamos los documentos de ${etapaName.toLowerCase()} para nuestro cliente ${clientName}. Cualquier información adicional, no duden en contactarnos.\n\nSaludos,\nEnergy Depot LLC.\n(787) 627-8585`);
   }, [clientName, etapaName]);
 
   const handleSend = async () => {
-    const emails = emailsText.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
-    if (!emails.length) { alert('Agrega al menos un email'); return; }
+    const emails = Array.from(selectedEmails).map(s => s.trim().toLowerCase()).filter(Boolean);
+    if (!emails.length) { alert('Selecciona al menos un email'); return; }
     const cooperativa = coops[coopIdx]?.name || 'Cooperativa';
     setSending(true);
     try {
@@ -7035,10 +7054,37 @@ function EnviarCooperativaModal({ leadId, lead, coops: coopsProp, presetCoopName
           {coops.map((c, i) => <option key={i} value={i}>{c.name}</option>)}
         </select>
 
-        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Destinatarios (uno por línea)</label>
-        <textarea value={emailsText} onChange={e => setEmailsText(e.target.value)}
-          rows={3}
-          style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13, marginBottom: 14, resize: 'vertical', fontFamily: 'inherit' }} />
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+          Destinatarios <span style={{ color: '#10b981', textTransform: 'none' }}>({selectedEmails.size} seleccionado{selectedEmails.size === 1 ? '' : 's'})</span>
+        </label>
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', marginBottom: 8, maxHeight: 180, overflowY: 'auto' }}>
+          {[...(coopSel?.emails || []), ...customEmails].length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--muted)', padding: 6 }}>Sin emails guardados para esta cooperativa. Agregá uno abajo.</div>
+          )}
+          {[...(coopSel?.emails || []), ...customEmails].map((em) => (
+            <label key={em} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 4px', cursor: 'pointer', fontSize: 13, color: 'var(--text)',
+              borderRadius: 4,
+            }}>
+              <input type="checkbox" checked={selectedEmails.has(em)} onChange={() => toggleEmail(em)} />
+              <span style={{ flex: 1, wordBreak: 'break-all' }}>{em}</span>
+              {customEmails.includes(em) && (
+                <span style={{ fontSize: 10, color: '#0891b2', background: 'rgba(103,232,249,0.15)', padding: '1px 6px', borderRadius: 4 }}>nuevo</span>
+              )}
+            </label>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+          <input type="email" value={extraEmail} onChange={e => setExtraEmail(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExtra(); } }}
+            placeholder="Agregar otro email..."
+            style={{ flex: 1, padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13 }} />
+          <button onClick={addExtra} type="button" style={{
+            padding: '8px 14px', background: '#1a3c8f', color: '#fff', border: 'none',
+            borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          }}>+ Agregar</button>
+        </div>
 
         <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Mensaje</label>
         <textarea value={message} onChange={e => setMessage(e.target.value)}

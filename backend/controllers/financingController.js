@@ -326,10 +326,25 @@ async function sendToCoop(req, res) {
       );
     }
 
-    // Validar que esten todos los docs de la etapa
+    // Validar que esten todos los docs de la etapa.
+    // La solicitud firmada electrónicamente vive en loan_applications, NO en lead_financing_docs.
+    let hasSignedLoanApp = false;
+    try {
+      const loanR = await pool.query(
+        `SELECT 1 FROM loan_applications WHERE lead_id=$1 AND signed_at IS NOT NULL LIMIT 1`,
+        [leadId]
+      );
+      hasSignedLoanApp = loanR.rows.length > 0;
+    } catch {}
+
     if (etapaCfg) {
       const have = new Set(docsR.rows.map(r => r.doc_key));
-      const missing = (etapaCfg.docs || []).filter(d => !have.has(d.key));
+      const missing = (etapaCfg.docs || []).filter(d => {
+        if (have.has(d.key)) return false;
+        // La solicitud firmada digitalmente cuenta como presente
+        if (d.key === 'solicitud' && hasSignedLoanApp) return false;
+        return true;
+      });
       if (missing.length) {
         return res.status(400).json({
           error: `Faltan documentos: ${missing.map(m => m.label).join(', ')}`,
@@ -355,6 +370,25 @@ async function sendToCoop(req, res) {
       mimeType: d.mime_type || 'application/octet-stream',
       content: d.file_base64,
     }));
+
+    // Si hay solicitud firmada digitalmente (loan_applications), agregarla como adjunto
+    try {
+      const have = new Set(docsR.rows.map(r => r.doc_key));
+      if (!have.has('solicitud') && hasSignedLoanApp) {
+        const laR = await pool.query(
+          `SELECT id, pdf_base64, filename FROM loan_applications
+             WHERE lead_id=$1 AND signed_at IS NOT NULL
+             ORDER BY signed_at DESC LIMIT 1`, [leadId]
+        );
+        if (laR.rows[0]?.pdf_base64) {
+          attachments.push({
+            filename: laR.rows[0].filename || 'solicitud-prestamo-firmada.pdf',
+            mimeType: 'application/pdf',
+            content: laR.rows[0].pdf_base64,
+          });
+        }
+      }
+    } catch (e) { console.error('[financing attach loan_app]', e.message); }
 
     const bcc = await getConfigValue('email_auto_bcc', 'gil.diaz@energydepotpr.com');
 
