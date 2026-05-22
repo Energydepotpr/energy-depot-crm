@@ -165,11 +165,10 @@ export default function ClienteDocsPage() {
                         cursor: isUp ? 'wait' : 'pointer',
                         opacity: isUp ? 0.6 : 1,
                       }}>
-                        {isUp ? 'Subiendo…' : (d.uploaded ? '🔄 Reemplazar' : '📷 Subir foto / PDF')}
+                        {isUp ? 'Subiendo…' : (d.uploaded ? '🔄 Reemplazar' : '📎 Adjuntar PDF / Foto')}
                         <input
                           type="file"
-                          accept="image/*,application/pdf"
-                          capture="environment"
+                          accept="application/pdf,image/*"
                           disabled={isUp}
                           onChange={e => {
                             const f = e.target.files?.[0];

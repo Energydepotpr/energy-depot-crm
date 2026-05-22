@@ -273,14 +273,16 @@ async function uploadPublic(req, res) {
       etapa_id = et?.id || 'etapa1';
     }
 
+    // Borrar versión previa de ese doc (replace pattern, no requiere unique constraint)
     await pool.query(
-      `INSERT INTO lead_financing_docs (lead_id, cooperativa, etapa_id, doc_key, filename, mime_type, file_base64, uploaded_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-       ON CONFLICT (lead_id, cooperativa, etapa_id, doc_key)
-       DO UPDATE SET filename = EXCLUDED.filename,
-                     mime_type = EXCLUDED.mime_type,
-                     file_base64 = EXCLUDED.file_base64,
-                     uploaded_at = NOW()`,
+      `DELETE FROM lead_financing_docs
+        WHERE lead_id=$1 AND cooperativa=$2 AND etapa_id=$3 AND doc_key=$4`,
+      [leadId, cooperativa, etapa_id, doc_key]
+    );
+    await pool.query(
+      `INSERT INTO lead_financing_docs
+         (lead_id, cooperativa, etapa_id, doc_key, filename, mime_type, file_base64, uploaded_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
       [leadId, cooperativa, etapa_id, doc_key, filename || `${doc_key}.jpg`, mime_type || 'application/octet-stream', base64]
     );
 
