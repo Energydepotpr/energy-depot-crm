@@ -183,7 +183,7 @@ function PassengerForm({ initial = EMPTY_FORM, onSave, onCancel, saving }) {
           onClick={() => onSave(form)}
           disabled={saving || !form.name.trim()}
           style={{
-            padding: '8px 18px', borderRadius: 8, background: '#1b9af5',
+            padding: '8px 18px', borderRadius: 8, background: '#1a3c8f',
             border: 'none', color: '#fff', fontSize: 13, fontWeight: 600,
             cursor: saving || !form.name.trim() ? 'not-allowed' : 'pointer',
             opacity: saving || !form.name.trim() ? 0.6 : 1,
@@ -218,7 +218,7 @@ function PassengerCard({ passenger, onEdit, onDelete, deleting }) {
             style={{
               padding: '5px 12px', borderRadius: 7,
               background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)',
-              color: '#1b9af5', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              color: '#1a3c8f', fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}
           >
             Editar
@@ -497,7 +497,7 @@ export default function PasajerosPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{
             fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-            background: 'rgba(59,130,246,0.12)', color: '#1b9af5',
+            background: 'rgba(59,130,246,0.12)', color: '#1a3c8f',
             border: '1px solid rgba(59,130,246,0.25)',
           }}>
             {passengers.length} {passengers.length === 1 ? 'pasajero' : 'pasajeros'}
@@ -518,7 +518,7 @@ export default function PasajerosPage() {
 
           <button
             onClick={() => { setShowAddForm(v => !v); setEditingPassenger(null); }}
-            style={{ ...btnBase, background: '#1b9af5', color: '#fff' }}
+            style={{ ...btnBase, background: '#1a3c8f', color: '#fff' }}
           >
             {showAddForm ? '✕ Cancelar' : '+ Agregar pasajero'}
           </button>
@@ -567,7 +567,7 @@ export default function PasajerosPage() {
           </div>
           <button
             onClick={() => setShowAddForm(true)}
-            style={{ ...btnBase, background: '#1b9af5', color: '#fff', marginTop: 18 }}
+            style={{ ...btnBase, background: '#1a3c8f', color: '#fff', marginTop: 18 }}
           >
             + Agregar primer pasajero
           </button>

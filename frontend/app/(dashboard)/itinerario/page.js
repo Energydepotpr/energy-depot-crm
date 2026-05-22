@@ -515,7 +515,7 @@ function triggerPrint(itinerary) {
 
     return `
       <div style="margin-bottom:24px;page-break-inside:avoid">
-        <div style="background:#f8fafc;border-left:4px solid #1b9af5;padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+        <div style="background:#f8fafc;border-left:4px solid #1a3c8f;padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
           <div>
             <strong style="font-size:15px;color:#1e293b">Día ${d.day_number}${d.day_date ? ` — ${fmtDate(d.day_date)}` : ''}</strong>
             ${d.title ? `<span style="margin-left:8px;color:#64748b;font-size:13px">${d.title}</span>` : ''}
@@ -545,7 +545,7 @@ function triggerPrint(itinerary) {
           body { padding: 32px; max-width: 860px; margin: 0 auto; }
         }
         .print-btn {
-          background: #1b9af5; color: #fff; border: none; border-radius: 8px;
+          background: #1a3c8f; color: #fff; border: none; border-radius: 8px;
           padding: 10px 22px; font-size: 14px; cursor: pointer; margin-bottom: 24px;
         }
       </style>
@@ -556,7 +556,7 @@ function triggerPrint(itinerary) {
       </div>
 
       <!-- Header -->
-      <div style="border-bottom:3px solid #1b9af5;padding-bottom:16px;margin-bottom:24px">
+      <div style="border-bottom:3px solid #1a3c8f;padding-bottom:16px;margin-bottom:24px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
           <div>
             <h1 style="margin:0 0 4px;font-size:24px;color:#1e293b">${itinerary.title}</h1>

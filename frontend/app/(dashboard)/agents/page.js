@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../../../lib/api';
 
-const AVATAR_COLORS = ['#1b9af5','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316'];
+const AVATAR_COLORS = ['#1a3c8f','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316'];
 function avatarColor(name) {
   let h = 0;
   for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
@@ -268,7 +268,7 @@ function AssistantTab() {
           style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: isMobile ? 13 : 13, resize: 'none', fontFamily: 'inherit', lineHeight: 1.5 }}
         />
         <button onClick={() => send()} disabled={!input.trim() || loading} style={{
-          background: input.trim() && !loading ? '#1b9af5' : 'var(--border)',
+          background: input.trim() && !loading ? '#1a3c8f' : 'var(--border)',
           border: 'none', borderRadius: 8, padding: isMobile ? '7px 12px' : '8px 16px',
           color: '#fff', fontSize: 13, fontWeight: 600,
           cursor: input.trim() && !loading ? 'pointer' : 'not-allowed',
@@ -334,7 +334,7 @@ export default function AgentsPage() {
             <button key={t.k} onClick={() => setTab(t.k)} style={{
               padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: tab === t.k ? 600 : 400,
               background: tab === t.k ? 'rgba(59,130,246,0.15)' : 'transparent',
-              color: tab === t.k ? '#1b9af5' : 'var(--muted)',
+              color: tab === t.k ? '#1a3c8f' : 'var(--muted)',
               border: tab === t.k ? '1px solid rgba(59,130,246,0.3)' : '1px solid transparent',
               cursor: 'pointer',
             }}>{t.l}</button>
@@ -354,7 +354,7 @@ export default function AgentsPage() {
       {/* ── Stats row ── */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 8 : 12, padding: padStats }}>
         {[
-          { label: 'Agentes activos',    value: agents.filter(a => a.active !== false).length, color: '#1b9af5', icon: '👥' },
+          { label: 'Agentes activos',    value: agents.filter(a => a.active !== false).length, color: '#1a3c8f', icon: '👥' },
           { label: 'Mensajes (30d)',      value: totalMsgs,  color: '#10b981', icon: '💬' },
           { label: 'Leads asignados',     value: totalLeads, color: '#8b5cf6', icon: '📋' },
           { label: 'Leads ganados',       value: totalWon,   color: '#f59e0b', icon: '🏆' },

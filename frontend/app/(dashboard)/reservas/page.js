@@ -86,7 +86,7 @@ function BookingModal({ booking, onClose, onUpdated }) {
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
           {booking.contact_id && (
-            <Link href={`/contacts/${booking.contact_id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#1b9af5', textDecoration: 'none' }}>
+            <Link href={`/contacts/${booking.contact_id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#1a3c8f', textDecoration: 'none' }}>
               👤 Ver perfil →
             </Link>
           )}
@@ -125,7 +125,7 @@ function BookingModal({ booking, onClose, onUpdated }) {
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, background: 'none', border: '1px solid var(--border)', color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
-            <button onClick={save} disabled={saving} style={{ padding: '8px 18px', borderRadius: 8, background: '#1b9af5', border: 'none', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+            <button onClick={save} disabled={saving} style={{ padding: '8px 18px', borderRadius: 8, background: '#1a3c8f', border: 'none', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
               {saving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
@@ -210,7 +210,7 @@ export default function ReservasPage() {
           }} style={{ fontSize: 12, color: '#10b981', padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.08)', cursor: 'pointer' }}>
             ↓ Exportar CSV
           </button>
-          <Link href="/agenda" style={{ fontSize: 12, color: '#1b9af5', textDecoration: 'none', padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.08)' }}>
+          <Link href="/agenda" style={{ fontSize: 12, color: '#1a3c8f', textDecoration: 'none', padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.08)' }}>
             Ver agenda →
           </Link>
         </div>
@@ -220,7 +220,7 @@ export default function ReservasPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: isMobile ? 6 : 10, marginBottom: 14 }}>
         {[
           { label: 'Total',      value: counts.total,     color: '#6b7280' },
-          { label: 'Hoy',        value: counts.hoy,       color: '#1b9af5' },
+          { label: 'Hoy',        value: counts.hoy,       color: '#1a3c8f' },
           { label: 'Pendientes', value: counts.pending,   color: '#f59e0b' },
           { label: 'Confirmadas',value: counts.confirmed, color: '#10b981' },
         ].map(s => (
@@ -243,7 +243,7 @@ export default function ReservasPage() {
             <button key={t.k} onClick={() => setTab(t.k)} style={{
               padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: tab === t.k ? 600 : 400,
               background: tab === t.k ? 'rgba(59,130,246,0.15)' : 'transparent',
-              color: tab === t.k ? '#1b9af5' : 'var(--muted)',
+              color: tab === t.k ? '#1a3c8f' : 'var(--muted)',
               border: tab === t.k ? '1px solid rgba(59,130,246,0.3)' : '1px solid transparent',
               cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
             }}>{t.l}{t.k === 'pending' && counts.pending > 0 ? ` (${counts.pending})` : ''}</button>
@@ -254,7 +254,7 @@ export default function ReservasPage() {
       {/* List */}
       {loading ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: 10 }}>
-          <div style={{ width: 18, height: 18, border: '2px solid #1b9af5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+          <div style={{ width: 18, height: 18, border: '2px solid #1a3c8f', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
           <span style={{ fontSize: 13, color: 'var(--muted)' }}>Cargando reservas...</span>
         </div>
       ) : filtered.length === 0 ? (
@@ -266,13 +266,13 @@ export default function ReservasPage() {
           {filtered.map(b => (
             <div key={b.id} onClick={() => setSelected(b)}
               style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: isMobile ? '10px 12px' : '12px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = '#1b9af5'}
+              onMouseEnter={e => e.currentTarget.style.borderColor = '#1a3c8f'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 {/* Date block */}
                 <div style={{ background: isToday(b.start_time) ? 'rgba(59,130,246,0.15)' : 'var(--bg)', borderRadius: 8, padding: '6px 10px', textAlign: 'center', flexShrink: 0, minWidth: 48 }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: isToday(b.start_time) ? '#1b9af5' : 'var(--text)', lineHeight: 1 }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: isToday(b.start_time) ? '#1a3c8f' : 'var(--text)', lineHeight: 1 }}>
                     {new Date(b.start_time).getDate()}
                   </div>
                   <div style={{ fontSize: 9, color: 'var(--muted)', textTransform: 'uppercase' }}>
@@ -286,7 +286,7 @@ export default function ReservasPage() {
                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{b.client_name}</span>
                     <StatusBadge status={b.status} />
                     {isToday(b.start_time) && (
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1b9af5', background: 'rgba(59,130,246,0.12)', padding: '1px 8px', borderRadius: 20 }}>HOY</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1a3c8f', background: 'rgba(59,130,246,0.12)', padding: '1px 8px', borderRadius: 20 }}>HOY</span>
                     )}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>

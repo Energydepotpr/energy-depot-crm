@@ -29,7 +29,7 @@ const PERMISSION_LABELS = {
 const PERMISSION_GROUPS = [
   {
     group: 'Contactos',
-    color: '#1b9af5',
+    color: '#1a3c8f',
     perms: ['contacts.view', 'contacts.create', 'contacts.edit', 'contacts.delete'],
   },
   {
@@ -160,7 +160,7 @@ export default function PermissionsPanel() {
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
-              color: role === 'admin' ? '#f59e0b' : '#1b9af5',
+              color: role === 'admin' ? '#f59e0b' : '#1a3c8f',
               padding: '2px 10px',
               background: role === 'admin' ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)',
               borderRadius: 20,
@@ -247,7 +247,7 @@ export default function PermissionsPanel() {
                               height: 20,
                               borderRadius: 5,
                               background: granted ? 'rgba(59,130,246,0.15)' : 'transparent',
-                              border: `1px solid ${granted ? '#1b9af5' : 'var(--border)'}`,
+                              border: `1px solid ${granted ? '#1a3c8f' : 'var(--border)'}`,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -259,13 +259,13 @@ export default function PermissionsPanel() {
                             }}
                           >
                             {isSaving ? (
-                              <div style={{ width: 10, height: 10, border: '1.5px solid #1b9af5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                              <div style={{ width: 10, height: 10, border: '1.5px solid #1a3c8f', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                             ) : justSaved ? (
                               <svg width="11" height="11" fill="none" stroke="#10b981" strokeWidth="2.5" viewBox="0 0 24 24">
                                 <polyline points="20,6 9,17 4,12" />
                               </svg>
                             ) : granted ? (
-                              <svg width="11" height="11" fill="none" stroke="#1b9af5" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <svg width="11" height="11" fill="none" stroke="#1a3c8f" strokeWidth="2.5" viewBox="0 0 24 24">
                                 <polyline points="20,6 9,17 4,12" />
                               </svg>
                             ) : null}

@@ -205,10 +205,23 @@ async function tick() {
   tickRunning = true;
   try {
     await ensureLeadSequencesTable();
+    // why: si hay múltiples instancias (Railway escala o restart durante tick)
+    // dos ticks podían leer las mismas filas y enviar el mismo paso 2 veces.
+    // Atomicamente marcamos las filas due como 'processing' con UPDATE...RETURNING
+    // para que solo un worker las procese.
     const due = await pool.query(
-      `SELECT * FROM lead_sequences
-        WHERE status = 'active' AND next_send_at IS NOT NULL AND next_send_at <= NOW()
-        ORDER BY next_send_at ASC LIMIT 50`
+      `UPDATE lead_sequences
+          SET last_event_at = NOW()
+        WHERE id IN (
+          SELECT id FROM lead_sequences
+           WHERE status = 'active'
+             AND next_send_at IS NOT NULL
+             AND next_send_at <= NOW()
+           ORDER BY next_send_at ASC
+           LIMIT 50
+           FOR UPDATE SKIP LOCKED
+        )
+        RETURNING *`
     );
     if (!due.rows.length) return;
     console.log(`[sequenceEngine] tick: ${due.rows.length} fila(s) due`);

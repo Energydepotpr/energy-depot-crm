@@ -20,7 +20,7 @@ function avatarInitials(name) {
   return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 }
 function avatarColor(name) {
-  const colors = ['#1b9af5','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#f97316'];
+  const colors = ['#1a3c8f','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#f97316'];
   let h = 0;
   for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xff;
   return colors[h % colors.length];

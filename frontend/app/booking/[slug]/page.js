@@ -9,7 +9,7 @@ const T = {
   border:   '#2d3148',
   text:     '#e8eaf6',
   muted:    '#7b82a8',
-  accent:   '#1b9af5',
+  accent:   '#1a3c8f',
   success:  '#22c55e',
   danger:   '#ef4444',
   warning:  '#f59e0b',

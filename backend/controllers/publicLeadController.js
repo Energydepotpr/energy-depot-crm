@@ -8,7 +8,14 @@ const { buildModernEmail } = require('../templates/emailModerno');
 // ─── Solar formula (Energy Depot PR — 1460 kWh/kW/año, $2150/kW, 0.26 $/kWh) ──
 // months[] contiene kWh mensuales (lo que aparece en la factura LUMA)
 function calcSolar(months, pricing) {
-  const p = pricing || { panelPrice: 1084, panelWatts: 550, factorProduccion: 1460, tarifaLuma: 0.26 };
+  const pRaw = pricing || { panelPrice: 1084, panelWatts: 550, factorProduccion: 1460, tarifaLuma: 0.26 };
+  // why: clamp para evitar División por cero / Infinity si config tiene panelWatts=0 o negativo
+  const p = {
+    ...pRaw,
+    panelWatts: Math.max(Number(pRaw.panelWatts) || 550, 1),
+    panelPrice: Math.max(Number(pRaw.panelPrice) || 0, 0),
+    tarifaLuma: Math.max(Number(pRaw.tarifaLuma) || 0, 0),
+  };
   // Si hay 13 meses, usa los últimos 12 (excluye el más antiguo)
   const inputMonths = (months && months.length > 12) ? months.slice(-12) : (months || []);
   const filled = inputMonths.filter(v => Number(v) > 0).map(Number);
@@ -16,8 +23,10 @@ function calcSolar(months, pricing) {
   const avgKwh   = filled.reduce((a, b) => a + b, 0) / filled.length;
   const annCons  = Math.round(avgKwh * 12);
   // Fórmula Energy Depot: paneles = (promedio mensual / 30 / 4.5) × 1000 / panelWatts,
-  // redondeado al par próximo HACIA ARRIBA
+  // redondeado al par próximo HACIA ARRIBA. why: mínimo 2 paneles para evitar
+  // panels=0 que rompe cálculos posteriores (pagoFV → Infinity / NaN).
   let panels   = 2 * Math.ceil(((avgKwh / 30 / 4.5) * 1000 / p.panelWatts) / 2);
+  if (!Number.isFinite(panels) || panels < 2) panels = 2;
   const systemKw = parseFloat(((panels * p.panelWatts) / 1000).toFixed(2));
   // Producción anual = paneles × 2.5 × 365 (fórmula Energy Depot)
   const annProd  = Math.round(panels * 2.5 * 365);
@@ -51,11 +60,17 @@ async function loadBateriasCatalog() {
 
 // PMT: Vega Coop 6.50%/15 años = 0.008711 | 4.99%/10 años = 0.010605
 function pagoMensual(total, years, rate) {
-  if (years === 15 && rate === 6.5)  return Math.round(total * 0.008711);
-  if (years === 10 && rate === 4.99) return Math.round(total * 0.010605);
+  // why: evitar NaN/Infinity si total<=0 o años<=0 (panels=0 → costBase=0)
+  const t = Number(total) || 0;
+  if (t <= 0 || !years || years <= 0) return 0;
+  if (years === 15 && rate === 6.5)  return Math.round(t * 0.008711);
+  if (years === 10 && rate === 4.99) return Math.round(t * 0.010605);
   const r = rate / 12 / 100;
   const n = years * 12;
-  return Math.round(total * r / (1 - Math.pow(1 + r, -n)));
+  if (r <= 0) return Math.round(t / n);
+  const denom = 1 - Math.pow(1 + r, -n);
+  if (!denom) return 0;
+  return Math.round(t * r / denom);
 }
 
 const fmt = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -87,22 +102,32 @@ async function createPublicLead(req, res) {
       sid = stR.rows[0]?.id || null;
     }
 
-    // Upsert contact
+    // why: dos POST paralelos pueden cada uno hacer SELECT vacío + INSERT y crear
+    // contactos/leads duplicados. Envolvemos el upsert en una transacción y
+    // bloqueamos la fila del contacto con FOR UPDATE para serializar.
+    const txClient = await pool.connect();
     let contactId = null;
-    if (email || phonenumber) {
-      const existing = await pool.query(
-        `SELECT id FROM contacts WHERE email = $1 OR phone = $2 LIMIT 1`,
-        [email || null, phonenumber || null]
-      );
-      if (existing.rows[0]) {
-        contactId = existing.rows[0].id;
-      } else {
-        const cR = await pool.query(
-          `INSERT INTO contacts (name, email, phone) VALUES ($1,$2,$3) RETURNING id`,
-          [name, email || null, phonenumber || null]
+    try {
+      await txClient.query('BEGIN');
+      if (email || phonenumber) {
+        const existing = await txClient.query(
+          `SELECT id FROM contacts WHERE email = $1 OR phone = $2 LIMIT 1 FOR UPDATE`,
+          [email || null, phonenumber || null]
         );
-        contactId = cR.rows[0].id;
+        if (existing.rows[0]) {
+          contactId = existing.rows[0].id;
+        } else {
+          const cR = await txClient.query(
+            `INSERT INTO contacts (name, email, phone) VALUES ($1,$2,$3) RETURNING id`,
+            [name, email || null, phonenumber || null]
+          );
+          contactId = cR.rows[0].id;
+        }
       }
+    } catch (txE) {
+      try { await txClient.query('ROLLBACK'); } catch {}
+      txClient.release();
+      throw txE;
     }
 
     // Helper para resumen de batería
@@ -170,9 +195,11 @@ async function createPublicLead(req, res) {
     // Dedup: si el contacto ya tiene un lead abierto (no perdido/ganado), actualizar en vez de crear
     let leadId = null;
     let updated = false;
+    try {
     if (contactId) {
-      // Buscar lead abierto del contacto, O lead sin contact_id pero cuya solar_data.email/telefono coincida
-      const existing = await pool.query(
+      // why: usamos txClient + FOR UPDATE para evitar que 2 submissions paralelos
+      // encuentren el mismo "no existe" y creen 2 leads.
+      const existing = await txClient.query(
         `SELECT id FROM leads
          WHERE (
            contact_id = $1
@@ -182,16 +209,30 @@ async function createPublicLead(req, res) {
            ))
          )
            AND (lost_reason IS NULL OR lost_reason = '')
-         ORDER BY created_at DESC LIMIT 1`,
+         ORDER BY created_at DESC LIMIT 1
+         FOR UPDATE`,
         [contactId, email || '', phonenumber || '']
       );
       if (existing.rows[0]) {
         leadId = existing.rows[0].id;
         // Merge solar_data — agregar nueva quotation a las existentes (NO sobrescribir title)
-        const oldR = await pool.query(`SELECT solar_data, title, value FROM leads WHERE id = $1`, [leadId]);
+        const oldR = await txClient.query(`SELECT solar_data, title, value FROM leads WHERE id = $1`, [leadId]);
         const oldRow = oldR.rows[0] || {};
         const oldSd = oldRow.solar_data || {};
         const oldQuotations = Array.isArray(oldSd.quotations) ? oldSd.quotations : [];
+        // why: validar límite ANTES de escribir, no después (antes el INSERT/UPDATE
+        // ya había ocurrido cuando devolvíamos 429 — la cotización quedaba guardada).
+        let projectedCount;
+        if (quotation_id && oldQuotations.find(q => q.id === quotation_id)) {
+          projectedCount = oldQuotations.length; // replace, no crece
+        } else {
+          projectedCount = oldQuotations.length + newQuotations.length;
+        }
+        if (projectedCount > 10) {
+          await txClient.query('ROLLBACK');
+          txClient.release();
+          return res.status(429).json({ error: 'Has alcanzado el límite de cotizaciones para este cliente. Contacta a un asesor: 787-627-8585.' });
+        }
         // Feature 2: si viene quotation_id y existe → REEMPLAZAR esa quotation
         let mergedQuotations;
         let mergedActiveId;
@@ -231,7 +272,7 @@ async function createPublicLead(req, res) {
         const keepTitle = oldRow.title || title;
         // Value: usar el mayor (cotización con más equipos)
         const keepValue = Math.max(Number(oldRow.value || 0), Number(value || 0));
-        await pool.query(
+        await txClient.query(
           `UPDATE leads SET title = $1, value = $2, solar_data = $3, updated_at = NOW()
            WHERE id = $4`,
           [keepTitle, keepValue, JSON.stringify(mergedSd), leadId]
@@ -241,14 +282,27 @@ async function createPublicLead(req, res) {
     }
 
     if (!leadId) {
+      // Lead nuevo: validar que no exceda límite ya (no debería: solo trae newQuotations)
+      if (newQuotations.length > 10) {
+        await txClient.query('ROLLBACK');
+        txClient.release();
+        return res.status(429).json({ error: 'Has alcanzado el límite de cotizaciones para este cliente. Contacta a un asesor: 787-627-8585.' });
+      }
       const leadSource = source || 'autocotizar-web';
-      const leadR = await pool.query(
+      const leadR = await txClient.query(
         `INSERT INTO leads (title, contact_id, pipeline_id, stage_id, value, solar_data, source)
          VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
         [title, contactId, pid, sid, value, JSON.stringify(solarData), leadSource]
       );
       leadId = leadR.rows[0].id;
     }
+    await txClient.query('COMMIT');
+    } catch (txErr) {
+      try { await txClient.query('ROLLBACK'); } catch {}
+      txClient.release();
+      throw txErr;
+    }
+    txClient.release();
 
     // Guardar factura LUMA (PDF + datos OCR) en lead_luma_bills si vino con la submission
     if (leadId && luma_factura && luma_factura.base64) {
@@ -287,13 +341,9 @@ async function createPublicLead(req, res) {
       }
     }
 
-    // Anti-abuso: máx 10 cotizaciones por lead
-    const checkR = await pool.query(`SELECT solar_data FROM leads WHERE id = $1`, [leadId]);
-    const sd = checkR.rows[0]?.solar_data || {};
-    const qCount = Array.isArray(sd.quotations) ? sd.quotations.length : 0;
-    if (qCount > 10) {
-      return res.status(429).json({ error: 'Has alcanzado el límite de cotizaciones para este cliente. Contacta a un asesor: 787-627-8585.' });
-    }
+    // why: validación de qCount > 10 ya fue ejecutada ANTES del UPDATE/INSERT
+    // dentro de la transacción (más arriba). No re-chequeamos aquí porque
+    // devolver 429 después de haber persistido los datos era el bug original.
 
     // Token simple para sesión cliente (sha256 del lead_id + secret)
     const crypto = require('crypto');

@@ -21,7 +21,7 @@ const TRIP_TYPES = [
   { value: 'aventura',    label: '🗻 Aventura',        color: '#10b981' },
   { value: 'gastronomia', label: '🍷 Gastronomía',    color: '#f59e0b' },
   { value: 'romantico',   label: '💑 Romántico',       color: '#ec4899' },
-  { value: 'familiar',    label: '👨‍👩‍👧 Familiar',    color: '#1b9af5' },
+  { value: 'familiar',    label: '👨‍👩‍👧 Familiar',    color: '#1a3c8f' },
   { value: 'tour',        label: '🌐 Tour completo',   color: '#1877f2' },
 ];
 
@@ -35,7 +35,7 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLORS = {
-  vuelo:       '#1b9af5',
+  vuelo:       '#1a3c8f',
   hotel:       '#8b5cf6',
   actividad:   '#10b981',
   traslado:    '#f59e0b',
@@ -753,7 +753,7 @@ export default function PropuestaPage() {
                   {savedId && (
                     <a
                       href={`/itinerario?id=${savedId}`}
-                      style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.08)', color: '#1b9af5', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+                      style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.08)', color: '#1a3c8f', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
                     >
                       📂 Ver en itinerarios
                     </a>

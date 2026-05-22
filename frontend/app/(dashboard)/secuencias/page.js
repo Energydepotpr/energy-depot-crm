@@ -168,7 +168,7 @@ function StepItem({ step, index, total, onChange, onRemove, onMoveUp, onMoveDown
           </div>
           <div>
             <label style={labelStyle}>Color</label>
-            <input type="color" value={step.action_config?.color || '#1b9af5'}
+            <input type="color" value={step.action_config?.color || '#1a3c8f'}
               onChange={e => setConfig('color', e.target.value)}
               style={{ ...inputStyle, width: 60, padding: '4px 6px', cursor: 'pointer' }} />
           </div>
@@ -395,7 +395,7 @@ function SequenceModal({ sequence, onClose, onSaved }) {
                           )}
                           {step.action_type === 'add_tag' && step.action_config?.tag && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                              <span style={{ width: 10, height: 10, borderRadius: '50%', background: step.action_config.color || '#1b9af5' }} />
+                              <span style={{ width: 10, height: 10, borderRadius: '50%', background: step.action_config.color || '#1a3c8f' }} />
                               <span style={{ fontSize: 12, color: C.muted }}>{step.action_config.tag}</span>
                             </div>
                           )}

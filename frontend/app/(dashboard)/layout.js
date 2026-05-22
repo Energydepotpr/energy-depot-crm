@@ -175,7 +175,7 @@ function GlobalSearch() {
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, zIndex: 100, overflow: 'hidden', maxHeight: 300, overflowY: 'auto' }}>
           {results.contacts.slice(0, 3).map(c => (
             <button key={c.id} onClick={() => go(`/contacts/${c.id}`)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-              <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(59,130,246,0.15)', color: '#1b9af5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>{c.name[0]?.toUpperCase()}</div>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(59,130,246,0.15)', color: '#1a3c8f', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>{c.name[0]?.toUpperCase()}</div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ color: 'var(--text)', fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
                 {c.phone && <div style={{ color: 'var(--muted)', fontSize: 11 }}>{c.phone}</div>}
@@ -234,7 +234,7 @@ function MoreSheet({ open, onClose, user, logout, alertCount, lang }) {
                     </div>
                   )}
                   <button onClick={() => { router.push(item.href); onClose(); }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '11px 16px', background: active ? 'rgba(59,130,246,0.08)' : 'none', border: 'none', cursor: 'pointer', borderRadius: 10, color: active ? '#1b9af5' : 'var(--text-dim)' }}>
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '11px 16px', background: active ? 'rgba(59,130,246,0.08)' : 'none', border: 'none', cursor: 'pointer', borderRadius: 10, color: active ? '#1a3c8f' : 'var(--text-dim)' }}>
                     <Icono path={item.icon} size={20} filled={active} />
                     <span style={{ fontSize: 14, fontWeight: active ? 600 : 400 }}>{t(item.tKey, lang)}</span>
                   </button>
@@ -246,7 +246,7 @@ function MoreSheet({ open, onClose, user, logout, alertCount, lang }) {
 
         {/* Usuario */}
         <div style={{ margin: '8px 16px 0', paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(59,130,246,0.12)', color: '#1b9af5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>
+          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(59,130,246,0.12)', color: '#1a3c8f', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>
             {user?.name?.[0]?.toUpperCase()}
           </div>
           <div style={{ flex: 1 }}>
@@ -485,7 +485,7 @@ export default function DashboardLayout({ children }) {
                     <span style={{
                       position: 'absolute', top: -4, right: -6,
                       minWidth: 15, height: 15,
-                      background: item.taskBadge ? '#f59e0b' : '#1b9af5',
+                      background: item.taskBadge ? '#f59e0b' : '#1a3c8f',
                       color: '#fff', fontSize: 9, fontWeight: 700,
                       borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
                       padding: '0 3px',
@@ -815,7 +815,7 @@ export default function DashboardLayout({ children }) {
       {iosBanner && (
         <div style={{
           position: 'fixed', bottom: 80, left: 12, right: 12, zIndex: 300,
-          background: 'var(--surface)', border: '1px solid #1b9af5',
+          background: 'var(--surface)', border: '1px solid #1a3c8f',
           borderRadius: 14, padding: '14px 16px',
           boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           display: 'flex', gap: 12, alignItems: 'flex-start',

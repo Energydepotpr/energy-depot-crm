@@ -17,7 +17,7 @@ function formatDateShort(iso) {
 const STATUS_CONFIG = {
   draft:      { label: 'Borrador',  bg: 'rgba(148,163,184,0.15)', color: '#94a3b8' },
   scheduled:  { label: 'Programada', bg: 'rgba(245,158,11,0.15)', color: '#f59e0b' },
-  sending:    { label: 'Enviando',  bg: 'rgba(59,130,246,0.15)',  color: '#1b9af5', blink: true },
+  sending:    { label: 'Enviando',  bg: 'rgba(59,130,246,0.15)',  color: '#1a3c8f', blink: true },
   sent:       { label: 'Enviada',   bg: 'rgba(16,185,129,0.15)',  color: '#10b981' },
   failed:     { label: 'Fallida',   bg: 'rgba(239,68,68,0.15)',   color: '#ef4444' },
 };
@@ -504,7 +504,7 @@ export default function CampanasPage() {
                             </button>
                           )}
                           {camp.status === 'sending' && (
-                            <span style={{ fontSize: 11, color: '#1b9af5', animation: 'pulse 1.5s ease-in-out infinite' }}>Enviando...</span>
+                            <span style={{ fontSize: 11, color: '#1a3c8f', animation: 'pulse 1.5s ease-in-out infinite' }}>Enviando...</span>
                           )}
 
                           {/* Edit */}
@@ -513,7 +513,7 @@ export default function CampanasPage() {
                               onClick={() => setModal(camp)}
                               title="Editar"
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '4px 6px', borderRadius: 5, display: 'flex', alignItems: 'center' }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.1)'; e.currentTarget.style.color = '#1b9af5'; }}
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.1)'; e.currentTarget.style.color = '#1a3c8f'; }}
                               onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)'; }}
                             >
                               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">

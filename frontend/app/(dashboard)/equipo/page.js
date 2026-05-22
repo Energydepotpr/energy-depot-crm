@@ -121,7 +121,7 @@ export default function EquipoPage() {
         <div style={{
           width: 36, height: 36, borderRadius: '50%',
           background: 'rgba(59,130,246,0.15)',
-          color: '#1b9af5',
+          color: '#1a3c8f',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}>
@@ -137,7 +137,7 @@ export default function EquipoPage() {
           onClick={abrirResumen}
           style={{
             background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)',
-            borderRadius: 8, padding: '6px 12px', color: '#1b9af5',
+            borderRadius: 8, padding: '6px 12px', color: '#1a3c8f',
             fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
             display: 'flex', alignItems: 'center', gap: 5,
           }}
@@ -277,7 +277,7 @@ export default function EquipoPage() {
           onClick={enviar}
           disabled={sending || !content.trim()}
           style={{
-            background: '#1b9af5',
+            background: '#1a3c8f',
             border: 'none',
             borderRadius: 10,
             padding: '10px 18px',
@@ -304,7 +304,7 @@ export default function EquipoPage() {
           <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <button
               onClick={() => setShowAddTask(v => !v)}
-              style={{ background: '#1b9af5', border: 'none', borderRadius: 8, padding: '7px 14px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+              style={{ background: '#1a3c8f', border: 'none', borderRadius: 8, padding: '7px 14px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
             >
               <span>+</span> Nueva tarea
             </button>
@@ -349,7 +349,7 @@ export default function EquipoPage() {
                     } catch (e) { alert(e.message); }
                     setAddingTask(false);
                   }}
-                  style={{ background: '#1b9af5', border: 'none', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: !newTaskContent.trim() || addingTask ? 0.5 : 1, flexShrink: 0 }}
+                  style={{ background: '#1a3c8f', border: 'none', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: !newTaskContent.trim() || addingTask ? 0.5 : 1, flexShrink: 0 }}
                 >
                   Crear
                 </button>

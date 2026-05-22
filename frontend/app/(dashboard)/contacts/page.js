@@ -390,8 +390,8 @@ function DuplicatesModal({ onClose, onMerged }) {
 const PAGE_SIZE = 20;
 
 const AVATAR_COLORS = [
-  '#1b9af5', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444',
-  '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#1b9af5',
+  '#1a3c8f', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444',
+  '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#1a3c8f',
 ];
 
 function avatarColor(name) {
@@ -658,7 +658,7 @@ export default function ContactsPage() {
             <button
               onClick={() => setImportModal(true)}
               style={S.btnGhost}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#1b9af5'; e.currentTarget.style.color = 'var(--text)'; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#1a3c8f'; e.currentTarget.style.color = 'var(--text)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--muted)'; }}
             >
               {t('contacts.import2', lang)}
@@ -668,7 +668,7 @@ export default function ContactsPage() {
             <button
               onClick={exportar}
               style={S.btnGhost}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#1b9af5'; e.currentTarget.style.color = 'var(--text)'; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#1a3c8f'; e.currentTarget.style.color = 'var(--text)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--muted)'; }}
             >
               {t('contacts.export', lang)}
@@ -711,7 +711,7 @@ export default function ContactsPage() {
                   type="checkbox"
                   checked={contacts.length > 0 && selected.size === contacts.length}
                   onChange={toggleAll}
-                  style={{ cursor: 'pointer', accentColor: '#1b9af5' }}
+                  style={{ cursor: 'pointer', accentColor: '#1a3c8f' }}
                 />
               </th>}
               <th style={S.th}>{t('contacts.col.name', lang)}</th>
@@ -728,7 +728,7 @@ export default function ContactsPage() {
               <tr>
                 <td colSpan={8} style={{ textAlign: 'center', padding: '48px 0', color: '#7880a0' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                    <div style={{ width: 16, height: 16, border: '2px solid #1b9af5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                    <div style={{ width: 16, height: 16, border: '2px solid #1a3c8f', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
                     Cargando...
                   </div>
                 </td>
@@ -771,7 +771,7 @@ export default function ContactsPage() {
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelect(c.id)}
-                        style={{ cursor: 'pointer', accentColor: '#1b9af5' }}
+                        style={{ cursor: 'pointer', accentColor: '#1a3c8f' }}
                       />
                     </td>
                   )}
@@ -843,7 +843,7 @@ export default function ContactsPage() {
                         onClick={() => router.push(`/contacts/${c.id}`)}
                         title="Ver perfil y timeline"
                         style={S.actionBtn}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.color = '#1b9af5'; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.color = '#1a3c8f'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)'; }}
                       >
                         <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -870,7 +870,7 @@ export default function ContactsPage() {
                         onClick={() => setModal(c)}
                         title="Editar"
                         style={S.actionBtn}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.1)'; e.currentTarget.style.color = '#1b9af5'; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.1)'; e.currentTarget.style.color = '#1a3c8f'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)'; }}
                       >
                         <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">

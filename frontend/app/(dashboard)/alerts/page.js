@@ -27,7 +27,7 @@ const ICONS = {
 const STATUS_VALUES = ['pending', 'en_proceso', 'cotizado', 'confirmado', 'pagado'];
 const STATUS_COLORS = {
   pending:    { color: '#f97316', bg: 'rgba(249,115,22,0.15)'  },
-  en_proceso: { color: '#1b9af5', bg: 'rgba(59,130,246,0.15)'  },
+  en_proceso: { color: '#1a3c8f', bg: 'rgba(59,130,246,0.15)'  },
   cotizado:   { color: '#a855f7', bg: 'rgba(168,85,247,0.15)'  },
   confirmado: { color: '#22c55e', bg: 'rgba(34,197,94,0.15)'   },
   pagado:     { color: '#14b8a6', bg: 'rgba(20,184,166,0.15)'  },

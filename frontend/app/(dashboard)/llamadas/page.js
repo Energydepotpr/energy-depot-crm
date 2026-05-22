@@ -9,8 +9,8 @@ const STATUS_LABEL = {
   'no-answer':   { label: 'Sin respuesta', color: '#f59e0b' },
   busy:          { label: 'Ocupado',       color: '#f59e0b' },
   failed:        { label: 'Fallida',       color: '#ef4444' },
-  initiated:     { label: 'Iniciada',      color: '#1b9af5' },
-  ringing:       { label: 'Timbrando',     color: '#1b9af5' },
+  initiated:     { label: 'Iniciada',      color: '#1a3c8f' },
+  ringing:       { label: 'Timbrando',     color: '#1a3c8f' },
   'in-progress': { label: 'En curso',      color: '#10b981' },
   canceled:      { label: 'Cancelada',     color: '#4b5563' },
 };
@@ -73,7 +73,7 @@ function RecordingPlayer({ logId, onDeleted }) {
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', color: '#4b5563', fontSize: 12 }}>
-      <div style={{ width: 12, height: 12, border: '2px solid #1b9af5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <div style={{ width: 12, height: 12, border: '2px solid #1a3c8f', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       Cargando grabación...
     </div>
   );
@@ -88,7 +88,7 @@ function RecordingPlayer({ logId, onDeleted }) {
         ref={audioRef}
         controls
         src={url}
-        style={{ width: '100%', height: 32, accentColor: '#1b9af5' }}
+        style={{ width: '100%', height: 32, accentColor: '#1a3c8f' }}
       >
         Tu navegador no soporta audio HTML5.
       </audio>
@@ -175,7 +175,7 @@ function LogRow({ log, onRecordingDeleted, lang }) {
         {/* Lead */}
         <td style={{ padding: '12px 16px', fontSize: 12 }}>
           {log.lead_id ? (
-            <a href={`/leads?open=${log.lead_id}`} style={{ color: '#1b9af5', textDecoration: 'none', background: 'rgba(59,130,246,0.1)', padding: '2px 8px', borderRadius: 5, border: '1px solid rgba(59,130,246,0.25)', fontSize: 11, fontWeight: 600, display: 'inline-block' }}
+            <a href={`/leads?open=${log.lead_id}`} style={{ color: '#1a3c8f', textDecoration: 'none', background: 'rgba(59,130,246,0.1)', padding: '2px 8px', borderRadius: 5, border: '1px solid rgba(59,130,246,0.25)', fontSize: 11, fontWeight: 600, display: 'inline-block' }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.2)'}
               onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}
             >
@@ -192,14 +192,14 @@ function LogRow({ log, onRecordingDeleted, lang }) {
               title={expanded ? 'Cerrar player' : 'Reproducir grabación'}
               style={{
                 background: expanded ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.08)',
-                border: `1px solid ${expanded ? '#1b9af5' : 'rgba(59,130,246,0.25)'}`,
+                border: `1px solid ${expanded ? '#1a3c8f' : 'rgba(59,130,246,0.25)'}`,
                 borderRadius: 6,
                 padding: '4px 10px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 5,
-                color: '#1b9af5',
+                color: '#1a3c8f',
                 fontSize: 11,
                 fontWeight: 600,
               }}
@@ -260,7 +260,7 @@ function TranscriptionPanel({ data }) {
         </span>
         {data.translation && (
           <button onClick={() => setShowEn(v => !v)}
-            style={{ fontSize: 11, background: showEn ? '#1b9af525' : 'transparent', border: '1px solid #1b9af540', borderRadius: 6, padding: '3px 10px', color: '#60a5fa', cursor: 'pointer' }}>
+            style={{ fontSize: 11, background: showEn ? '#1a3c8f25' : 'transparent', border: '1px solid #1a3c8f40', borderRadius: 6, padding: '3px 10px', color: '#60a5fa', cursor: 'pointer' }}>
             {showEn ? '🇵🇷 Español' : '🇺🇸 English'}
           </button>
         )}
@@ -341,7 +341,7 @@ function TwilioRecordingsTab() {
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: 60, color: '#4b5563', gap: 10 }}>
-      <div style={{ width: 16, height: 16, border: '2px solid #1b9af5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <div style={{ width: 16, height: 16, border: '2px solid #1a3c8f', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       Cargando grabaciones...
     </div>
   );
@@ -394,7 +394,7 @@ function TwilioRecordingsTab() {
 
               {/* Play button */}
               <button onClick={() => handlePlay(r.sid)}
-                style={{ background: playing === r.sid ? '#1b9af520' : '#1b9af510', border: '1px solid #1b9af540', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, color: '#1b9af5', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                style={{ background: playing === r.sid ? '#1a3c8f20' : '#1a3c8f10', border: '1px solid #1a3c8f40', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, color: '#1a3c8f', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                 {playing === r.sid ? '⏸ Pausar' : '▶ Reproducir'}
               </button>
 
@@ -493,7 +493,7 @@ export default function LlamadasPage() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid rgba(0,0,0,0.08)', paddingBottom: 0 }}>
         {[{ key: 'llamadas', label: t('calls.tab.logs', lang) }, { key: 'grabaciones', label: t('calls.tab.twilio', lang) }].map(tab_ => (
           <button key={tab_.key} onClick={() => setTab(tab_.key)}
-            style={{ background: 'none', border: 'none', padding: '10px 18px', fontSize: 13, fontWeight: tab === tab_.key ? 700 : 400, color: tab === tab_.key ? '#1b9af5' : '#374151', cursor: 'pointer', borderBottom: tab === tab_.key ? '2px solid #1b9af5' : '2px solid transparent', marginBottom: -1, transition: 'color 0.15s' }}>
+            style={{ background: 'none', border: 'none', padding: '10px 18px', fontSize: 13, fontWeight: tab === tab_.key ? 700 : 400, color: tab === tab_.key ? '#1a3c8f' : '#374151', cursor: 'pointer', borderBottom: tab === tab_.key ? '2px solid #1a3c8f' : '2px solid transparent', marginBottom: -1, transition: 'color 0.15s' }}>
             {tab_.label}
           </button>
         ))}
@@ -507,11 +507,11 @@ export default function LlamadasPage() {
       {!loading && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 }}>
           {[
-            { label: t('calls.stat.total', lang),       value: logs.length,                                                   color: '#1b9af5' },
+            { label: t('calls.stat.total', lang),       value: logs.length,                                                   color: '#1a3c8f' },
             { label: t('calls.stat.completed', lang),   value: logs.filter(l => l.status === 'completed').length,             color: '#10b981' },
             { label: t('calls.stat.noAnswer', lang),    value: logs.filter(l => l.status === 'no-answer').length,             color: '#f59e0b' },
             { label: t('calls.stat.recordings', lang),  value: conGrabacion,                                                  color: '#8b5cf6' },
-            { label: t('calls.stat.duration', lang),    value: formatDuration(logs.reduce((s, l) => s + (l.duration || 0), 0)), color: '#1b9af5' },
+            { label: t('calls.stat.duration', lang),    value: formatDuration(logs.reduce((s, l) => s + (l.duration || 0), 0)), color: '#1a3c8f' },
           ].map(s => (
             <div key={s.label} style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: '14px 16px' }}>
               <div style={{ fontSize: 11, color: '#4b5563', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
@@ -555,7 +555,7 @@ export default function LlamadasPage() {
       <div style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 12, overflow: 'hidden' }}>
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 48, gap: 10, color: '#4b5563', fontSize: 14 }}>
-            <div style={{ width: 16, height: 16, border: '2px solid #1b9af5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <div style={{ width: 16, height: 16, border: '2px solid #1a3c8f', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             {t('common.loading', lang)}
           </div>
         )}

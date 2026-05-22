@@ -2,6 +2,7 @@ import './globals.css';
 import { AuthProvider } from '../lib/auth';
 import { LangProvider } from '../lib/lang-context';
 import PWARegister from './components/PWARegister';
+import ToastProvider from './components/ToastProvider';
 
 export const metadata = {
   title: 'Energy Depot PR — CRM Solar',
@@ -46,7 +47,7 @@ export default function RootLayout({ children }) {
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=4" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=4" />
         <link rel="apple-touch-startup-image" href="/apple-icon.png?v=4" />
-        <meta name="theme-color" content="#1b9af5" />
+        <meta name="theme-color" content="#1a3c8f" />
         {/* Prevent zoom on inputs (iOS) */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         {/* Apply theme BEFORE React hydrates to avoid flash */}
@@ -61,6 +62,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <AuthProvider><LangProvider>{children}</LangProvider></AuthProvider>
+        <ToastProvider />
         <PWARegister />
       </body>
     </html>

@@ -431,7 +431,7 @@ export default function SegmentosPage() {
                     onClick={() => setModal(seg)}
                     title="Editar"
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '3px 5px', borderRadius: 5, display: 'flex', alignItems: 'center' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.1)'; e.currentTarget.style.color = '#1b9af5'; }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.1)'; e.currentTarget.style.color = '#1a3c8f'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)'; }}
                   >
                     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">

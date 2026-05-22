@@ -578,10 +578,10 @@ function AutomationsSection() {
       <div className="space-y-2 mb-4">
         {automations.map(a => (
           <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 bg-bg rounded-lg border border-border">
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: a.trigger_stage_color || '#1b9af5', flexShrink: 0 }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: a.trigger_stage_color || '#1a3c8f', flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium text-white">
-                Cuando llega a <span style={{ color: a.trigger_stage_color || '#1b9af5' }}>{a.trigger_stage_name}</span>
+                Cuando llega a <span style={{ color: a.trigger_stage_color || '#1a3c8f' }}>{a.trigger_stage_name}</span>
                 <span className="text-muted"> → </span>
                 {ACTION_LABELS[a.action_type] || a.action_type}
               </div>

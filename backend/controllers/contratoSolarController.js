@@ -71,11 +71,14 @@ function emailHTMLContratoParaFirma({ cliente, signingUrl }) {
 }
 
 const fmt  = n => `$ ${Number(n||0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+// why: usar timezone America/Puerto_Rico (UTC-4) en lugar de la zona del servidor
+// para que las fechas del contrato sean consistentes con PR.
 const fmtShort = (d = new Date()) => {
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const dd = String(d.getDate()).padStart(2,'0');
-  const yy = String(d.getFullYear()).slice(-2);
-  return `${mm}/${dd}/${yy}`;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Puerto_Rico',
+    year: '2-digit', month: '2-digit', day: '2-digit',
+  }).formatToParts(d).reduce((acc, p) => (acc[p.type] = p.value, acc), {});
+  return `${parts.month}/${parts.day}/${parts.year}`;
 };
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -343,8 +346,6 @@ function buildContratoHTML(d) {
   <div class="clausula">
     <div class="titulo"><span class="num">4</span> Compraventa con Financiamiento</div>
         <div class="texto">Sólo aplicable cuando medie financiamiento para la compra del Sistema SELF-ENERGY, según adelantado por el Comprador en el Preacuerdo de Compraventa de Sistema SELF-ENERGY.</div>
-      </div>
-    </div>
     <p class="sub"><span class="letra">a.</span> El calendario de desembolsos del Precio de Compraventa se realizará conforme a los acuerdos llegados entre el Vendedor y la correspondiente institución financiera, los cuales no necesariamente concordarán con el calendario establecido en la Sección 3 de este Contrato. Los desembolsos del Precio de Compraventa serán realizados por la institución financiera directamente al Vendedor.</p>
     <p class="sub"><span class="letra">b.</span> El cierre de las facilidades de crédito a ser utilizadas para el pago del Precio de Compraventa se llevará a cabo no más tarde de 30 días a partir de la firma del presente Contrato.</p>
   </div>
@@ -359,8 +360,6 @@ function buildContratoHTML(d) {
   <div class="clausula">
     <div class="titulo"><span class="num">6</span> Instalación y Permisos</div>
         <div class="texto">El Vendedor será responsable de la instalación del Sistema SELF-ENERGY en las Facilidades del Comprador identificadas en este acuerdo de Compraventa de Sistema SELF-ENERGY. La instalación del Sistema Fotovoltaico comenzará con la obtención de los permisos y endosos necesarios requeridos por ley, si algunos, para la instalación de Sistemas SELF-ENERGY, incluyendo, sin limitarse, al endoso de los planos del diseño eléctrico por LUMA Energy o PREPA. El comienzo de la instalación además estará sujeta al cumplimiento por el Comprador del derecho de acceso requerido en la Sección 5 de este Contrato. El Comprador se obliga a suscribir todo y cualquier documento necesario para la obtención por conducto del Vendedor de cualquier permiso o endoso requerido para la instalación del Sistema SELF-ENERGY en las Facilidades del Comprador y la interconexión del mismo con LUMA Energy o PREPA.</div>
-      </div>
-    </div>
     <p class="sub"><span class="letra">a.</span> <span class="sub-titulo">Cumplimiento Regulatorio.</span> Energy Depot LLC realizará la instalación y puesta en marcha del Sistema conforme al Código Eléctrico de Puerto Rico (NEC 2020), los reglamentos de LUMA Energy, y las disposiciones del Negociado de Energía de Puerto Rico (NEPR). Cualquier requisito adicional o modificación solicitada por dichas entidades será responsabilidad del Comprador, incluyendo costos de ingeniería o materiales adicionales que sean necesarios para cumplir con la normativa vigente.</p>
     <p class="sub"><span class="letra">b.</span> <span class="sub-titulo">Cumplimiento de Estándares Técnicos y de Seguridad.</span> Energy Depot LLC garantiza que todos los equipos, componentes y materiales utilizados en la instalación del Sistema SELF-ENERGY cumplen con los estándares y certificaciones aplicables de seguridad y eficiencia eléctrica, incluyendo los establecidos por Underwriters Laboratories (UL), Institute of Electrical and Electronics Engineers (IEEE), National Electrical Code (NEC 2020) y cualquier otra norma técnica vigente en Puerto Rico o los Estados Unidos.</p>
   </div>
@@ -384,8 +383,6 @@ function buildContratoHTML(d) {
   <div class="clausula">
     <div class="titulo"><span class="num">8</span> Mantenimiento</div>
         <div class="texto">El Comprador reconoce que será exclusivamente responsable de la operación, mantenimiento y reparación del Sistema SELF-ENERGY, excepto que aplique cualquier situación cubierta por la garantía limitada del Sistema SELF-ENERGY ofrecida por el Vendedor. El Comprador será exclusivamente responsable de cualquier mantenimiento, reparación y/o requisito necesario (i.e. seguros, etc.) para la aprobación de cualquier Acuerdo de Interconexión, Acuerdo de Medición Neta y/o cualquier otro acuerdo suscrito con LUMA Energy o PREPA relacionado al Sistema SELF-ENERGY (colectivamente, los &ldquo;Acuerdos Energéticos&rdquo;). El Comprador reconoce que los Acuerdos Energéticos son a un término definido y que su renovación depende del cumplimiento por el Comprador de una serie de requisitos establecidos por ley, reglamento y/o en los propios Acuerdos Energéticos. Será responsabilidad exclusiva del Comprador el cumplimiento con dichos Acuerdo Energéticos y los requisitos necesarios para su renovación. Por lo menos tres (3) meses previos al vencimiento de cualquiera de los Acuerdo Energéticos, el Comprador podrá notificar al Vendedor que desea que el Vendedor le refiera, a costo exclusivo del Comprador, un profesional para que lo asista o ayude en la renovación de cualquiera de los Acuerdos Energéticos.</div>
-      </div>
-    </div>
     <p class="sub"><span class="letra">a.</span> <span class="sub-titulo">Monitoreo del Sistema y Uso de Datos.</span> El Comprador autoriza a Energy Depot LLC a instalar, acceder y utilizar equipos o software de monitoreo remoto del Sistema con el fin de verificar su desempeño y realizar mantenimiento preventivo. Energy Depot LLC podrá recopilar y analizar datos operacionales del sistema exclusivamente para fines técnicos, de garantía o mejora de servicio. Dichos datos serán tratados como confidenciales y no se divulgarán a terceros sin autorización expresa del Comprador.</p>
   </div>
 
@@ -393,8 +390,6 @@ function buildContratoHTML(d) {
   <div class="clausula">
     <div class="titulo"><span class="num">9</span> Garantía Limitada</div>
         <div class="texto">Energy Depot LLC garantiza la labor de instalación por un período de quince (15) años, cubriendo únicamente defectos atribuibles a la instalación original. La garantía no cubre daños causados por terceros, fenómenos naturales, modificaciones no autorizadas, mal uso del sistema o fallas en la red eléctrica externa. Las garantías de los equipos individuales se regirán por los términos y condiciones establecidos por el fabricante de cada componente. El Comprador reconoce que cualquier alteración o reparación realizada sin autorización escrita de Energy Depot LLC anulará esta garantía.</div>
-      </div>
-    </div>
     <p class="sub"><span class="letra">a.</span> <span class="sub-titulo">Limitación de Responsabilidad.</span> Energy Depot LLC no será responsable por daños indirectos, incidentales, especiales o consecuentes que surjan del uso o desempeño del Sistema, incluyendo pérdida de ingresos, ahorros o beneficios. La responsabilidad total de Energy Depot LLC bajo este Contrato se limitará, en todo caso, al monto efectivamente pagado por el Comprador por concepto del Sistema SELF-ENERGY.</p>
     <p class="sub"><span class="letra">b.</span> <span class="sub-titulo">Transferibilidad de Garantía.</span> La garantía de quince (15) años establecida en este Contrato aplica exclusivamente al Comprador original del Sistema de Energía Renovable instalado por Energy Depot LLC. En caso de que el inmueble donde se encuentre el sistema sea vendido o transferido durante el período de garantía, Energy Depot LLC, a su sola discreción, podrá ofrecer una transferencia limitada de garantía al nuevo propietario (&ldquo;Segundo Tenedor&rdquo;), siempre que se cumplan las siguientes condiciones:</p>
     <div class="sub-bullet">• El Segundo Tenedor notifique por escrito a Energy Depot LLC dentro de los noventa (90) días siguientes a la compraventa del inmueble.</div>
@@ -435,8 +430,6 @@ function buildContratoHTML(d) {
   <div class="clausula">
     <div class="titulo"><span class="num">11</span> Autorización para Documentación Visual y Mercadeo</div>
         <div class="texto">El Comprador autoriza expresamente a Energy Depot LLC y a sus representantes a grabar, fotografiar y documentar todo el proceso de instalación, inspección, y finalización del Sistema de Energía Renovable, con fines de:</div>
-      </div>
-    </div>
     <div class="sub-bullet">• Documentación técnica y control de calidad; y</div>
     <div class="sub-bullet">• Promoción y mercadeo del trabajo realizado, incluyendo su publicación en redes sociales, materiales publicitarios, televisión, radio o páginas web.</div>
     <p class="sub">Energy Depot LLC se compromete a salvaguardar la privacidad y datos personales del Comprador conforme a la ley y a no divulgar información que identifique su dirección o datos financieros sin consentimiento adicional.</p>
@@ -457,8 +450,6 @@ function buildContratoHTML(d) {
   <div class="clausula">
     <div class="titulo"><span class="num">13</span> Notificaciones</div>
         <div class="texto">Todas las notificaciones, requerimientos, instrucciones y otras comunicaciones requeridos bajo este Contrato se harán por escrito y serán enviados por correo certificado con acuse de recibo, correo electrónico con acuse de recibo o facsímile o entregadas a la mano a la parte a las siguientes direcciones de las partes que surgen en el encabezamiento.</div>
-      </div>
-    </div>
     <p class="sub"><span class="letra">a.</span> <span class="sub-titulo">Cláusula de Comunicación Continua.</span> Energy Depot LLC mantendrá comunicación con el Comprador durante todo el proceso de permisos, instalación y certificación, informando de manera periódica sobre el estatus de los trámites.</p>
   </div>
 
@@ -466,8 +457,6 @@ function buildContratoHTML(d) {
   <div class="clausula">
     <div class="titulo"><span class="num">14</span> Cancelación del Proyecto y Aplicación de Pagos</div>
         <div class="texto">En caso de cancelación voluntaria del proyecto por parte del Comprador, o si el contrato se termina antes de completarse por causas ajenas a Energy Depot LLC, cualquier cantidad recibida como pronto, pago parcial o desembolso inicial, ya sea directamente del Comprador o de una institución financiera, se aplicará a los costos incurridos hasta la fecha de cancelación, incluyendo, sin limitarse a:</div>
-      </div>
-    </div>
     <div class="sub-bullet">• Visita técnica preliminar,</div>
     <div class="sub-bullet">• Desarrollo del diseño conceptual o de ingeniería,</div>
     <div class="sub-bullet">• Preparación del plano eléctrico,</div>
@@ -481,8 +470,6 @@ function buildContratoHTML(d) {
   <div class="clausula">
     <div class="titulo"><span class="num">15</span> Remedios y Resolución de Controversias</div>
         <div class="texto">En adición a cualquier remedio provisto por ley y/o cualquier remedio específico establecido en las demás secciones de este Contrato, en caso de incumplimiento por el Comprador de cualesquiera de sus obligaciones bajo este Contrato, el Vendedor podrá, además:</div>
-      </div>
-    </div>
     <p class="sub"><span class="letra">a.</span> En casos donde no medie financiamiento por una institución financiera, (i) dar por terminado el presente Contrato; (ii) tomar posesión del Sistema SELF-ENERGY conforme a lo dispuesto en la Ley de Transacciones Garantizadas de Puerto Rico, según enmendada; (iii) paralizar la instalación del Sistema SELF-ENERGY en las Facilidades del Comprador; (iv) retener cualquier parte del Precio de Compraventa pagado por el Vendedor; y/o (v) acelerar el pago de cualquier desembolso no vencido del Precio de Compraventa.</p>
     <p class="sub"><span class="letra">b.</span> <span class="sub-titulo">Cláusula de Resolución Amistosa Previa al Arbitraje.</span> Antes de acudir al proceso de arbitraje, las partes se comprometen a intentar una reunión de conciliación amistosa dentro de un término de diez (10) días naturales desde la notificación del reclamo. Esta reunión podrá celebrarse de manera presencial o virtual, y no afectará el derecho posterior de las partes a acudir al arbitraje.</p>
     <p class="sub"><span class="letra">c.</span> En caso de incumplimiento de cualquiera de las obligaciones contenidas en este Contrato, las partes acuerdan que toda reclamación, disputa o controversia derivada o relacionada con el presente Contrato, su interpretación, ejecución o terminación, se resolverá exclusivamente mediante arbitraje vinculante ante el Centro de Arbitraje y Mediación de la Cámara de Comercio de Puerto Rico, conforme a su reglamento vigente. Este proceso ofrece un mecanismo rápido, imparcial y especializado, en lugar de recurrir a agencias administrativas como DACO o a los tribunales ordinarios, salvo para ejecutar el laudo arbitral o solicitar medidas provisionales según la ley aplicable. La decisión del árbitro será final, firme y vinculante, y podrá ejecutarse en los tribunales del Estado Libre Asociado de Puerto Rico.</p>
@@ -700,11 +687,16 @@ async function generarContratoSolar(req, res) {
         vendedor,
         updatedAt: new Date().toISOString(),
       };
+      // why: jsonb_set reemplaza el objeto entero perdiendo campos previos
+      // (ej. otras configs históricas). Leemos el existente y mergeamos en JS.
+      const prev = await pool.query(`SELECT solar_data FROM leads WHERE id=$1`, [leadId]);
+      const prevSd = prev.rows[0]?.solar_data || {};
+      const prevCfg = (prevSd.contrato_config && typeof prevSd.contrato_config === 'object') ? prevSd.contrato_config : {};
+      const mergedCfg = { ...prevCfg, ...contratoConfig };
+      const mergedSd  = { ...prevSd, contrato_config: mergedCfg };
       await pool.query(
-        `UPDATE leads
-            SET solar_data = jsonb_set(COALESCE(solar_data, '{}'::jsonb), '{contrato_config}', $1::jsonb, true)
-          WHERE id = $2`,
-        [JSON.stringify(contratoConfig), leadId]
+        `UPDATE leads SET solar_data = $1::jsonb WHERE id = $2`,
+        [JSON.stringify(mergedSd), leadId]
       );
     } catch (errCfg) {
       console.error('[contratoSolar saveConfig]', errCfg.message);

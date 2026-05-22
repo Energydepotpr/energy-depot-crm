@@ -360,10 +360,16 @@ async function signPublic(req, res) {
 
     const isTuCoop = row.coop_template === 'tu_coop';
 
-    // Permitir que el cliente actualice form_data antes de firmar (REEMPLAZA si viene)
-    let fdFinal = row.form_data || {};
+    // why: shallow merge sobreescribía valores ya guardados con strings vacíos del
+    // form de firma (campos opcionales que el cliente dejó en blanco). Solo
+    // pisamos un campo si el cliente envió un valor no-vacío.
+    let fdFinal = { ...(row.form_data || {}) };
     if (form_data && typeof form_data === 'object') {
-      fdFinal = { ...fdFinal, ...form_data };
+      for (const [k, v] of Object.entries(form_data)) {
+        if (v === undefined || v === null) continue;
+        if (typeof v === 'string' && v.trim() === '') continue;
+        fdFinal[k] = v;
+      }
     }
     // Validar required solo para template genérico (tu_coop tiene su propio set)
     if (!isTuCoop) {

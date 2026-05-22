@@ -94,8 +94,17 @@ async function findOrCreateContact(phone) {
 // ── Buscar o crear lead ───────────────────────────────────────────────────────
 
 async function findOrCreateLead(contactId, phone) {
+  // why: antes reusaba el lead más reciente aunque estuviera perdido/ganado/completado,
+  // mezclando conversaciones nuevas con leads cerrados. Filtramos a leads activos
+  // (sin lost_reason y cuyo stage no sea de cierre).
   const existing = await pool.query(
-    `SELECT id FROM leads WHERE contact_id = $1 ORDER BY updated_at DESC LIMIT 1`,
+    `SELECT l.id
+       FROM leads l
+       LEFT JOIN pipeline_stages s ON s.id = l.stage_id
+      WHERE l.contact_id = $1
+        AND (l.lost_reason IS NULL OR l.lost_reason = '')
+        AND (s.name IS NULL OR s.name !~* '(completad|perdid|ganad|won|lost|closed)')
+      ORDER BY l.updated_at DESC LIMIT 1`,
     [contactId]
   );
   if (existing.rows.length) return existing.rows[0].id;

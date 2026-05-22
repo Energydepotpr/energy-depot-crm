@@ -101,8 +101,24 @@ app.use(cors({
 }));
 
 // Body size limit
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Default global: 2MB (cubre 99% de requests).
+// Las rutas que necesitan subir archivos base64 usan middleware específico de 20MB
+// abajo (extract-factura, luma-bills, financing-docs, client-docs uploads).
+const largeBody = express.json({ limit: '20mb' });
+const largeBodyUrl = express.urlencoded({ extended: true, limit: '20mb' });
+app.use((req, res, next) => {
+  const p = req.path || '';
+  // Rutas que aceptan archivos grandes (base64 de PDFs/fotos)
+  const isFileUpload =
+    p.includes('/luma-bills') ||
+    p.includes('/financing-docs') ||
+    p.includes('/client-docs') ||
+    p.includes('/extract-factura') ||
+    p.includes('/contrato-solar') ||
+    p.includes('/loan-applications');
+  if (isFileUpload) return largeBody(req, res, () => largeBodyUrl(req, res, next));
+  return express.json({ limit: '2mb' })(req, res, () => express.urlencoded({ extended: true, limit: '2mb' })(req, res, next));
+});
 
 // Rate limit on login (max 10 attempts per minute per IP)
 const loginLimiter = rateLimit({
@@ -1057,16 +1073,17 @@ initDB()
     // Auto-sync emails every 15 minutes
     setTimeout(autoSyncEmails, 10000); // first run 10s after start
     setInterval(autoSyncEmails, FIFTEEN_MIN);
-    // Twilio message sync every 30s + AI enrichment on new messages
+    // Twilio message sync every 3 minutes (webhook /api/webhook/twilio recibe en tiempo real;
+    // este sync es fallback por si algo se pierde). Antes era 30s — carga DB innecesaria.
     setTimeout(syncTwilioMessages, 15000);
-    setInterval(syncTwilioMessages, 30 * 1000);
+    setInterval(syncTwilioMessages, 3 * 60 * 1000);
     // Enrich existing leads missing name/email — disabled auto-run on startup
     // Use POST /api/admin/enrich/all to trigger manually when needed
     // enrichAllMissingNames();
     // setInterval(enrichAllMissingNames, SIX_HOURS);
-    // Leadgogo sync every 1 minute
+    // Leadgogo sync every 5 minutes (antes era 60s — exagerado para volumen actual)
     setTimeout(syncLeadgogo, 20000);
-    setInterval(syncLeadgogo, 60 * 1000);
+    setInterval(syncLeadgogo, 5 * 60 * 1000);
 
     // Welcome 7-touch sequence engine: tick cada 60s
     sequenceEngine.tick().catch(e => console.error('[JOB] sequenceEngine first tick:', e.message));

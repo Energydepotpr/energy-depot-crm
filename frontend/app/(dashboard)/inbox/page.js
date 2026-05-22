@@ -32,7 +32,7 @@ function tiempoRelativo(ts, lang = 'es') {
 
 function channelIcon(ch) {
   if (ch === 'whatsapp') return { icon: '●', color: '#25d366' };
-  if (ch === 'web')      return { icon: '●', color: '#1b9af5' };
+  if (ch === 'web')      return { icon: '●', color: '#1a3c8f' };
   if (ch === 'email')    return { icon: '●', color: '#f97316' };
   return { icon: '●', color: '#7880a0' };
 }
@@ -348,9 +348,9 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead, isMobile =
               </button>
               <button onClick={() => { setShowAsistente(p => !p); setShowResumen(false); }} style={{
                 fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
-                border: `1px solid ${showAsistente ? '#1b9af5' : BRD}`,
+                border: `1px solid ${showAsistente ? '#1a3c8f' : BRD}`,
                 background: showAsistente ? 'rgba(59,130,246,0.15)' : 'transparent',
-                color: showAsistente ? '#1b9af5' : MUTED,
+                color: showAsistente ? '#1a3c8f' : MUTED,
                 display: 'flex', alignItems: 'center', gap: 4,
               }}>✦ Asistente</button>
               <div style={{ display: 'flex', gap: 4 }}>
@@ -403,9 +403,9 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead, isMobile =
             <button onClick={() => { setShowAsistente(p => !p); setShowResumen(false); }} style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
               fontSize: 12, padding: '5px 12px', borderRadius: 16, cursor: 'pointer',
-              border: `1px solid ${showAsistente ? '#1b9af5' : BRD}`,
+              border: `1px solid ${showAsistente ? '#1a3c8f' : BRD}`,
               background: showAsistente ? 'rgba(59,130,246,0.15)' : SURF2,
-              color: showAsistente ? '#1b9af5' : TEXT,
+              color: showAsistente ? '#1a3c8f' : TEXT,
               flexShrink: 0, whiteSpace: 'nowrap',
             }}>🤖 Asistente</button>
             {/* Canal selector inline en chips */}
@@ -453,7 +453,7 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead, isMobile =
       {showAsistente && (
         <div style={{ borderBottom: `1px solid rgba(59,130,246,0.3)`, background: 'rgba(59,130,246,0.05)', flexShrink: 0, display: 'flex', flexDirection: 'column', maxHeight: 320 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px 6px', borderBottom: `1px solid rgba(59,130,246,0.15)` }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#1b9af5', letterSpacing: 0.5 }}>✦ ASISTENTE IA — {item.contact_name}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#1a3c8f', letterSpacing: 0.5 }}>✦ ASISTENTE IA — {item.contact_name}</span>
             <button onClick={() => setAsistenteMessages([])} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: 11, padding: 0 }}>Limpiar</button>
           </div>
           {/* Mensajes asistente */}
@@ -494,7 +494,7 @@ function ChatRight({ item, onClose, showBack = false, onSent, onRead, isMobile =
               style={{ flex: 1, background: SURF, border: `1px solid ${BRD}`, borderRadius: 8, padding: '6px 12px', color: TEXT, fontSize: 12, outline: 'none' }}
             />
             <button onClick={() => enviarAsistente()} disabled={!asistenteInput.trim() || asistenteLoading} style={{
-              background: asistenteInput.trim() && !asistenteLoading ? '#1b9af5' : BRD,
+              background: asistenteInput.trim() && !asistenteLoading ? '#1a3c8f' : BRD,
               border: 'none', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 12, fontWeight: 600,
               cursor: asistenteInput.trim() && !asistenteLoading ? 'pointer' : 'not-allowed',
             }}>Enviar</button>
@@ -767,7 +767,7 @@ function TeamChatPanel({ onClose }) {
   };
 
   const initials = (name) => (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const AVATAR_COLORS = ['#1b9af5', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+  const AVATAR_COLORS = ['#1a3c8f', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
   const avatarColor = (name) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
 
   return (
@@ -1056,7 +1056,7 @@ export default function InboxPage() {
             {[
               { k: 'all',       l: 'Todos',     color: MUTED },
               { k: 'whatsapp',  l: '● WA',      color: '#25d366' },
-              { k: 'web',       l: '● Web',     color: '#1b9af5' },
+              { k: 'web',       l: '● Web',     color: '#1a3c8f' },
               { k: 'email',     l: '● Email',   color: '#f97316' },
             ].map(c => (
               <button key={c.k} onClick={() => setFilterChannel(c.k)} style={{
@@ -1107,18 +1107,18 @@ export default function InboxPage() {
           >
             {/* Icono equipo */}
             <div style={{ width: 22, height: 22, borderRadius: '50%', background: teamChatOpen ? 'rgba(27,154,245,0.2)' : 'rgba(100,116,139,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="11" height="11" fill="none" stroke={teamChatOpen ? '#1b9af5' : MUTED} strokeWidth="2" viewBox="0 0 24 24">
+              <svg width="11" height="11" fill="none" stroke={teamChatOpen ? '#1a3c8f' : MUTED} strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
               </svg>
             </div>
             <span style={{
               fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
-              color: teamChatOpen ? '#1b9af5' : MUTED,
+              color: teamChatOpen ? '#1a3c8f' : MUTED,
               flex: 1, textAlign: 'left',
             }}>
               Menciones &amp; Chats de equipo
             </span>
-            <svg width="11" height="11" fill="none" stroke={teamChatOpen ? '#1b9af5' : MUTED} strokeWidth="2.5" viewBox="0 0 24 24">
+            <svg width="11" height="11" fill="none" stroke={teamChatOpen ? '#1a3c8f' : MUTED} strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d={teamChatOpen ? 'M19 9l-7 7-7-7' : 'M9 5l7 7-7 7'} />
             </svg>
           </button>

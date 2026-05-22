@@ -6,7 +6,7 @@ import { useAuth } from '../../../lib/auth';
 const S = {
   bg: 'var(--bg)', surf: 'var(--surface)', surf2: 'var(--surface2)',
   brd: 'var(--border)', txt: 'var(--text)', muted: 'var(--muted)',
-  accent: '#1b9af5', danger: '#ff5b5b', warn: '#f59e0b', success: '#00c9a7',
+  accent: '#1a3c8f', danger: '#ff5b5b', warn: '#f59e0b', success: '#00c9a7',
 };
 
 function startOfDay(d) {

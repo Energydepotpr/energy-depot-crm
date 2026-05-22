@@ -96,7 +96,7 @@ function SourceBadge({ source }) {
   if (!source) return null;
   return (
     <span style={{
-      background: 'rgba(99,102,241,0.12)', color: '#1b9af5',
+      background: 'rgba(99,102,241,0.12)', color: '#1a3c8f',
       borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600,
     }}>{source}</span>
   );
@@ -303,8 +303,8 @@ export default function ContactDetailPage() {
   ];
 
   const DOC_TYPE_COLORS = {
-    passport: '#1b9af5', visa: '#f59e0b', id: '#10b981',
-    insurance: '#1b9af5', ticket: '#8b5cf6', other: '#64748b',
+    passport: '#1a3c8f', visa: '#f59e0b', id: '#10b981',
+    insurance: '#1a3c8f', ticket: '#8b5cf6', other: '#64748b',
   };
 
   const saveDoc = async () => {
@@ -358,7 +358,7 @@ export default function ContactDetailPage() {
         {/* Avatar */}
         <div style={{
           width: 64, height: 64, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #1b9af5, #8b5cf6)',
+          background: 'linear-gradient(135deg, #1a3c8f, #8b5cf6)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 22, fontWeight: 700, color: '#fff', flexShrink: 0,
         }}>{initials}</div>
@@ -521,7 +521,7 @@ export default function ContactDetailPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{b.page_title}</div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        {isUpcoming && <span style={{ fontSize: 10, fontWeight: 600, color: '#1b9af5', background: 'rgba(59,130,246,0.12)', padding: '1px 8px', borderRadius: 20 }}>PRÓXIMA</span>}
+                        {isUpcoming && <span style={{ fontSize: 10, fontWeight: 600, color: '#1a3c8f', background: 'rgba(59,130,246,0.12)', padding: '1px 8px', borderRadius: 20 }}>PRÓXIMA</span>}
                         <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 20, background: sBg, color: sColor }}>{sLabel}</span>
                       </div>
                     </div>

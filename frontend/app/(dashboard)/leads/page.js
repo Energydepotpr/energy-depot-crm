@@ -22,7 +22,7 @@ function tiempoRelativo(ts, lang = 'es') {
   return t('time.days', lang).replace('{n}', Math.floor(h / 24));
 }
 
-const TAG_COLORS = ['#1b9af5','#f59e0b','#10b981','#ef4444','#1b9af5','#8b5cf6','#ec4899','#14b8a6'];
+const TAG_COLORS = ['#1a3c8f','#f59e0b','#10b981','#ef4444','#1a3c8f','#8b5cf6','#ec4899','#14b8a6'];
 
 const ACTIVITY_LABELS = {
   etapa_cambiada:    { icon: '→', label: 'Etapa cambiada a' },
@@ -662,7 +662,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   const [quickReplies, setQuickReplies] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [newTag, setNewTag] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#1b9af5');
+  const [newTagColor, setNewTagColor] = useState('#1a3c8f');
   const [chatText, setChatText] = useState('');
   const [newTask, setNewTask] = useState({ title: '', due_date: '' });
   const [showReplies, setShowReplies] = useState(false);
@@ -1238,8 +1238,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                 <button key={it.key} onClick={() => setInfoTab(it.key)} style={{
                   flexShrink: 0, padding: '8px 12px', fontSize: 11, fontWeight: infoTab === it.key ? 700 : 400,
                   border: 'none', background: 'none', cursor: 'pointer',
-                  color: infoTab === it.key ? '#1b9af5' : '#6a8fa8',
-                  borderBottom: `2px solid ${infoTab === it.key ? '#1b9af5' : 'transparent'}`,
+                  color: infoTab === it.key ? '#1a3c8f' : '#6a8fa8',
+                  borderBottom: `2px solid ${infoTab === it.key ? '#1a3c8f' : 'transparent'}`,
                   marginBottom: -1, whiteSpace: 'nowrap',
                 }}>{it.label}</button>
               ))}
@@ -1521,7 +1521,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'none'}
                   >
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: `${r.stage_color || '#1b9af5'}20`, color: r.stage_color || '#1b9af5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: `${r.stage_color || '#1a3c8f'}20`, color: r.stage_color || '#1a3c8f', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                       {(r.contact_name || r.title || '?')[0].toUpperCase()}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -2296,7 +2296,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                       <span style={{
                         fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
                         background: leadInvoice.status === 'paid' ? 'rgba(16,185,129,0.15)' : leadInvoice.status === 'sent' ? 'rgba(59,130,246,0.15)' : 'rgba(245,158,11,0.15)',
-                        color: leadInvoice.status === 'paid' ? '#10b981' : leadInvoice.status === 'sent' ? '#1b9af5' : '#f59e0b',
+                        color: leadInvoice.status === 'paid' ? '#10b981' : leadInvoice.status === 'sent' ? '#1a3c8f' : '#f59e0b',
                       }}>
                         {leadInvoice.status === 'paid' ? '✓ Pagada' : leadInvoice.status === 'sent' ? '📤 Enviada' : '📋 Borrador'}
                       </span>
@@ -2312,7 +2312,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     </div>
                     {leadInvoice.payment_link && (
                       <a href={leadInvoice.payment_link} target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 11, color: '#1b9af5', textDecoration: 'none', background: 'rgba(59,130,246,0.1)', padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(59,130,246,0.25)' }}>
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 11, color: '#1a3c8f', textDecoration: 'none', background: 'rgba(59,130,246,0.1)', padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(59,130,246,0.25)' }}>
                         💳 Link de pago
                       </a>
                     )}
@@ -2329,9 +2329,9 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                         setInvoiceGenerating(false);
                       }}
                       disabled={invoiceGenerating}
-                      style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: '#1b9af5', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
+                      style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: '#1a3c8f', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
                     >
-                      {invoiceGenerating ? <span style={{ width: 10, height: 10, border: '2px solid #1b9af5', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} /> : '🔄'}
+                      {invoiceGenerating ? <span style={{ width: 10, height: 10, border: '2px solid #1a3c8f', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} /> : '🔄'}
                       Actualizar factura
                     </button>
                     <a href="/facturas" style={{ background: 'rgba(0,201,167,0.1)', border: '1px solid rgba(0,201,167,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: '#00c9a7', textDecoration: 'none', fontWeight: 600 }}>
@@ -2513,7 +2513,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   }}
                   disabled={!newInternalNote.trim()}
                   style={{
-                    background: '#1b9af5',
+                    background: '#1a3c8f',
                     border: 'none',
                     borderRadius: 8,
                     padding: '8px 16px',
@@ -2536,7 +2536,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
               {/* Context banner */}
               <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(59,130,246,0.06)', flexShrink: 0 }}>
-                <div style={{ fontSize: 11, color: '#1b9af5', fontWeight: 600, marginBottom: 4 }}>Contexto del cliente cargado</div>
+                <div style={{ fontSize: 11, color: '#1a3c8f', fontWeight: 600, marginBottom: 4 }}>Contexto del cliente cargado</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
                   {lead.contact_name && (
                     <span style={{ fontSize: 11, color: 'var(--muted)' }}>Cliente: <span style={{ color: 'var(--text)' }}>{lead.contact_name}</span></span>
@@ -2650,7 +2650,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   }}
                   disabled={!aiInput.trim() || aiLoading}
                   style={{
-                    background: '#1b9af5', border: 'none', borderRadius: 8, padding: '8px 14px',
+                    background: '#1a3c8f', border: 'none', borderRadius: 8, padding: '8px 14px',
                     color: '#fff', fontSize: 13, fontWeight: 600, cursor: (!aiInput.trim() || aiLoading) ? 'not-allowed' : 'pointer',
                     opacity: (!aiInput.trim() || aiLoading) ? 0.5 : 1, flexShrink: 0, alignSelf: 'flex-end',
                   }}
@@ -3421,8 +3421,8 @@ function LlamadasTab({ lead, leadId, callLogs, setCallLogs, callStatus, setCallS
     'no-answer':{ label: 'Sin respuesta', color: '#f59e0b' },
     busy:       { label: 'Ocupado', color: '#f59e0b' },
     failed:     { label: 'Fallida', color: '#ef4444' },
-    initiated:  { label: 'Iniciada', color: '#1b9af5' },
-    ringing:    { label: 'Timbrando', color: '#1b9af5' },
+    initiated:  { label: 'Iniciada', color: '#1a3c8f' },
+    ringing:    { label: 'Timbrando', color: '#1a3c8f' },
     'in-progress':{ label: 'En curso', color: '#10b981' },
     canceled:   { label: 'Cancelada', color: '#94a3b8' },
   };
@@ -3491,7 +3491,7 @@ function LlamadasTab({ lead, leadId, callLogs, setCallLogs, callStatus, setCallS
 
   const callBtnStyle = {
     idle:       { bg: '#10b981', text: 'Llamar' },
-    connecting: { bg: '#1b9af5', text: 'Conectando...' },
+    connecting: { bg: '#1a3c8f', text: 'Conectando...' },
     active:     { bg: '#ef4444', text: `Colgar ${formatDuration(callTimer)}` },
     ended:      { bg: '#94a3b8', text: 'Terminada' },
   }[callStatus];
@@ -4098,7 +4098,7 @@ function TablaView({ leads, onOpen, onEdit, onDelete, selectMode, selectedIds, o
                 className={`border-b border-border/50 last:border-0 cursor-pointer transition-colors ${isSelected ? 'bg-accent/5' : i % 2 === 0 ? 'bg-bg/30 hover:bg-white/3' : 'hover:bg-white/3'}`}>
                 {selectMode && (
                   <td className="px-4 py-3">
-                    <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${isSelected ? '#1b9af5' : 'var(--muted)'}`, background: isSelected ? '#1b9af5' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${isSelected ? '#1a3c8f' : 'var(--muted)'}`, background: isSelected ? '#1a3c8f' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>}
                     </div>
                   </td>
@@ -4809,7 +4809,7 @@ export default function LeadsPage() {
               <div style={{ padding: '0 20px 20px' }}>
                 {/* Avatar + name */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                  <div style={{ width: 46, height: 46, borderRadius: '50%', backgroundColor: `${previewLead.stage_color || '#1b9af5'}20`, color: previewLead.stage_color || '#1b9af5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
+                  <div style={{ width: 46, height: 46, borderRadius: '50%', backgroundColor: `${previewLead.stage_color || '#1a3c8f'}20`, color: previewLead.stage_color || '#1a3c8f', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
                     {(previewLead.contact_name || previewLead.title || '?')[0].toUpperCase()}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -4985,7 +4985,7 @@ export default function LeadsPage() {
               {activeFilterCount > 0 && (
                 <button
                   onClick={() => { setFilterResponsable(''); setFilterEtapas(new Set()); setFilterSmallGroup(false); setFilterDormidos(false); setFilterTags(new Set()); }}
-                  style={{ fontSize: 11, color: '#1b9af5', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  style={{ fontSize: 11, color: '#1a3c8f', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                   Limpiar
                 </button>
               )}
@@ -5011,17 +5011,17 @@ export default function LeadsPage() {
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Responsable del lead</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input type="radio" name="resp" checked={filterResponsable === ''} onChange={() => setFilterResponsable('')} style={{ accentColor: '#1b9af5' }} />
+                <input type="radio" name="resp" checked={filterResponsable === ''} onChange={() => setFilterResponsable('')} style={{ accentColor: '#1a3c8f' }} />
                 <span style={{ fontSize: 12, color: 'var(--text)' }}>Todos</span>
               </label>
               {agents.map(a => (
                 <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                  <input type="radio" name="resp" checked={String(filterResponsable) === String(a.id)} onChange={() => setFilterResponsable(a.id)} style={{ accentColor: '#1b9af5' }} />
+                  <input type="radio" name="resp" checked={String(filterResponsable) === String(a.id)} onChange={() => setFilterResponsable(a.id)} style={{ accentColor: '#1a3c8f' }} />
                   <span style={{ fontSize: 12, color: 'var(--text)' }}>{a.name}</span>
                 </label>
               ))}
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input type="radio" name="resp" checked={filterResponsable === 'none'} onChange={() => setFilterResponsable('none')} style={{ accentColor: '#1b9af5' }} />
+                <input type="radio" name="resp" checked={filterResponsable === 'none'} onChange={() => setFilterResponsable('none')} style={{ accentColor: '#1a3c8f' }} />
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>Sin responsable</span>
               </label>
             </div>
@@ -5046,7 +5046,7 @@ export default function LeadsPage() {
                             return next;
                           });
                         }}
-                        style={{ accentColor: '#1b9af5' }}
+                        style={{ accentColor: '#1a3c8f' }}
                       />
                       <span style={{ fontSize: 12, color: 'var(--text)', flex: 1 }}>{s.name}</span>
                       <span style={{ fontSize: 11, color: 'var(--muted)' }}>{cnt}</span>
@@ -5068,7 +5068,7 @@ export default function LeadsPage() {
                       type="checkbox"
                       checked={filterTags.has(tag.tag)}
                       onChange={() => toggleFilterTag(tag.tag)}
-                      style={{ accentColor: tag.color || '#1b9af5' }}
+                      style={{ accentColor: tag.color || '#1a3c8f' }}
                     />
                     <span style={{ fontSize: 12, color: tag.color || 'var(--text)', flex: 1 }}>🏷 {tag.tag}</span>
                   </label>

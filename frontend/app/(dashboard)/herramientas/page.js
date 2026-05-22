@@ -446,7 +446,7 @@ function ImportarExcel() {
         onDragOver={e => e.preventDefault()}
         onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) readFile(f); }}
         style={{ border: '2px dashed var(--border)', borderRadius: 12, padding: '32px 20px', textAlign: 'center', cursor: 'pointer', marginBottom: 20, transition: 'border-color 0.15s' }}
-        onMouseEnter={e => e.currentTarget.style.borderColor = '#1b9af5'}
+        onMouseEnter={e => e.currentTarget.style.borderColor = '#1a3c8f'}
         onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
       >
         <div style={{ fontSize: 28, marginBottom: 8 }}>📂</div>
@@ -497,7 +497,7 @@ function ImportarExcel() {
           </div>
 
           <button onClick={importar} disabled={status === 'loading' || !map.name}
-            style={{ background: '#1b9af5', border: 'none', borderRadius: 8, padding: '10px 24px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: (status === 'loading' || !map.name) ? 0.6 : 1 }}>
+            style={{ background: '#1a3c8f', border: 'none', borderRadius: 8, padding: '10px 24px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: (status === 'loading' || !map.name) ? 0.6 : 1 }}>
             {status === 'loading' ? 'Importando...' : `Importar ${rows.length} contactos`}
           </button>
 

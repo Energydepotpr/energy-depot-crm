@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../../../lib/api';
 
 function ColorPicker({ value, onChange }) {
-  const colors = ['#1b9af5','#f59e0b','#1b9af5','#8b5cf6','#10b981','#ef4444','#ec4899','#14b8a6','#f97316','#84cc16'];
+  const colors = ['#1a3c8f','#f59e0b','#1a3c8f','#8b5cf6','#10b981','#ef4444','#ec4899','#14b8a6','#f97316','#84cc16'];
   return (
     <div className="flex gap-1.5 flex-wrap">
       {colors.map(c => (
@@ -48,8 +48,8 @@ export default function PipelinesPage() {
     const data = nuevaEtapa[pipelineId];
     if (!data?.name?.trim()) return;
     try {
-      await api.createStage(pipelineId, { name: data.name.trim(), color: data.color || '#1b9af5' });
-      setNuevaEtapa(prev => ({ ...prev, [pipelineId]: { name: '', color: '#1b9af5' } }));
+      await api.createStage(pipelineId, { name: data.name.trim(), color: data.color || '#1a3c8f' });
+      setNuevaEtapa(prev => ({ ...prev, [pipelineId]: { name: '', color: '#1a3c8f' } }));
       cargar();
     } catch (e) { alert(e.message); }
   };
@@ -161,7 +161,7 @@ export default function PipelinesPage() {
                     onKeyDown={e => e.key === 'Enter' && crearEtapa(pip.id)}
                   />
                   <ColorPicker
-                    value={nuevaEtapa[pip.id]?.color || '#1b9af5'}
+                    value={nuevaEtapa[pip.id]?.color || '#1a3c8f'}
                     onChange={c => setNuevaEtapa(prev => ({ ...prev, [pip.id]: { ...prev[pip.id], color: c } }))}
                   />
                   <button
