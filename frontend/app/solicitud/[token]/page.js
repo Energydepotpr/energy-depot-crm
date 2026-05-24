@@ -106,16 +106,37 @@ export default function SolicitudPrestamoPage() {
   if (error) return <div style={S.center}><div style={S.card}><h2 style={{ color:'#dc2626' }}>No se pudo cargar</h2><p>{error}</p></div></div>;
 
   if (done || data?.already_signed) {
+    const pdfDataUrl = data?.pdf ? `data:application/pdf;base64,${data.pdf}` : null;
     return (
-      <div style={S.center}>
-        <div style={S.card}>
-          <div style={{ fontSize:48, textAlign:'center' }}>✅</div>
-          <h2 style={{ textAlign:'center', color:'#1a3c8f' }}>Solicitud enviada correctamente</h2>
-          <p style={{ textAlign:'center', color:'#475569' }}>
+      <div style={{ ...S.center, minHeight:'100vh', alignItems:'flex-start', padding:'20px 12px' }}>
+        <div style={{ ...S.card, maxWidth:900, width:'100%' }}>
+          <div style={{ fontSize:42, textAlign:'center' }}>✅</div>
+          <h2 style={{ textAlign:'center', color:'#1a3c8f', marginBottom:4 }}>Solicitud firmada</h2>
+          <p style={{ textAlign:'center', color:'#475569', marginBottom:18 }}>
             {data?.already_signed && !done
-              ? `Esta solicitud fue firmada por ${data.signed_name || 'el solicitante'} el ${data.signed_at ? new Date(data.signed_at).toLocaleString('es-PR') : ''}.`
+              ? `Firmada por ${data.signed_name || 'el solicitante'} el ${data.signed_at ? new Date(data.signed_at).toLocaleString('es-PR') : ''}.`
               : 'Hemos recibido tu solicitud firmada. Te enviaremos una copia por correo electrónico.'}
           </p>
+          {pdfDataUrl ? (
+            <>
+              <div style={{ display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap', marginBottom:16 }}>
+                <a href={pdfDataUrl} download={`Solicitud-${data.signed_name || 'firmada'}.pdf`}
+                  style={{ background:'#1a3c8f', color:'#fff', padding:'10px 18px', borderRadius:8, textDecoration:'none', fontSize:14, fontWeight:600 }}>
+                  ⬇️ Descargar PDF
+                </a>
+                <a href={pdfDataUrl} target="_blank" rel="noopener noreferrer"
+                  style={{ background:'transparent', color:'#1a3c8f', padding:'10px 18px', borderRadius:8, textDecoration:'none', fontSize:14, fontWeight:600, border:'1px solid #1a3c8f' }}>
+                  Abrir en pestaña nueva
+                </a>
+              </div>
+              <iframe src={pdfDataUrl} title="Solicitud firmada"
+                style={{ width:'100%', height:'70vh', minHeight:500, border:'1px solid #cbd5e1', borderRadius:8 }} />
+            </>
+          ) : (
+            <p style={{ textAlign:'center', color:'#94a3b8', fontSize:13 }}>
+              El PDF firmado se está procesando. Recargá la página en un momento.
+            </p>
+          )}
         </div>
       </div>
     );
