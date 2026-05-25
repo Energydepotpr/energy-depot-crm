@@ -106,9 +106,9 @@ export default function SolicitudPrestamoPage() {
   if (error) return <div style={S.center}><div style={S.card}><h2 style={{ color:'#dc2626' }}>No se pudo cargar</h2><p>{error}</p></div></div>;
 
   if (done || data?.already_signed) {
-    const backSlug = typeof window !== 'undefined'
+    const backSlug = (typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('back')
-      : null;
+      : null) || data?.clientLinkSlug || null;
     const pdfDataUrl = data?.pdf ? `data:application/pdf;base64,${data.pdf}` : null;
     const BackBtn = backSlug ? (
       <a href={`/cliente/${backSlug}`} style={{
