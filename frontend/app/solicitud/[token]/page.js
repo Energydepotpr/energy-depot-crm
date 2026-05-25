@@ -109,7 +109,7 @@ export default function SolicitudPrestamoPage() {
     const backSlug = (typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('back')
       : null) || data?.clientLinkSlug || null;
-    const pdfDataUrl = data?.pdf ? `data:application/pdf;base64,${data.pdf}` : null;
+    const pdfDataUrl = data?.pdfUrl || (data?.pdf ? `data:application/pdf;base64,${data.pdf}` : null);
     const BackBtn = backSlug ? (
       <a href={`/cliente/${backSlug}`} style={{
         display:'flex', alignItems:'center', justifyContent:'center', gap:8,
