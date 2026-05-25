@@ -136,28 +136,29 @@ export default function SolicitudPrestamoPage() {
                 : 'Hemos recibido tu solicitud firmada. Te enviaremos una copia por correo electrónico.'}
             </p>
           </div>
+          {pdfDataUrl && (
+            <a href={pdfDataUrl} target="_blank" rel="noopener noreferrer"
+              style={{
+                display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+                background:'#10b981', color:'#fff',
+                padding:'14px 18px', borderRadius:10, textDecoration:'none',
+                fontSize:14, fontWeight:700, minHeight:48,
+              }}>
+              📄 Ver solicitud firmada (incluye firma)
+            </a>
+          )}
           {BackBtn}
           {pdfDataUrl && (
-            <>
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                <a href={pdfDataUrl} download={`Solicitud-${data.signed_name || 'firmada'}.pdf`}
-                  style={{ flex:'1 1 140px', textAlign:'center', background:'transparent',
-                    color:'#1a3c8f', border:'1px solid #1a3c8f',
-                    padding:'10px 14px', borderRadius:8, textDecoration:'none',
-                    fontSize:13, fontWeight:600, minHeight:44, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                  ⬇️ Descargar
-                </a>
-                <a href={pdfDataUrl} target="_blank" rel="noopener noreferrer"
-                  style={{ flex:'1 1 140px', textAlign:'center', background:'transparent',
-                    color:'#1a3c8f', border:'1px solid #1a3c8f',
-                    padding:'10px 14px', borderRadius:8, textDecoration:'none',
-                    fontSize:13, fontWeight:600, minHeight:44, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                  ↗ Abrir
-                </a>
-              </div>
-              <iframe src={pdfDataUrl} title="Solicitud firmada"
-                style={{ width:'100%', height:'70vh', minHeight:420, border:'1px solid #cbd5e1', borderRadius:8 }} />
-            </>
+            <a href={pdfDataUrl} download={`Solicitud-${data.signed_name || 'firmada'}.pdf`}
+              style={{
+                display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+                background:'transparent', color:'#1a3c8f',
+                border:'1px solid #1a3c8f',
+                padding:'12px 14px', borderRadius:8, textDecoration:'none',
+                fontSize:13, fontWeight:600, minHeight:44,
+              }}>
+              ⬇️ Descargar PDF
+            </a>
           )}
         </div>
       </div>
