@@ -223,7 +223,7 @@ export default function ClienteDocsPage() {
                               Tu asesor generó el contrato de compra-venta. Revísalo y <strong>firma electrónicamente</strong>.
                             </div>
                           )}
-                          <a href={data.contratoFirma.signingUrl} target="_blank" rel="noopener noreferrer"
+                          <a href={`${data.contratoFirma.signingUrl}?back=${encodeURIComponent(token)}`}
                             style={{
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               gap: 8, minHeight: 48, padding: '12px 16px',
@@ -250,7 +250,7 @@ export default function ClienteDocsPage() {
                               Completa los datos del formulario y firma electrónicamente.
                             </div>
                           )}
-                          <a href={data.tuCoopSolicitud.signingUrl} target="_blank" rel="noopener noreferrer"
+                          <a href={`${data.tuCoopSolicitud.signingUrl}?back=${encodeURIComponent(token)}`}
                             style={{
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               gap: 8, minHeight: 48, padding: '12px 16px',
