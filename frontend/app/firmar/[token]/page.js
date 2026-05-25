@@ -49,29 +49,58 @@ export default function FirmarContratoPage() {
   if (error)   return <div style={S.center}><div style={S.card}><h2 style={{color:'#dc2626'}}>No se pudo cargar</h2><p>{error}</p></div></div>;
 
   if (done || data?.already_signed) {
-    // ?back=<slug> → link de regreso al cliente page para continuar con docs
     const backSlug = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('back')
       : null;
+    const pdfDataUrl = data?.pdf ? `data:application/pdf;base64,${data.pdf}` : null;
+    const BackBtn = backSlug ? (
+      <a href={`/cliente/${backSlug}`} style={{
+        display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+        background:'#1a3c8f', color:'#fff',
+        padding:'14px 18px', borderRadius:10, textDecoration:'none',
+        fontSize:14, fontWeight:700, minHeight:48,
+      }}>
+        🔙 Continuar cargando documentos
+      </a>
+    ) : null;
     return (
-      <div style={S.center}>
-        <div style={S.card}>
-          <div style={{ fontSize:48, textAlign:'center', color:'#1a3c8f' }}>✓</div>
-          <h2 style={{ textAlign:'center', color:'#1a3c8f', margin:'8px 0 6px' }}>Contrato firmado</h2>
-          <p style={{ textAlign:'center', color:'#475569', margin:0 }}>
-            {data?.already_signed
-              ? `Firmado por ${data.signed_name || 'el cliente'} el ${data.signed_at ? new Date(data.signed_at).toLocaleString('es-PR') : ''}.`
-              : 'Te enviamos una copia firmada por correo electrónico.'}
-          </p>
-          {backSlug && (
-            <a href={`/cliente/${backSlug}`}
-              style={{
-                display:'block', marginTop:20, textAlign:'center',
-                background:'#1a3c8f', color:'#fff', padding:'14px',
-                borderRadius:10, textDecoration:'none', fontSize:15, fontWeight:700,
-              }}>
-              🔙 Oprima aquí para continuar cargando los documentos de financiamiento
-            </a>
+      <div style={{ minHeight:'100vh', background:'#f1f5f9', padding:'12px 12px 24px' }}>
+        <div style={{
+          maxWidth:880, margin:'0 auto', background:'#fff',
+          borderRadius:12, boxShadow:'0 2px 12px rgba(0,0,0,0.06)',
+          padding:'18px 16px', display:'flex', flexDirection:'column', gap:14,
+        }}>
+          <div style={{ textAlign:'center' }}>
+            <div style={{ fontSize:42, color:'#1a3c8f', lineHeight:1 }}>✓</div>
+            <h2 style={{ color:'#1a3c8f', margin:'8px 0 4px', fontSize:20 }}>Contrato firmado</h2>
+            <p style={{ color:'#475569', margin:0, fontSize:14, lineHeight:1.4 }}>
+              {data?.already_signed
+                ? `Firmado por ${data.signed_name || 'el cliente'} el ${data.signed_at ? new Date(data.signed_at).toLocaleString('es-PR') : ''}.`
+                : 'Te enviamos una copia firmada por correo electrónico.'}
+            </p>
+          </div>
+          {BackBtn}
+          {pdfDataUrl && (
+            <>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <a href={pdfDataUrl} download={`Contrato-${data.signed_name || 'firmado'}.pdf`}
+                  style={{ flex:'1 1 140px', textAlign:'center', background:'transparent',
+                    color:'#1a3c8f', border:'1px solid #1a3c8f',
+                    padding:'10px 14px', borderRadius:8, textDecoration:'none',
+                    fontSize:13, fontWeight:600, minHeight:44, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                  ⬇️ Descargar
+                </a>
+                <a href={pdfDataUrl} target="_blank" rel="noopener noreferrer"
+                  style={{ flex:'1 1 140px', textAlign:'center', background:'transparent',
+                    color:'#1a3c8f', border:'1px solid #1a3c8f',
+                    padding:'10px 14px', borderRadius:8, textDecoration:'none',
+                    fontSize:13, fontWeight:600, minHeight:44, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                  ↗ Abrir
+                </a>
+              </div>
+              <iframe src={pdfDataUrl} title="Contrato firmado"
+                style={{ width:'100%', height:'70vh', minHeight:420, border:'1px solid #cbd5e1', borderRadius:8 }} />
+            </>
           )}
         </div>
       </div>
