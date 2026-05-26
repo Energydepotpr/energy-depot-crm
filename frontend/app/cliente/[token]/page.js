@@ -156,6 +156,49 @@ export default function ClienteDocsPage() {
         </div>
       )}
 
+      {/* Invitación a precualificación de financiamiento */}
+      {data.contratoFirma?.isSigned && !data.precalificacion?.completed && (
+        <div style={{ padding: '16px 16px 0' }}>
+          <div style={{
+            background: `linear-gradient(135deg, ${NAVY} 0%, #2952c2 100%)`,
+            borderRadius: 14, padding: '20px 18px', color: '#fff',
+            boxShadow: '0 4px 16px rgba(26,60,143,0.25)',
+            border: `2px solid ${CYAN}`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 22 }}>🎉</span>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: CYAN }}>
+                ¡Buen paso! Sigamos
+              </div>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.3, marginBottom: 8 }}>
+              Veamos tus opciones de financiamiento
+            </div>
+            <div style={{ fontSize: 13, lineHeight: 1.5, color: '#e0e7ff', marginBottom: 14 }}>
+              Hacemos una <strong style={{ color: '#fff' }}>precualificación rápida sin afectar tu crédito</strong> —
+              es una consulta suave (<em>soft pull</em>) que <strong style={{ color: '#fff' }}>no baja tu puntaje</strong> y
+              te muestra para qué cooperativa cualificas y tu pago mensual estimado.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16, fontSize: 12, color: '#e0e7ff' }}>
+              <div>✓ Sin indagación dura · sin compromiso</div>
+              <div>✓ Resultado en menos de 1 minuto</div>
+              <div>✓ Tus datos protegidos bajo FCRA</div>
+            </div>
+            <a href={`/precalificar/${token}`}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 8, minHeight: 52, padding: '14px 18px',
+                background: '#fff', color: NAVY,
+                borderRadius: 10, fontSize: 15, fontWeight: 800,
+                textDecoration: 'none',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              }}>
+              🚀 Precalificar sin afectar mi crédito →
+            </a>
+          </div>
+        </div>
+      )}
+
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 18 }}>
         {(() => {
           const allEtapas = data.etapas || [];
