@@ -7629,7 +7629,15 @@ function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, 
           <button onClick={handleView} style={{ background:'#1a3c8f', color:'#fff', border:'none', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>👁 Ver</button>
           {!isSigned && firmaInfo?.signing_url && (
             <>
-              <button onClick={copyLink} style={{ background:'rgba(245,158,11,0.15)', color:'#b45309', border:'1px solid rgba(245,158,11,0.35)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>🔗 Copiar link firma</button>
+              <a href={firmaInfo.signing_url} target="_blank" rel="noopener noreferrer"
+                style={{ background:'#10b981', color:'#fff', borderRadius:6, padding:'7px 10px', fontSize:12, fontWeight:700, textDecoration:'none', textAlign:'center' }}>
+                ✍️ Firmar aquí
+              </a>
+              <button onClick={generarContrato} disabled={busy}
+                style={{ background:'rgba(245,158,11,0.15)', color:'#b45309', border:'1px solid rgba(245,158,11,0.35)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                ✏️ Editar
+              </button>
+              <button onClick={copyLink} style={{ background:'rgba(103,232,249,0.15)', color:'#0891b2', border:'1px solid rgba(103,232,249,0.3)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>🔗 Copiar link</button>
               <a href={`https://wa.me/${phone}?text=${encodeURIComponent('Hola, completa la firma del contrato Energy Depot aquí: ' + firmaInfo.signing_url)}`}
                 target="_blank" rel="noopener noreferrer"
                 style={{ background:'#25d366', color:'#fff', borderRadius:6, padding:'7px 10px', fontSize:12, fontWeight:600, textDecoration:'none', textAlign:'center' }}>
@@ -7637,7 +7645,7 @@ function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, 
               </a>
             </>
           )}
-          {!pctsMatch && (
+          {!pctsMatch && !isSigned && (
             <button onClick={generarContrato} disabled={busy} style={{ background:'rgba(245,158,11,0.15)', color:'#b45309', border:'1px solid rgba(245,158,11,0.4)', padding:'7px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>
               {busy ? '…' : `🔄 Regenerar (${expectedPcts.join('/')}%)`}
             </button>
