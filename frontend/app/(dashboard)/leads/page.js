@@ -7682,16 +7682,28 @@ function ContratoFinanciamientoCard({ doc, docLabel, leadId, lead, cooperativa, 
           </>
         );
       })()}
-      {showModal && (
-        <ContratoCoopModal
-          cooperativa={cooperativa}
-          expectedPcts={expectedPcts}
-          initialCfg={contratoCfg || {}}
-          onClose={() => setShowModal(false)}
-          onConfirm={generarContratoConDatos}
-          busy={busy}
-        />
-      )}
+      {showModal && (() => {
+        // why: si contrato_config aún no tiene cta/contador (primera vez), tomar
+        // los valores que el sync de factura LUMA dejó en solar_data root.
+        const sd = lead?.solar_data || {};
+        const mergedCfg = {
+          ...(contratoCfg || {}),
+          numCtaLuma:  contratoCfg?.numCtaLuma  || sd.cta_aee  || sd.ctaAee  || '',
+          numContador: contratoCfg?.numContador || sd.contador || sd.num_contador || sd.numContador || '',
+          direccionPostal: contratoCfg?.direccionPostal || sd.address_postal || sd.addressPostal || sd.contact_address || '',
+          vendedor: contratoCfg?.vendedor || 'Gilberto J. Díaz',
+        };
+        return (
+          <ContratoCoopModal
+            cooperativa={cooperativa}
+            expectedPcts={expectedPcts}
+            initialCfg={mergedCfg}
+            onClose={() => setShowModal(false)}
+            onConfirm={generarContratoConDatos}
+            busy={busy}
+          />
+        );
+      })()}
     </div>
   );
 }
