@@ -32,6 +32,7 @@ const contracts     = require('./controllers/contractsController');
 const {
   generarContratoSolar,
   getFirmaPublic,
+  getFirmaPdfPublic,
   postFirmaPublic,
   listContratosFirma,
   downloadContratoFirma,
@@ -127,7 +128,12 @@ app.use((req, res, next) => {
     p.includes('/client-docs') ||
     p.includes('/extract-factura') ||
     p.includes('/contrato-solar') ||
-    p.includes('/loan-applications');
+    p.includes('/loan-applications') ||
+    p.includes('/emails') ||           // adjuntos de email (cotizaciones PDF)
+    p.includes('/financing/send') ||   // enviar a cooperativa con docs
+    p.includes('/contratos-firma') ||
+    p.includes('/project-invoices') ||
+    p.includes('/quotes');
   return isFileUpload ? largeParser(req, res, next) : smallParser(req, res, next);
 });
 
@@ -216,13 +222,15 @@ app.get('/api/public/sign/:token',   publicTokenLimiter, signatures.obtenerParaF
 app.post('/api/public/sign/:token',  publicTokenLimiter, signatures.firmar);
 
 // Public — Firma de contrato solar (token aleatorio, sin auth)
-app.get('/api/public/firma/:token',  publicTokenLimiter, getFirmaPublic);
-app.post('/api/public/firma/:token', publicTokenLimiter, postFirmaPublic);
+app.get('/api/public/firma/:token',     publicTokenLimiter, getFirmaPublic);
+app.get('/api/public/firma/:token/pdf', publicTokenLimiter, getFirmaPdfPublic);
+app.post('/api/public/firma/:token',    publicTokenLimiter, postFirmaPublic);
 
 // Public — Solicitud de Préstamo (token aleatorio, sin auth)
 const loanAppsCtrl = require('./controllers/loanApplicationController');
-app.get ('/api/public/solicitud/:token', publicTokenLimiter, loanAppsCtrl.getPublic);
-app.post('/api/public/solicitud/:token', publicTokenLimiter, loanAppsCtrl.signPublic);
+app.get ('/api/public/solicitud/:token',     publicTokenLimiter, loanAppsCtrl.getPublic);
+app.get ('/api/public/solicitud/:token/pdf', publicTokenLimiter, loanAppsCtrl.getSolicitudPdfPublic);
+app.post('/api/public/solicitud/:token',     publicTokenLimiter, loanAppsCtrl.signPublic);
 
 // Public audio proxy (browser <audio> can't send JWT headers)
 app.get('/api/recordings/:sid/audio', callRecording.proxyAudio);

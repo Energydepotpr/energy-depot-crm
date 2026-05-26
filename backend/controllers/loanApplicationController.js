@@ -315,6 +315,27 @@ async function downloadPdf(req, res) {
 }
 
 // GET /api/public/solicitud/:token  (sin auth)
+// GET /api/public/solicitud/:token/pdf — PDF firmado como binario inline
+async function getSolicitudPdfPublic(req, res) {
+  try {
+    const r = await pool.query(
+      `SELECT pdf_base64, signed_name FROM loan_applications WHERE token=$1`,
+      [req.params.token]
+    );
+    const row = r.rows[0];
+    if (!row || !row.pdf_base64) return res.status(404).send('No encontrado');
+    const buf = Buffer.from(row.pdf_base64, 'base64');
+    const nombre = (row.signed_name || 'cliente').replace(/\s+/g, '-');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="Solicitud-${nombre}.pdf"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(buf);
+  } catch (e) {
+    console.error('[getSolicitudPdfPublic]', e.message);
+    res.status(500).send('Error');
+  }
+}
+
 async function getPublic(req, res) {
   try {
     await ensureLoanApplicationsTable();
@@ -336,6 +357,19 @@ async function getPublic(req, res) {
       signed_at: row.signed_at,
       signed_name: row.signed_name,
       expires_at: row.expires_at,
+      // why: en lugar de devolver el base64 en JSON (iOS Safari muestra pantalla
+      // negra al abrir data:// URLs grandes), exponemos un endpoint público que
+      // sirve el PDF binario directo.
+      pdfUrl: row.signed_at ? `/backend/api/public/solicitud/${row.token}/pdf` : null,
+      clientLinkSlug: await (async () => {
+        try {
+          const cl = await pool.query(
+            `SELECT slug FROM client_doc_tokens WHERE lead_id=$1 AND slug IS NOT NULL LIMIT 1`,
+            [row.lead_id]
+          );
+          return cl.rows[0]?.slug || null;
+        } catch { return null; }
+      })(),
     });
   } catch (e) {
     console.error('[loan_apps getPublic]', e.message);
@@ -462,6 +496,26 @@ async function signPublic(req, res) {
       }
     } catch (errMail) { console.error('[loan_apps email]', errMail.message); }
 
+    // Auto-mover lead a etapa "Financiamiento" al firmar solicitud
+    try {
+      const leadR = await pool.query(
+        `SELECT l.pipeline_id, l.stage_id, ps.position AS cur_position
+           FROM leads l LEFT JOIN pipeline_stages ps ON ps.id = l.stage_id
+          WHERE l.id = $1`, [finalRow.lead_id]
+      );
+      const lead = leadR.rows[0];
+      if (lead?.pipeline_id) {
+        const sR = await pool.query(
+          `SELECT id, name, position FROM pipeline_stages
+            WHERE pipeline_id=$1 ORDER BY position`, [lead.pipeline_id]
+        );
+        const target = sR.rows.find(s => /financ/i.test(s.name || ''));
+        if (target && target.position > (lead.cur_position ?? -1)) {
+          await pool.query(`UPDATE leads SET stage_id=$1, updated_at=NOW() WHERE id=$2`, [target.id, finalRow.lead_id]);
+        }
+      }
+    } catch (eMove) { console.error('[loan_apps auto-move]', eMove.message); }
+
     res.json({ ok: true, signed_at: signedAt });
   } catch (e) {
     console.error('[loan_apps signPublic]', e.message);
@@ -490,6 +544,7 @@ module.exports = {
   latestFormData,
   downloadPdf,
   getPublic,
+  getSolicitudPdfPublic,
   signPublic,
   generateTuCoopSigned,
   createTuCoopDraft,

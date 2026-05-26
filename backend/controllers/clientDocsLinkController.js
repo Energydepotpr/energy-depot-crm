@@ -282,14 +282,32 @@ async function getPublic(req, res) {
           || (d.key === 'solicitud' && (hasSignedLoanApp || tuCoopSolicitud?.isSigned)
               ? { filename: 'solicitud-firmada.pdf', uploaded_at: null } : null)
           || (d.key === 'cotizacion' && e.id === 'etapa1' && hasPickedQuotation
-              ? { filename: `Cotización: ${pickedQ?.name || 'elegida'}`, uploaded_at: null } : null)
-          || (d.key === 'contrato' && e.id === 'etapa1' && contratoFirma?.isSigned
-              ? { filename: 'contrato-firmado.pdf', uploaded_at: null } : null);
+              ? { filename: `Cotización: ${pickedQ?.name || 'elegida'}`, uploaded_at: null } : null);
+        // why: para 'contrato' el estado real es la firma del cliente, NO la
+        // mera existencia del PDF generado por el agente. Sobreescribimos:
+        //   - firmado → uploaded + status='signed'
+        //   - generado pero sin firmar → uploaded=false + status='pending-signature'
+        let status = up ? 'uploaded' : null;
+        if (d.key === 'contrato' && e.id === 'etapa1' && contratoFirma) {
+          if (contratoFirma.isSigned) {
+            up = { filename: 'contrato-firmado.pdf', uploaded_at: null };
+            status = 'signed';
+          } else {
+            up = null; // contrato generado pero no firmado
+            status = 'pending-signature';
+          }
+        }
+        // Solicitud Tu Coop también: si hay borrador sin firma, status pending-signature
+        if (d.key === 'solicitud' && e.id === 'etapa1' && tuCoopSolicitud && !tuCoopSolicitud.isSigned) {
+          up = null;
+          status = 'pending-signature';
+        }
         return {
           key: d.key,
           label: d.label,
           uploaded: !!up,
           filename: up?.filename || null,
+          status, // 'uploaded' | 'signed' | 'pending-signature' | null
         };
       })),
     }));

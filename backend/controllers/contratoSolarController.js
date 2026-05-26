@@ -538,6 +538,35 @@ function buildContratoHTML(d) {
 /* ============================================================
    POST /api/leads/:id/contrato-solar
    ============================================================ */
+// Helper: avanza el stage del lead si la etapa target existe y el lead está
+// en una etapa anterior. Nunca retrocede leads (si ya está en Financiamiento
+// no lo manda a Cotización, por ej).
+async function autoMoveStage(leadId, targetKeywords) {
+  try {
+    const leadR = await pool.query(
+      `SELECT l.pipeline_id, l.stage_id, ps.position AS cur_position
+         FROM leads l LEFT JOIN pipeline_stages ps ON ps.id = l.stage_id
+        WHERE l.id = $1`, [leadId]
+    );
+    const lead = leadR.rows[0];
+    if (!lead?.pipeline_id) return;
+    const stagesR = await pool.query(
+      `SELECT id, name, position FROM pipeline_stages
+        WHERE pipeline_id=$1 ORDER BY position`, [lead.pipeline_id]
+    );
+    const stages = stagesR.rows;
+    const target = stages.find(s => {
+      const n = (s.name || '').toLowerCase();
+      return targetKeywords.some(k => n.includes(k));
+    });
+    if (!target) return;
+    const curPos = lead.cur_position ?? -1;
+    if (target.position <= curPos) return; // no retroceder
+    await pool.query(`UPDATE leads SET stage_id=$1, updated_at=NOW() WHERE id=$2`, [target.id, leadId]);
+    console.log(`[autoMoveStage] lead ${leadId} → ${target.name}`);
+  } catch (e) { console.error('[autoMoveStage]', e.message); }
+}
+
 async function generarContratoSolar(req, res) {
   try {
     const {
@@ -724,6 +753,9 @@ async function generarContratoSolar(req, res) {
       }
     }
 
+    // Auto-mover lead a etapa "Cotización" (al generar el contrato ya pasó esa fase)
+    autoMoveStage(leadId, ['cotizaci', 'cotizac']);
+
     res.json({
       ok: true,
       contract_id: cr.rows[0].id,
@@ -744,6 +776,27 @@ async function generarContratoSolar(req, res) {
 /* ============================================================
    GET /api/public/firma/:token — HTML del contrato sin firma
    ============================================================ */
+// GET /api/public/firma/:token/pdf — sirve el PDF firmado como binario inline
+async function getFirmaPdfPublic(req, res) {
+  try {
+    const r = await pool.query(
+      `SELECT pdf_base64, signed_at, contrato_data FROM contratos_firma WHERE token=$1`,
+      [req.params.token]
+    );
+    const row = r.rows[0];
+    if (!row || !row.pdf_base64) return res.status(404).send('No encontrado');
+    const buf = Buffer.from(row.pdf_base64, 'base64');
+    const nombre = (row.contrato_data?.nombre || 'cliente').replace(/\s+/g,'-');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="Contrato-${nombre}.pdf"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(buf);
+  } catch (e) {
+    console.error('[getFirmaPdfPublic]', e.message);
+    res.status(500).send('Error');
+  }
+}
+
 async function getFirmaPublic(req, res) {
   try {
     await ensureContratosFirmaTable();
@@ -777,6 +830,15 @@ async function getFirmaPublic(req, res) {
       signedName: row.signed_name || null,
       signedAt: row.signed_at ? new Date(row.signed_at).toLocaleString('es-PR') : null,
     });
+    // why: resolver slug del cliente para botón "volver a docs"
+    let clientLinkSlug = null;
+    try {
+      const cl = await pool.query(
+        `SELECT slug FROM client_doc_tokens WHERE lead_id=$1 AND slug IS NOT NULL LIMIT 1`,
+        [row.lead_id]
+      );
+      clientLinkSlug = cl.rows[0]?.slug || null;
+    } catch {}
     res.json({
       ok: true,
       html,
@@ -785,6 +847,11 @@ async function getFirmaPublic(req, res) {
       signed_name: row.signed_name,
       cliente: cd.nombre || '',
       expires_at: row.expires_at,
+      // why: no devolvemos el PDF inline en JSON; iOS Safari no abre data:// URLs
+      // grandes y muestra pantalla negra. En su lugar exponemos un endpoint que
+      // sirve el PDF binario con Content-Type: application/pdf.
+      pdfUrl: row.signed_at ? `/backend/api/public/firma/${row.token}/pdf` : null,
+      clientLinkSlug,
     });
   } catch (e) {
     console.error('[getFirmaPublic]', e.message);
@@ -902,6 +969,9 @@ async function postFirmaPublic(req, res) {
       emailError = err.message;
     }
 
+    // Al firmar contrato → mover a Financiamiento (etapa siguiente del pipeline solar)
+    autoMoveStage(row.lead_id, ['financ']);
+
     res.json({ ok: true, signed_at: signedAt, email_sent: emailSent, email_error: emailError });
   } catch (e) {
     console.error('[postFirmaPublic]', e.message);
@@ -975,6 +1045,7 @@ async function deleteContratoFirma(req, res) {
 module.exports = {
   generarContratoSolar,
   getFirmaPublic,
+  getFirmaPdfPublic,
   postFirmaPublic,
   listContratosFirma,
   downloadContratoFirma,

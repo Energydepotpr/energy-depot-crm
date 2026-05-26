@@ -140,8 +140,36 @@ export default function ClienteDocsPage() {
         </div>
       )}
 
+      {/* Progreso global entre etapas */}
+      {(data.etapas || []).length > 1 && (
+        <div style={{ padding: '14px 16px 0', display: 'flex', gap: 6, alignItems: 'center' }}>
+          {data.etapas.map((e, idx) => {
+            const total = e.docs.length;
+            const done = e.docs.filter(d => d.uploaded || d.status === 'signed').length;
+            const complete = total > 0 && done === total;
+            const active = !complete && data.etapas.slice(0, idx).every(p => p.docs.every(d => d.uploaded || d.status === 'signed'));
+            return (
+              <div key={e.id} style={{ flex: 1, height: 6, borderRadius: 3,
+                background: complete ? '#10b981' : active ? NAVY : '#cbd5e1' }} title={e.name} />
+            );
+          })}
+        </div>
+      )}
+
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {data.etapas.map(etapa => {
+        {(() => {
+          const allEtapas = data.etapas || [];
+          // Si viene ?etapa=etapaX en el link → solo esa.
+          // Si no → la primera etapa con docs pendientes (los completados quedan ocultos).
+          let visibles = [];
+          if (etapaParam) {
+            visibles = allEtapas.filter(e => e.id === etapaParam);
+          } else {
+            const pending = allEtapas.find(e => e.docs.some(d => !d.uploaded && d.status !== 'signed'));
+            visibles = pending ? [pending] : allEtapas.slice(-1);
+          }
+          return visibles;
+        })().map(etapa => {
           const total = etapa.docs.length;
           const done = etapa.docs.filter(d => d.uploaded).length;
           return (
