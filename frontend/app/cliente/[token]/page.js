@@ -294,18 +294,34 @@ export default function ClienteDocsPage() {
                                 : '📝 Llenar y firmar solicitud'}
                           </a>
                         </div>
+                      ) : d.uploaded ? (
+                        d.url ? (
+                          <a href={d.url} target="_blank" rel="noopener noreferrer"
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              gap: 8, minHeight: 48, padding: '12px 16px',
+                              background: '#10b981', color: '#fff',
+                              borderRadius: 8, fontSize: 14, fontWeight: 700,
+                              textDecoration: 'none',
+                            }}>
+                            👁 Ver documento
+                          </a>
+                        ) : (
+                          <div style={{ fontSize: 13, color: '#059669', fontWeight: 600, textAlign: 'center', padding: '10px 0' }}>
+                            ✓ Documento recibido
+                          </div>
+                        )
                       ) : (
                         <label style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           gap: 8, minHeight: 48, padding: '12px 16px',
-                          background: d.uploaded ? '#fff' : NAVY,
-                          color: d.uploaded ? NAVY : '#fff',
+                          background: NAVY, color: '#fff',
                           border: `2px solid ${NAVY}`,
                           borderRadius: 8, fontSize: 14, fontWeight: 700,
                           cursor: isUp ? 'wait' : 'pointer',
                           opacity: isUp ? 0.6 : 1,
                         }}>
-                          {isUp ? 'Subiendo…' : (d.uploaded ? '🔄 Reemplazar' : '📎 Adjuntar PDF / Foto')}
+                          {isUp ? 'Subiendo…' : '📎 Adjuntar PDF / Foto'}
                           <input
                             type="file"
                             accept="application/pdf,image/*"
