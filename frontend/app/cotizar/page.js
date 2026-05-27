@@ -592,6 +592,46 @@ export default function CotizarPage() {
               <div style={{ fontSize: 13, color: actionMsg.startsWith('✓') ? '#10b981' : '#ef4444', marginBottom: 14, fontWeight: 600 }}>{actionMsg}</div>
             )}
 
+            {/* Invitación a precualificación soft-pull */}
+            <div style={{
+              marginTop: 16, marginBottom: 8,
+              background: 'linear-gradient(135deg, #1a3c8f 0%, #2952c2 100%)',
+              borderRadius: 14, padding: '18px 16px', color: '#fff',
+              boxShadow: '0 4px 16px rgba(26,60,143,0.25)',
+              border: '2px solid #67e8f9',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 20 }}>🎉</span>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#67e8f9' }}>
+                  ¡Buen paso! Sigamos
+                </div>
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.3, marginBottom: 6 }}>
+                Veamos tus opciones de financiamiento
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.5, color: '#e0e7ff', marginBottom: 10 }}>
+                Hacemos una <strong style={{ color: '#fff' }}>precualificación rápida sin afectar tu crédito</strong> —
+                es una consulta suave (<em>soft pull</em>) que <strong style={{ color: '#fff' }}>no baja tu puntaje</strong> y
+                te muestra para qué cooperativa cualificas y tu pago mensual estimado.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12, fontSize: 11, color: '#e0e7ff' }}>
+                <div>✓ Sin indagación dura · sin compromiso</div>
+                <div>✓ Resultado en menos de 1 minuto</div>
+                <div>✓ Tus datos protegidos bajo FCRA</div>
+              </div>
+              <a href="/precalificar"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: 8, minHeight: 48, padding: '13px 16px',
+                  background: '#fff', color: '#1a3c8f',
+                  borderRadius: 10, fontSize: 14, fontWeight: 800,
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                }}>
+                🚀 Precalificar sin afectar mi crédito →
+              </a>
+            </div>
+
             <a href="https://wa.me/17876278585" target="_blank" rel="noopener noreferrer"
               style={{ display: 'block', background: '#25d366', color: '#fff', textAlign: 'center', padding: '13px', borderRadius: 10, fontSize: 14, fontWeight: 700, textDecoration: 'none', marginTop: 14, marginBottom: 8 }}>
               Hablar por WhatsApp ahora →
