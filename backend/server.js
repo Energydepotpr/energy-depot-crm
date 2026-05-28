@@ -907,6 +907,7 @@ app.delete('/api/project-invoices/:id',               projectInvoicesCtrl.softDe
 app.patch('/api/leads/:id/solar', authMiddleware, async (req, res) => {
   try {
     const { pool } = require('./services/db');
+    const { autoMoveStage } = require('./services/pipelineFlow');
     const { solar_data, value } = req.body;
     const sets = ['updated_at = NOW()'];
     const vals = [];
@@ -916,6 +917,12 @@ app.patch('/api/leads/:id/solar', authMiddleware, async (req, res) => {
     vals.push(req.params.id);
     const r = await pool.query(`UPDATE leads SET ${sets.join(',')} WHERE id = $${idx} RETURNING *`, vals);
     if (!r.rows[0]) return res.status(404).json({ error: 'Lead no encontrado' });
+
+    // Si la cotización solar tiene datos reales (kW + paneles) → mover a "Cotización"
+    const sd = solar_data || {};
+    const hasQuoteData = sd && (sd.systemKw || sd.kw || sd.paneles || sd.quotes?.length);
+    if (hasQuoteData) autoMoveStage(req.params.id, ['cotiz', 'cotizaci']);
+
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

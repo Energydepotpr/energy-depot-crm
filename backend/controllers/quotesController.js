@@ -166,6 +166,14 @@ async function crear(req, res) {
       ]
     );
 
+    // Auto-mover lead a "Cotización" cuando se crea una quote
+    if (lead_id) {
+      try {
+        const { autoMoveStage } = require('../services/pipelineFlow');
+        autoMoveStage(lead_id, ['cotiz', 'cotizaci']);
+      } catch (eMove) { /* noop */ }
+    }
+
     res.json(rows[0]);
   } catch (err) {
     console.error('[quotes crear]', err.message);

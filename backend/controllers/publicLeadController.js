@@ -582,11 +582,12 @@ async function publicPropuestaAction(req, res) {
     if (!leadId) return res.status(400).json({ error: 'lead_id requerido' });
     if (!['email','download'].includes(action)) return res.status(400).json({ error: 'action inválido' });
 
-    // Solo permitir si el lead fue creado en las últimas 24 horas (anti-abuso)
+    // Anti-abuso: permitir hasta 30 días después de creado el lead (acomoda ciclos
+    // de venta reales — antes era 24h y bloqueaba envíos legítimos).
     const r = await pool.query(`SELECT id, contact_id, created_at FROM leads WHERE id = $1`, [leadId]);
     if (!r.rows[0]) return res.status(404).json({ error: 'Lead no encontrado' });
     const ageHours = (Date.now() - new Date(r.rows[0].created_at).getTime()) / 3600000;
-    if (ageHours > 24) return res.status(403).json({ error: 'Acción no disponible para este lead' });
+    if (ageHours > 24 * 30) return res.status(403).json({ error: 'Lead muy antiguo, contacta soporte' });
 
     const { generatePDF } = require('../services/puppeteerPool');
     const safe = s => String(s || '').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '-');
