@@ -14,20 +14,22 @@ export const viewport = {
 // escalamos al ancho de la pantalla para que se vea completa sin scroll horizontal.
 const RESPONSIVE_CSS = `
   html, body { margin: 0; padding: 0; background: #E5E7EB; overflow-x: hidden; }
-  .propuesta-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; }
-  /* La propuesta está diseñada a 210mm (~793px). En móvil usamos zoom para
-     escalarla y que ocupe el ancho de la pantalla sin scroll horizontal. */
-  @media (max-width: 480px) {
-    .propuesta-wrapper .page { zoom: 0.45; -ms-zoom: 0.45; -webkit-transform: scale(0.45); -webkit-transform-origin: top center; }
-    .propuesta-wrapper { gap: 6px; padding: 6px 0; }
-  }
-  @media (min-width: 481px) and (max-width: 820px) {
-    .propuesta-wrapper .page { zoom: 0.65; -ms-zoom: 0.65; -webkit-transform: scale(0.65); -webkit-transform-origin: top center; }
-    .propuesta-wrapper { gap: 10px; padding: 10px 0; }
-  }
-  /* Fallback Safari iOS antiguo: si el zoom no aplica, neutraliza el scale negativo */
-  @supports not (zoom: 1) {
-    .propuesta-wrapper .page { width: 100vw !important; }
+  body { padding: 0 !important; gap: 0 !important; }
+  .propuesta-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 0; padding: 0; }
+  /* La propuesta está diseñada a 210mm × 297mm (~793 × 1122 px @ 96dpi).
+     En móvil usamos transform: scale + margen negativo compensatorio para
+     que cada página ocupe el ancho del viewport sin espacios en blanco. */
+  @media (max-width: 820px) {
+    .propuesta-wrapper .page {
+      transform: scale(calc(100vw / 793px));
+      transform-origin: top left;
+      margin: 0 0 calc((100vw / 793px - 1) * 1122px) 0 !important;
+      box-shadow: none !important;
+    }
+    /* Pequeño separador entre páginas */
+    .propuesta-wrapper .page + .page {
+      margin-top: 8px !important;
+    }
   }
 `;
 

@@ -1,4 +1,4 @@
-const CACHE = 'edpr-crm-v13';
+const CACHE = 'edpr-crm-v14';
 const PRECACHE = ['/dashboard', '/leads', '/inbox', '/contacts', '/logo.png'];
 
 // ── Install: pre-cache shell ──────────────────────────────────────────────────
