@@ -14,22 +14,19 @@ export const viewport = {
 // escalamos al ancho de la pantalla para que se vea completa sin scroll horizontal.
 const RESPONSIVE_CSS = `
   html, body { margin: 0; padding: 0; background: #E5E7EB; overflow-x: hidden; }
-  body { padding: 0 !important; gap: 0 !important; }
-  .propuesta-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 0; padding: 0; }
-  /* La propuesta está diseñada a 210mm × 297mm (~793 × 1122 px @ 96dpi).
-     En móvil usamos transform: scale + margen negativo compensatorio para
-     que cada página ocupe el ancho del viewport sin espacios en blanco. */
   @media (max-width: 820px) {
+    /* CRÍTICO: el template original centra la página (align-items:center).
+       Como la página es 793px y el viewport ~375px, queda con borde izq en -209px
+       y al escalar desde top-left solo se ve la mitad derecha. Forzar flex-start. */
+    body { padding: 0 !important; gap: 0 !important; align-items: flex-start !important; }
+    .propuesta-wrapper { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 0; padding: 0; }
     .propuesta-wrapper .page {
       transform: scale(calc(100vw / 793px));
       transform-origin: top left;
       margin: 0 0 calc((100vw / 793px - 1) * 1122px) 0 !important;
       box-shadow: none !important;
     }
-    /* Pequeño separador entre páginas */
-    .propuesta-wrapper .page + .page {
-      margin-top: 8px !important;
-    }
+    .propuesta-wrapper .page + .page { margin-top: 8px !important; }
   }
 `;
 
