@@ -13,6 +13,8 @@ const REASONS = [
   { key: 'dudas',          icon: '❓', title: 'Aclarar dudas',   desc: 'Tengo preguntas específicas sobre el sistema' },
   { key: 'financiamiento', icon: '💰', title: 'Financiamiento',  desc: 'Quiero saber opciones de financiamiento' },
   { key: 'cotizacion',     icon: '📋', title: 'Cotización',      desc: 'Quiero una cotización personalizada' },
+  { key: 'garantia',       icon: '🛡️', title: 'Garantía',         desc: 'Reclamo o consulta sobre garantía del sistema' },
+  { key: 'mantenimiento',  icon: '🔧', title: 'Mantenimiento',   desc: 'Servicio de mantenimiento o inspección' },
   { key: 'otra',           icon: '💬', title: 'Otra razón',      desc: 'Cuéntanos en qué te podemos ayudar' },
 ];
 

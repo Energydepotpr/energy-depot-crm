@@ -408,6 +408,8 @@ export default function CitasPage() {
                     <option value="dudas">❓ Aclarar dudas</option>
                     <option value="financiamiento">💰 Financiamiento</option>
                     <option value="cotizacion">📋 Cotización</option>
+                    <option value="garantia">🛡️ Garantía</option>
+                    <option value="mantenimiento">🔧 Mantenimiento</option>
                     <option value="otra">💬 Otra</option>
                   </select>
                   <textarea value={citaNotes} onChange={e => setCitaNotes(e.target.value)} placeholder="Notas (opcional)…" rows={2}
