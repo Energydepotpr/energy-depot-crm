@@ -1029,6 +1029,19 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                 style={{ background: 'rgba(103,232,249,0.12)', border: '1px solid rgba(103,232,249,0.35)', cursor: 'pointer', color: '#67e8f9', padding: isMobile ? '6px 10px' : '4px 8px', borderRadius: 6, minHeight: isMobile ? 36 : undefined, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width={isMobile ? 17 : 15} height={isMobile ? 17 : 15} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
               </button>
+              <button
+                onClick={async () => {
+                  if (!confirm(`¿Eliminar este lead "${lead.title || lead.contact_name || ''}"? Esta acción no se puede deshacer.`)) return;
+                  try {
+                    await api.deleteLead(lead.id);
+                    if (onClose) onClose();
+                    if (onUpdated) onUpdated();
+                  } catch (e) { alert('Error: ' + e.message); }
+                }}
+                title="Eliminar lead"
+                style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', cursor: 'pointer', color: '#ef4444', padding: isMobile ? '6px 10px' : '4px 8px', borderRadius: 6, minHeight: isMobile ? 36 : undefined, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width={isMobile ? 17 : 15} height={isMobile ? 17 : 15} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+              </button>
               {isMobile ? (
                 <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e0eaf5', minWidth: 40, minHeight: 40, padding: '0 10px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, borderRadius: 10 }}>
                   <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>

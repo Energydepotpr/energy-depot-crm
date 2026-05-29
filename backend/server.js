@@ -841,6 +841,106 @@ app.post('/api/contracts/:id/signature-request', signatures.solicitarFirma);
 app.get('/api/contracts/:id/signature',          signatures.verFirma);
 
 // Enrich admin endpoints
+async function runBackfillStages(res) {
+  try {
+    const { pool } = require('./services/db');
+    const { autoMoveStage } = require('./services/pipelineFlow');
+    const stats = { scanned: 0, moved_cotizacion: 0, moved_financiamiento: 0, errors: 0 };
+
+    const cotiz = await pool.query(`
+      SELECT id FROM leads
+       WHERE solar_data IS NOT NULL
+         AND (
+           (solar_data->'quotations') IS NOT NULL
+           OR (solar_data->>'systemKw') IS NOT NULL
+           OR (solar_data->>'kw') IS NOT NULL
+           OR (solar_data->'paneles') IS NOT NULL
+           OR (solar_data->'meses') IS NOT NULL
+         )
+    `);
+    for (const row of cotiz.rows) {
+      try { await autoMoveStage(row.id, ['cotiz', 'cotizaci']); stats.moved_cotizacion++; } catch { stats.errors++; }
+    }
+    stats.scanned += cotiz.rows.length;
+
+    const quotes = await pool.query(`SELECT DISTINCT lead_id FROM quotes WHERE lead_id IS NOT NULL`);
+    for (const row of quotes.rows) {
+      try { await autoMoveStage(row.lead_id, ['cotiz', 'cotizaci']); stats.moved_cotizacion++; } catch { stats.errors++; }
+    }
+
+    const firma = await pool.query(`SELECT DISTINCT lead_id FROM contratos_firma WHERE signed_at IS NOT NULL AND lead_id IS NOT NULL`);
+    for (const row of firma.rows) {
+      try { await autoMoveStage(row.lead_id, ['financ']); stats.moved_financiamiento++; } catch { stats.errors++; }
+    }
+
+    const loanS = await pool.query(`SELECT DISTINCT lead_id FROM loan_applications WHERE signed_at IS NOT NULL AND lead_id IS NOT NULL`);
+    for (const row of loanS.rows) {
+      try { await autoMoveStage(row.lead_id, ['financ']); stats.moved_financiamiento++; } catch { stats.errors++; }
+    }
+
+    res.json({ ok: true, stats });
+  } catch (err) {
+    console.error('[backfill]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+app.post('/api/admin/backfill-stages', authMiddleware, async (req, res) => {
+  try {
+    const { pool } = require('./services/db');
+    const { autoMoveStage } = require('./services/pipelineFlow');
+    const stats = { scanned: 0, moved_cotizacion: 0, moved_financiamiento: 0, errors: 0 };
+
+    // 1) Leads con cotización solar → Cotización
+    const cotiz = await pool.query(`
+      SELECT id FROM leads
+       WHERE solar_data IS NOT NULL
+         AND (
+           (solar_data->'quotations') IS NOT NULL
+           OR (solar_data->>'systemKw') IS NOT NULL
+           OR (solar_data->>'kw') IS NOT NULL
+           OR (solar_data->'paneles') IS NOT NULL
+           OR (solar_data->'meses') IS NOT NULL
+         )
+    `);
+    for (const row of cotiz.rows) {
+      try { await autoMoveStage(row.id, ['cotiz', 'cotizaci']); stats.moved_cotizacion++; }
+      catch { stats.errors++; }
+    }
+    stats.scanned += cotiz.rows.length;
+
+    // 2) Leads con quotes en tabla → Cotización
+    const quotes = await pool.query(`SELECT DISTINCT lead_id FROM quotes WHERE lead_id IS NOT NULL`);
+    for (const row of quotes.rows) {
+      try { await autoMoveStage(row.lead_id, ['cotiz', 'cotizaci']); stats.moved_cotizacion++; }
+      catch { stats.errors++; }
+    }
+
+    // 3) Leads con contrato firmado → Financiamiento
+    const firma = await pool.query(`
+      SELECT DISTINCT lead_id FROM contratos_firma WHERE signed_at IS NOT NULL AND lead_id IS NOT NULL
+    `);
+    for (const row of firma.rows) {
+      try { await autoMoveStage(row.lead_id, ['financ']); stats.moved_financiamiento++; }
+      catch { stats.errors++; }
+    }
+
+    // 4) Leads con solicitud firmada → Financiamiento
+    const loanS = await pool.query(`
+      SELECT DISTINCT lead_id FROM loan_applications WHERE signed_at IS NOT NULL AND lead_id IS NOT NULL
+    `);
+    for (const row of loanS.rows) {
+      try { await autoMoveStage(row.lead_id, ['financ']); stats.moved_financiamiento++; }
+      catch { stats.errors++; }
+    }
+
+    res.json({ ok: true, stats });
+  } catch (err) {
+    console.error('[backfill-stages]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/admin/enrich/all',  authMiddleware, (req, res) => { enrichAllMissingNames(); res.json({ ok: true, msg: 'Batch encolado' }); });
 app.post('/api/admin/enrich/:id',  authMiddleware, (req, res) => { enqueueEnrich(Number(req.params.id)); res.json({ ok: true, msg: `Lead ${req.params.id} encolado` }); });
 
@@ -918,10 +1018,17 @@ app.patch('/api/leads/:id/solar', authMiddleware, async (req, res) => {
     const r = await pool.query(`UPDATE leads SET ${sets.join(',')} WHERE id = $${idx} RETURNING *`, vals);
     if (!r.rows[0]) return res.status(404).json({ error: 'Lead no encontrado' });
 
-    // Si la cotización solar tiene datos reales (kW + paneles) → mover a "Cotización"
+    // Si la cotización solar tiene datos reales → mover a "Cotización"
     const sd = solar_data || {};
-    const hasQuoteData = sd && (sd.systemKw || sd.kw || sd.paneles || sd.quotes?.length);
-    if (hasQuoteData) autoMoveStage(req.params.id, ['cotiz', 'cotizaci']);
+    const hasQuoteData = sd && (
+      sd.systemKw || sd.kw || sd.paneles || sd.meses?.length ||
+      (Array.isArray(sd.quotations) && sd.quotations.length > 0) ||
+      (Array.isArray(sd.quotes)     && sd.quotes.length > 0)
+    );
+    if (hasQuoteData) {
+      console.log('[auto-move] lead', req.params.id, '→ buscar Cotización');
+      autoMoveStage(req.params.id, ['cotiz', 'cotizaci']);
+    }
 
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }

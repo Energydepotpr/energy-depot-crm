@@ -295,6 +295,11 @@ async function createPublicLead(req, res) {
         [title, contactId, pid, sid, value, JSON.stringify(solarData), leadSource]
       );
       leadId = leadR.rows[0].id;
+      // Tag automático "autocotizador" para identificar leads que se cotizaron solos
+      await txClient.query(
+        `INSERT INTO lead_tags (lead_id, tag, color) VALUES ($1, 'autocotizador', '#06b6d4') ON CONFLICT (lead_id, tag) DO NOTHING`,
+        [leadId]
+      ).catch(() => {});
     }
     await txClient.query('COMMIT');
     } catch (txErr) {
