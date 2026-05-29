@@ -81,34 +81,26 @@ export default function CotizarPage() {
     if (/^Bluetti/i.test(s))     return 'Bluetti';
     return s.split(/\s+/)[0] || 'Otro';
   };
-  // Logos SVG por marca (inline para que carguen instantáneos y se vean nítidos)
+  // Logos oficiales por marca (descargados de las webs oficiales)
   const BRAND_LOGOS = {
     'Tesla': (
-      <svg viewBox="0 0 100 100" width="28" height="28" fill="#cc0000" aria-label="Tesla">
-        <path d="M50 22c10 0 18 3 22 8l-6 8c-3-4-9-6-16-6s-13 2-16 6l-6-8c4-5 12-8 22-8zM50 36v40h-4V40h-12v-4h32v4H54v36h-4V40z"/>
-      </svg>
+      <img src="/baterias/tesla-logo.svg" alt="Tesla" style={{ height: 22, width: 'auto', display: 'block' }} />
     ),
     'FranklinWH': (
-      <svg viewBox="0 0 120 40" width="80" height="22" aria-label="FranklinWH">
-        <rect x="2" y="6" width="14" height="28" rx="2" fill="#0a2540"/>
-        <rect x="4" y="2" width="10" height="6" rx="1" fill="#0a2540"/>
-        <rect x="5" y="10" width="8" height="3" fill="#67e8f9"/>
-        <rect x="5" y="16" width="8" height="3" fill="#67e8f9"/>
-        <rect x="5" y="22" width="8" height="3" fill="#67e8f9"/>
-        <text x="22" y="26" fontFamily="Inter, sans-serif" fontWeight="800" fontSize="16" fill="#0a2540">FranklinWH</text>
-      </svg>
+      <img src="/baterias/franklin-logo.webp" alt="FranklinWH" style={{ height: 16, width: 'auto', display: 'block' }} />
     ),
     'EP Cube': (
-      <svg viewBox="0 0 100 100" width="28" height="28" aria-label="EP Cube">
-        <polygon points="50,8 88,30 88,70 50,92 12,70 12,30" fill="none" stroke="#047857" strokeWidth="6" strokeLinejoin="round"/>
-        <polygon points="50,8 88,30 50,52 12,30" fill="#10b981" opacity="0.6"/>
-        <polygon points="12,30 50,52 50,92 12,70" fill="#047857" opacity="0.85"/>
-      </svg>
+      <img src="/baterias/epcube-logo.png" alt="EP Cube" style={{ height: 18, width: 'auto', display: 'block' }} />
     ),
     'SolaX': (
       <img src="/baterias/solax-logo.jpg" alt="SolaX Power" style={{ height: 22, width: 'auto', display: 'block' }} />
     ),
   };
+  // Chip de fondo del logo — por defecto blanco, oscuro para marcas con logo claro (EP Cube)
+  const LOGO_CHIP_BG = {
+    'EP Cube': '#0f172a',
+  };
+  const logoChipBg = (b) => LOGO_CHIP_BG[b] || 'rgba(255,255,255,0.95)';
   // Acento de color por marca (borde / texto cuando está seleccionado)
   const BRAND_COLOR = {
     'Tesla': '#cc0000',
@@ -651,9 +643,9 @@ export default function CotizarPage() {
                                   }} />
                                   <div style={{
                                     position: 'absolute', top: 10, left: 12,
-                                    background: 'rgba(255,255,255,0.92)',
+                                    background: logoChipBg(brand),
                                     borderRadius: 8, padding: '4px 10px',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
                                     display: 'flex', alignItems: 'center', height: 30,
                                   }}>
                                     {brandLogo(brand)}
