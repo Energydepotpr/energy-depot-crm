@@ -623,39 +623,44 @@ export default function CotizarPage() {
                               background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
                               display: 'block',
                             }}>
-                            {/* Hero image */}
-                            {cfg.hero && (
-                              <div style={{
-                                width: '100%', height: 140, position: 'relative',
+                            {/* Hero — imagen si hay, si no un fallback con gradiente del color de marca */}
+                            <div style={{
+                              width: '100%', height: 140, position: 'relative',
+                              ...(cfg.hero ? {
                                 backgroundImage: `url(${cfg.hero})`,
                                 backgroundSize: 'cover',
                                 backgroundPosition: cfg.heroPosition || 'center center',
                                 backgroundColor: '#f1f5f9',
-                              }}>
-                                {/* Gradient overlay para legibilidad del logo */}
-                                <div style={{
-                                  position: 'absolute', inset: 0,
-                                  background: 'linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 50%)',
-                                }} />
-                                {/* Logo flotante encima del hero */}
-                                <div style={{
-                                  position: 'absolute', top: 10, left: 12,
-                                  background: 'rgba(255,255,255,0.92)',
-                                  borderRadius: 8, padding: '4px 10px',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                  display: 'flex', alignItems: 'center', height: 30,
-                                }}>
+                              } : {
+                                background: `linear-gradient(135deg, ${color}ee 0%, ${color}88 100%)`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }),
+                            }}>
+                              {!cfg.hero && (
+                                <div style={{ transform: 'scale(2)', filter: 'brightness(0) invert(1)', opacity: 0.92 }}>
                                   {brandLogo(brand)}
                                 </div>
-                              </div>
-                            )}
-                            <div style={{ padding: '14px 18px 16px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                {!cfg.hero && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, height: 28 }}>
+                              )}
+                              {cfg.hero && (
+                                <>
+                                  <div style={{
+                                    position: 'absolute', inset: 0,
+                                    background: 'linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 50%)',
+                                  }} />
+                                  <div style={{
+                                    position: 'absolute', top: 10, left: 12,
+                                    background: 'rgba(255,255,255,0.92)',
+                                    borderRadius: 8, padding: '4px 10px',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                    display: 'flex', alignItems: 'center', height: 30,
+                                  }}>
                                     {brandLogo(brand)}
                                   </div>
-                                )}
+                                </>
+                              )}
+                            </div>
+                            <div style={{ padding: '14px 18px 16px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', lineHeight: 1.3, marginBottom: 8 }}>
                                   {cfg.title || principal.name.replace(brand, '').trim() || 'Modelo principal'}
                                 </div>
