@@ -262,3 +262,35 @@ button:disabled,
   .mobile-only       { display: none !important; }
   .mobile-only-flex  { display: none !important; }
 }
+
+/* ══════════════════════════════════════════════════════
+   DARK MODE: override inline color hardcoded como navy/slate oscuro
+   Captura los colores #1a3c8f, #0f2a5c, #0f172a, #0f2558, #1e293b,
+   #475569, #334155, etc. en estilos inline (style="color:#..."') y
+   los hace claros para legibilidad sobre fondos oscuros.
+   ══════════════════════════════════════════════════════ */
+:root:not([data-theme="light"]) [style*="color:#1a3c8f"],
+:root:not([data-theme="light"]) [style*="color: #1a3c8f"],
+:root:not([data-theme="light"]) [style*="color:#0f2a5c"],
+:root:not([data-theme="light"]) [style*="color: #0f2a5c"],
+:root:not([data-theme="light"]) [style*="color:#0f172a"],
+:root:not([data-theme="light"]) [style*="color: #0f172a"],
+:root:not([data-theme="light"]) [style*="color:#0f2558"],
+:root:not([data-theme="light"]) [style*="color: #0f2558"],
+:root:not([data-theme="light"]) [style*="color:#1e293b"],
+:root:not([data-theme="light"]) [style*="color: #1e293b"],
+:root:not([data-theme="light"]) [style*="color:#334155"],
+:root:not([data-theme="light"]) [style*="color: #334155"],
+:root:not([data-theme="light"]) [style*="color:#475569"],
+:root:not([data-theme="light"]) [style*="color: #475569"],
+:root:not([data-theme="light"]) [style*="color:#1f2937"],
+:root:not([data-theme="light"]) [style*="color: #1f2937"] {
+  color: var(--text) !important;
+}
+/* Muted navy → mantener apagado pero legible */
+:root:not([data-theme="light"]) [style*="color:#64748b"],
+:root:not([data-theme="light"]) [style*="color: #64748b"],
+:root:not([data-theme="light"]) [style*="color:#94a3b8"],
+:root:not([data-theme="light"]) [style*="color: #94a3b8"] {
+  color: var(--text-dim) !important;
+}
