@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { api } from '../../../lib/api';
 import PermissionsPanel from './PermissionsPanel';
-import { loadBaterias, saveBaterias, DEFAULT_BATERIAS, loadPricing, savePricing, DEFAULT_PRICING } from '../../../lib/baterias';
+import { loadBaterias, saveBaterias, DEFAULT_BATERIAS, loadPricing, savePricing, DEFAULT_PRICING, calcPmtFactor } from '../../../lib/baterias';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
 import { EMAIL_TEMPLATES } from '../../../lib/email-templates';
@@ -654,7 +654,13 @@ function ParametrosSolaresSection() {
   const guardar = async (next) => {
     setSaving(true); setOk(false);
     try {
-      await savePricing(next);
+      // Recalcular pmt15 a partir de rate/years cada vez que se guarda
+      const computed = { ...next };
+      if (computed.pmt15Rate != null && computed.pmt15Years != null) {
+        computed.pmt15 = +calcPmtFactor(computed.pmt15Rate, computed.pmt15Years).toFixed(6);
+      }
+      await savePricing(computed);
+      setP(computed);
       setOk(true);
       setTimeout(() => setOk(false), 2000);
     } catch (e) { alert(e.message); }
@@ -679,7 +685,8 @@ function ParametrosSolaresSection() {
     { key: 'panelWatts',       label: 'Vatios por panel',       unit: 'W',          step: 5,     desc: 'Potencia nominal de cada panel (típicamente 550W)' },
     { key: 'tarifaLuma',       label: 'Tarifa LUMA',            unit: '$ / kWh',    step: 0.01,  desc: 'Tarifa actual de LUMA Energy por kilovatio-hora' },
     { key: 'factorProduccion', label: 'Factor de producción',   unit: 'kWh / kW año', step: 10,  desc: 'Producción anual estimada por cada kW instalado en PR' },
-    { key: 'pmt15',            label: 'Factor PMT 15 años',     unit: '× monto',    step: 0.0001, desc: 'Factor de pago mensual Vega Coop 6.5% / 15 años' },
+    { key: 'pmt15Rate',        label: 'Tasa cooperativa',       unit: '% anual',    step: 0.01,  desc: 'Tasa de interés de la cooperativa principal (Vega Coop)' },
+    { key: 'pmt15Years',       label: 'Plazo cooperativa',      unit: 'años',       step: 1,     desc: 'Cantidad de años del préstamo cooperativo' },
   ];
 
   return (
@@ -704,6 +711,18 @@ function ParametrosSolaresSection() {
           </div>
         ))}
       </div>
+      {/* Factor PMT computado en vivo */}
+      <div className="mt-3 px-3 py-2 rounded-lg border border-border" style={{ background: 'var(--surface)' }}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[11px]" style={{ color: 'var(--text-dim)' }}>
+            Factor PMT calculado <span className="opacity-70">({p.pmt15Rate || 0}% / {p.pmt15Years || 0} años)</span>
+          </div>
+          <div className="text-xs font-mono font-bold" style={{ color: 'var(--text)' }}>
+            × {(+calcPmtFactor(p.pmt15Rate, p.pmt15Years)).toFixed(6) || '0.000000'}
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
         <button onClick={restaurar} className="text-[11px] text-muted hover:text-warning transition-colors">
           Restaurar default

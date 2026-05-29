@@ -35,7 +35,17 @@ export const DEFAULT_PRICING = {
   tarifaLuma: 0.26,
   factorProduccion: 1460,
   pmt15: 0.008711,
+  pmt15Rate: 6.5,    // % anual de la cooperativa de 15 años (Vega Coop)
+  pmt15Years: 15,
 };
+
+// PMT factor mensual a partir de tasa anual y años
+export function calcPmtFactor(annualRatePct, years) {
+  const r = (Number(annualRatePct) || 0) / 100 / 12;
+  const n = (Number(years) || 0) * 12;
+  if (r <= 0 || n <= 0) return 0;
+  return r / (1 - Math.pow(1 + r, -n));
+}
 
 export async function loadPricing() {
   try {
