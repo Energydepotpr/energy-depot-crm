@@ -81,15 +81,77 @@ export default function CotizarPage() {
     if (/^Bluetti/i.test(s))     return 'Bluetti';
     return s.split(/\s+/)[0] || 'Otro';
   };
-  // Color/acento por marca para la UI premium
-  const BRAND_STYLE = {
-    'FranklinWH': { color: '#1d4ed8', bg: 'linear-gradient(135deg,#dbeafe 0%,#bfdbfe 100%)', icon: '⚡' },
-    'Tesla':      { color: '#dc2626', bg: 'linear-gradient(135deg,#fee2e2 0%,#fecaca 100%)', icon: '🔋' },
-    'EP Cube':    { color: '#047857', bg: 'linear-gradient(135deg,#d1fae5 0%,#a7f3d0 100%)', icon: '🟩' },
-    'SolaX':      { color: '#ea580c', bg: 'linear-gradient(135deg,#fed7aa 0%,#fdba74 100%)', icon: '☀️' },
-    'Bluetti':    { color: '#7c3aed', bg: 'linear-gradient(135deg,#ede9fe 0%,#ddd6fe 100%)', icon: '🔌' },
+  // Logos SVG por marca (inline para que carguen instantáneos y se vean nítidos)
+  const BRAND_LOGOS = {
+    'Tesla': (
+      <svg viewBox="0 0 100 100" width="28" height="28" fill="#cc0000" aria-label="Tesla">
+        <path d="M50 22c10 0 18 3 22 8l-6 8c-3-4-9-6-16-6s-13 2-16 6l-6-8c4-5 12-8 22-8zM50 36v40h-4V40h-12v-4h32v4H54v36h-4V40z"/>
+      </svg>
+    ),
+    'FranklinWH': (
+      <svg viewBox="0 0 120 40" width="80" height="22" aria-label="FranklinWH">
+        <rect x="2" y="6" width="14" height="28" rx="2" fill="#0a2540"/>
+        <rect x="4" y="2" width="10" height="6" rx="1" fill="#0a2540"/>
+        <rect x="5" y="10" width="8" height="3" fill="#67e8f9"/>
+        <rect x="5" y="16" width="8" height="3" fill="#67e8f9"/>
+        <rect x="5" y="22" width="8" height="3" fill="#67e8f9"/>
+        <text x="22" y="26" fontFamily="Inter, sans-serif" fontWeight="800" fontSize="16" fill="#0a2540">FranklinWH</text>
+      </svg>
+    ),
+    'EP Cube': (
+      <svg viewBox="0 0 100 100" width="28" height="28" aria-label="EP Cube">
+        <polygon points="50,8 88,30 88,70 50,92 12,70 12,30" fill="none" stroke="#047857" strokeWidth="6" strokeLinejoin="round"/>
+        <polygon points="50,8 88,30 50,52 12,30" fill="#10b981" opacity="0.6"/>
+        <polygon points="12,30 50,52 50,92 12,70" fill="#047857" opacity="0.85"/>
+      </svg>
+    ),
+    'SolaX': (
+      <svg viewBox="0 0 100 100" width="28" height="28" fill="#ea580c" aria-label="SolaX">
+        <circle cx="50" cy="50" r="16"/>
+        {[0,45,90,135,180,225,270,315].map(a => (
+          <rect key={a} x="46" y="10" width="8" height="14" rx="2" transform={`rotate(${a} 50 50)`} />
+        ))}
+      </svg>
+    ),
   };
-  const brandStyle = (b) => BRAND_STYLE[b] || { color: '#1a3c8f', bg: 'linear-gradient(135deg,#e0e7ff 0%,#c7d2fe 100%)', icon: '🔋' };
+  // Acento de color por marca (borde / texto cuando está seleccionado)
+  const BRAND_COLOR = {
+    'Tesla': '#cc0000',
+    'FranklinWH': '#0a2540',
+    'EP Cube': '#047857',
+    'SolaX': '#ea580c',
+    'Bluetti': '#7c3aed',
+  };
+  const brandColor = (b) => BRAND_COLOR[b] || '#1a3c8f';
+  // Configuración por marca: principal (regex/name match), título display, descripción, garantía.
+  // Esto permite renombrar lo que ve el cliente sin tocar la DB.
+  const BRAND_CONFIG = {
+    'FranklinWH': {
+      principalMatch: /^FranklinWH\s+(aGate|S)\b/i,
+      title: 'aGate + aPower S',
+      description: '11.5kW Inverter / 15kWh Batería',
+      warranty: '15 años equipo y labor',
+    },
+    'Tesla': {
+      principalMatch: /^Tesla\s+(Gateway\s*3|PowerWall\s*3)\b/i,
+      title: 'Gateway 3 + PowerWall 3',
+      description: '11.5kW Inverter / 13.5kWh Batería',
+      warranty: '10 años equipo y labor',
+    },
+    'EP Cube': {
+      // El principal es el de menor capacidad (5kWh) — gateway base
+      principalMatch: /(5kWh|Gateway|\b10kWh\b)/i,
+      principalPreferLowest: true,
+      title: '2.0 Gateway + 5kWh',
+      description: '11.5kW Inverter / 5kWh Batería',
+      warranty: '10 años equipo y labor',
+    },
+  };
+  const brandLogo  = (b) => BRAND_LOGOS[b] || (
+    <div style={{ width: 28, height: 28, borderRadius: 6, background: '#1a3c8f', color: '#fff', fontWeight: 900, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {String(b || '?').charAt(0)}
+    </div>
+  );
   const [editingQuotationId, setEditingQuotationId] = useState(null); // Feature 2: editar
   const [results, setResults] = useState([]); // Feature 1: cotizaciones múltiples paso 3
   const DEFAULT_WELCOME = 'Tus datos para preparar la propuesta personalizada.';
@@ -499,33 +561,49 @@ export default function CotizarPage() {
                   (byBrand[br] = byBrand[br] || []).push(b);
                 });
                 const brands = Object.keys(byBrand);
-                brands.forEach(br => byBrand[br].sort((a, b) => b.precio - a.precio));
+
+                // Para cada marca: identificar el principal (por config o por precio)
+                const resolved = brands.map(brand => {
+                  const cfg = BRAND_CONFIG[brand] || {};
+                  const items = byBrand[brand];
+                  let principal = null;
+                  if (cfg.principalMatch) {
+                    const matches = items.filter(i => cfg.principalMatch.test(i.name));
+                    if (matches.length) {
+                      matches.sort((a, b) => cfg.principalPreferLowest ? a.precio - b.precio : b.precio - a.precio);
+                      principal = matches[0];
+                    }
+                  }
+                  if (!principal) {
+                    const sorted = [...items].sort((a, b) => b.precio - a.precio);
+                    principal = sorted[0];
+                  }
+                  const extensions = items.filter(i => i !== principal);
+                  return { brand, cfg, items, principal, extensions };
+                });
 
                 return (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${brands.length >= 3 ? 200 : 240}px, 1fr))`, gap: 12 }}>
-                    {brands.map(brand => {
-                      const items = byBrand[brand];
-                      const principal = items[0];
-                      const extensions = items.slice(1);
+                    {resolved.map(({ brand, cfg, principal, extensions }) => {
                       const principalQty = selectedBatt[principal.name] || 0;
                       const isSelected = principalQty > 0;
                       const extQtyTotal = extensions.reduce((s, e) => s + (selectedBatt[e.name] || 0), 0);
-                      const st = brandStyle(brand);
+                      const color = brandColor(brand);
+                      const cfgRef = cfg; // alias para evitar conflicto en JSX inner scopes
                       return (
                         <div key={brand} style={{
-                          borderRadius: 14,
-                          border: isSelected ? `2px solid ${st.color}` : '1px solid #e2e8f0',
-                          background: isSelected ? '#fff' : '#fff',
-                          boxShadow: isSelected ? `0 6px 20px ${st.color}22` : '0 1px 3px rgba(15,42,92,0.04)',
+                          borderRadius: 12,
+                          border: isSelected ? `2px solid ${color}` : '1px solid #e2e8f0',
+                          background: '#fff',
+                          boxShadow: isSelected ? `0 4px 14px ${color}1f` : '0 1px 2px rgba(15,42,92,0.04)',
                           overflow: 'hidden',
-                          transition: 'all 0.2s ease',
+                          transition: 'all 0.15s ease',
                         }}>
                           {/* Card principal — clickeable */}
                           <button
                             type="button"
                             onClick={() => {
                               if (isSelected) {
-                                // deseleccionar: poner principal a 0 y limpiar extensiones de esta marca
                                 setBattQty(principal.name, -principalQty);
                                 extensions.forEach(e => {
                                   const q = selectedBatt[e.name] || 0;
@@ -537,40 +615,49 @@ export default function CotizarPage() {
                             }}
                             style={{
                               width: '100%', textAlign: 'left', padding: 0, border: 'none',
-                              background: st.bg, cursor: 'pointer', fontFamily: 'inherit',
+                              background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
                             }}>
-                            <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                            <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                                  <span style={{ fontSize: 22 }}>{st.icon}</span>
-                                  <span style={{ fontSize: 11, fontWeight: 800, color: st.color, letterSpacing: 1, textTransform: 'uppercase' }}>{brand}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, height: 28 }}>
+                                  {brandLogo(brand)}
                                 </div>
-                                <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.25, marginBottom: 4 }}>
-                                  {principal.name.replace(brand, '').trim() || 'Principal'}
+                                <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', lineHeight: 1.3, marginBottom: 8 }}>
+                                  {cfg.title || principal.name.replace(brand, '').trim() || 'Modelo principal'}
                                 </div>
-                                <div style={{ fontSize: 18, fontWeight: 900, color: st.color }}>
+                                {cfg.description && (
+                                  <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.4, marginBottom: 4 }}>
+                                    <span style={{ fontWeight: 700, color: '#0f2a5c' }}>Descripción:</span> {cfg.description}
+                                  </div>
+                                )}
+                                {cfg.warranty && (
+                                  <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.4, marginBottom: 10 }}>
+                                    <span style={{ fontWeight: 700, color: '#0f2a5c' }}>Garantía:</span> {cfg.warranty}
+                                  </div>
+                                )}
+                                <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums', letterSpacing: -0.5 }}>
                                   {fmt(principal.precio)}
                                 </div>
                               </div>
                               <div style={{
-                                width: 28, height: 28, borderRadius: 14,
-                                background: isSelected ? st.color : 'rgba(255,255,255,0.7)',
-                                border: isSelected ? 'none' : `2px solid ${st.color}55`,
-                                color: '#fff', fontSize: 16, fontWeight: 900,
+                                width: 24, height: 24, borderRadius: 12,
+                                background: isSelected ? color : '#fff',
+                                border: isSelected ? 'none' : '1.5px solid #cbd5e1',
+                                color: '#fff', fontSize: 13, fontWeight: 900,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                flexShrink: 0,
+                                flexShrink: 0, marginTop: 2,
                               }}>{isSelected ? '✓' : ''}</div>
                             </div>
                           </button>
 
-                          {/* Panel extensiones — aparece solo si el principal está seleccionado */}
+                          {/* Panel extensiones */}
                           {isSelected && extensions.length > 0 && (
-                            <div style={{ padding: '14px 18px 16px', background: '#fff', borderTop: '1px solid #e2e8f0' }}>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: '#0f2a5c', marginBottom: 4 }}>
-                                ¿Quieres añadir una extensión?
+                            <div style={{ padding: '12px 18px 16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#0f2a5c', marginBottom: 2 }}>
+                                ¿Deseas añadir una extensión?
                               </div>
                               <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
-                                Suma capacidad con módulos {brand} adicionales.
+                                Aumenta capacidad con módulos {brand} adicionales.
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 {extensions.map(ext => {
@@ -580,20 +667,20 @@ export default function CotizarPage() {
                                   return (
                                     <div key={ext.name} style={{
                                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                      gap: 8, padding: '8px 10px', borderRadius: 8,
-                                      background: on ? `${st.color}11` : '#f8fafc',
-                                      border: on ? `1px solid ${st.color}55` : '1px solid #e2e8f0',
+                                      gap: 8, padding: '8px 10px', borderRadius: 6,
+                                      background: '#fff',
+                                      border: on ? `1px solid ${color}` : '1px solid #e2e8f0',
                                     }}>
                                       <div style={{ minWidth: 0, flex: 1 }}>
-                                        <div style={{ fontSize: 12, fontWeight: 700, color: on ? st.color : '#0f2a5c', lineHeight: 1.2 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#0f2a5c', lineHeight: 1.2 }}>
                                           {shortName || ext.name}
                                         </div>
-                                        <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>{fmt(ext.precio)}</div>
+                                        <div style={{ fontSize: 10, color: '#64748b', marginTop: 1, fontVariantNumeric: 'tabular-nums' }}>{fmt(ext.precio)}</div>
                                       </div>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                         <button type="button" onClick={() => setBattQty(ext.name, -1)} disabled={q === 0}
                                           style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 800, cursor: q > 0 ? 'pointer' : 'default', opacity: q === 0 ? 0.35 : 1, color: '#0f2a5c' }}>−</button>
-                                        <div style={{ minWidth: 20, textAlign: 'center', fontSize: 13, fontWeight: 900, color: on ? st.color : '#94a3b8' }}>{q}</div>
+                                        <div style={{ minWidth: 20, textAlign: 'center', fontSize: 13, fontWeight: 900, color: on ? color : '#94a3b8' }}>{q}</div>
                                         <button type="button" onClick={() => setBattQty(ext.name, +1)}
                                           style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', color: '#0f2a5c' }}>+</button>
                                       </div>
@@ -602,7 +689,7 @@ export default function CotizarPage() {
                                 })}
                               </div>
                               {extQtyTotal > 0 && (
-                                <div style={{ marginTop: 8, fontSize: 11, color: st.color, fontWeight: 700 }}>
+                                <div style={{ marginTop: 8, fontSize: 11, color: color, fontWeight: 700 }}>
                                   + {extQtyTotal} extensión{extQtyTotal > 1 ? 'es' : ''} añadida{extQtyTotal > 1 ? 's' : ''}
                                 </div>
                               )}
