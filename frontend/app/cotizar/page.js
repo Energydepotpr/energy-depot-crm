@@ -106,12 +106,7 @@ export default function CotizarPage() {
       </svg>
     ),
     'SolaX': (
-      <svg viewBox="0 0 100 100" width="28" height="28" fill="#ea580c" aria-label="SolaX">
-        <circle cx="50" cy="50" r="16"/>
-        {[0,45,90,135,180,225,270,315].map(a => (
-          <rect key={a} x="46" y="10" width="8" height="14" rx="2" transform={`rotate(${a} 50 50)`} />
-        ))}
-      </svg>
+      <img src="/baterias/solax-logo.jpg" alt="SolaX Power" style={{ height: 22, width: 'auto', display: 'block' }} />
     ),
   };
   // Acento de color por marca (borde / texto cuando está seleccionado)
@@ -150,6 +145,13 @@ export default function CotizarPage() {
       warranty: '10 años equipo y labor',
       hero: '/baterias/epcube.jpg',
       heroPosition: 'right center', // recortar la parte del marketing/texto del lado izq
+    },
+    'SolaX': {
+      title: 'SolaX ESS',
+      description: '7.6kW AC Inverter / batería expandible',
+      warranty: '10 años equipo y labor',
+      hero: '/baterias/solax.jpg',
+      heroPosition: 'center center',
     },
   };
   const brandLogo  = (b) => BRAND_LOGOS[b] || (
