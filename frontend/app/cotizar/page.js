@@ -70,9 +70,26 @@ export default function CotizarPage() {
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
   const [selectedBatt, setSelectedBatt] = useState({}); // { name: qty }
   // Agrupación por marca: items de marcas distintas no se mezclan en el mismo proyecto.
-  // Brand se extrae del primer "token" del nombre (ej "FranklinWH S Expansion" → "FranklinWH",
-  // "Tesla PowerWall 3" → "Tesla", "SolaX ESS 10.24 kWh" → "SolaX").
-  const getBrand = (n) => String(n || '').trim().split(/\s+/)[0] || 'Otro';
+  // Brand se extrae con preferencia para marcas con espacio (ej "EP Cube"),
+  // si no, primer token.
+  const getBrand = (n) => {
+    const s = String(n || '').trim();
+    if (/^EP\s+Cube/i.test(s))   return 'EP Cube';
+    if (/^FranklinWH/i.test(s))  return 'FranklinWH';
+    if (/^Tesla/i.test(s))       return 'Tesla';
+    if (/^SolaX/i.test(s))       return 'SolaX';
+    if (/^Bluetti/i.test(s))     return 'Bluetti';
+    return s.split(/\s+/)[0] || 'Otro';
+  };
+  // Color/acento por marca para la UI premium
+  const BRAND_STYLE = {
+    'FranklinWH': { color: '#1d4ed8', bg: 'linear-gradient(135deg,#dbeafe 0%,#bfdbfe 100%)', icon: '⚡' },
+    'Tesla':      { color: '#dc2626', bg: 'linear-gradient(135deg,#fee2e2 0%,#fecaca 100%)', icon: '🔋' },
+    'EP Cube':    { color: '#047857', bg: 'linear-gradient(135deg,#d1fae5 0%,#a7f3d0 100%)', icon: '🟩' },
+    'SolaX':      { color: '#ea580c', bg: 'linear-gradient(135deg,#fed7aa 0%,#fdba74 100%)', icon: '☀️' },
+    'Bluetti':    { color: '#7c3aed', bg: 'linear-gradient(135deg,#ede9fe 0%,#ddd6fe 100%)', icon: '🔌' },
+  };
+  const brandStyle = (b) => BRAND_STYLE[b] || { color: '#1a3c8f', bg: 'linear-gradient(135deg,#e0e7ff 0%,#c7d2fe 100%)', icon: '🔋' };
   const [editingQuotationId, setEditingQuotationId] = useState(null); // Feature 2: editar
   const [results, setResults] = useState([]); // Feature 1: cotizaciones múltiples paso 3
   const DEFAULT_WELCOME = 'Tus datos para preparar la propuesta personalizada.';
@@ -470,29 +487,133 @@ export default function CotizarPage() {
               </div>
             )}
 
-            {/* Baterías opcionales */}
-            <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f2a5c', marginBottom: 4 }}>¿Quieres añadir batería de respaldo? <span style={{ color: '#94a3b8', fontWeight: 400, fontSize: 12 }}>(opcional)</span></div>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>Selecciona qué baterías te interesan. Puedes elegir una o varias.</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 }}>
-                {bateriasList.map(b => {
-                  const qty = selectedBatt[b.name] || 0;
-                  const active = qty > 0;
-                  return (
-                    <div key={b.name} style={{ border: active ? '2px solid #1a3c8f' : '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', background: active ? 'rgba(26,60,143,0.06)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: active ? '#1a3c8f' : '#0f2a5c', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</div>
-                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>{fmt(b.precio)}</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <button onClick={() => setBattQty(b.name, -1)} disabled={qty === 0} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 700, cursor: qty > 0 ? 'pointer' : 'default', opacity: qty === 0 ? 0.4 : 1, color: '#0f2a5c' }}>−</button>
-                        <div style={{ minWidth: 22, textAlign: 'center', fontSize: 13, fontWeight: 800, color: active ? '#1a3c8f' : '#94a3b8' }}>{qty}</div>
-                        <button onClick={() => setBattQty(b.name, +1)} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', color: '#0f2a5c' }}>+</button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            {/* Baterías opcionales — UI por marca (principal + extensiones) */}
+            <div style={{ marginTop: 24 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#0f2a5c', marginBottom: 4 }}>¿Quieres añadir batería de respaldo? <span style={{ color: '#94a3b8', fontWeight: 400, fontSize: 12 }}>(opcional)</span></div>
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>Elige una marca. Después podrás añadir extensiones de esa misma marca.</div>
+              {(() => {
+                // Agrupar por marca; principal = la más cara
+                const byBrand = {};
+                bateriasList.forEach(b => {
+                  const br = getBrand(b.name);
+                  (byBrand[br] = byBrand[br] || []).push(b);
+                });
+                const brands = Object.keys(byBrand);
+                brands.forEach(br => byBrand[br].sort((a, b) => b.precio - a.precio));
+
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${brands.length >= 3 ? 200 : 240}px, 1fr))`, gap: 12 }}>
+                    {brands.map(brand => {
+                      const items = byBrand[brand];
+                      const principal = items[0];
+                      const extensions = items.slice(1);
+                      const principalQty = selectedBatt[principal.name] || 0;
+                      const isSelected = principalQty > 0;
+                      const extQtyTotal = extensions.reduce((s, e) => s + (selectedBatt[e.name] || 0), 0);
+                      const st = brandStyle(brand);
+                      return (
+                        <div key={brand} style={{
+                          borderRadius: 14,
+                          border: isSelected ? `2px solid ${st.color}` : '1px solid #e2e8f0',
+                          background: isSelected ? '#fff' : '#fff',
+                          boxShadow: isSelected ? `0 6px 20px ${st.color}22` : '0 1px 3px rgba(15,42,92,0.04)',
+                          overflow: 'hidden',
+                          transition: 'all 0.2s ease',
+                        }}>
+                          {/* Card principal — clickeable */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                // deseleccionar: poner principal a 0 y limpiar extensiones de esta marca
+                                setBattQty(principal.name, -principalQty);
+                                extensions.forEach(e => {
+                                  const q = selectedBatt[e.name] || 0;
+                                  if (q > 0) setBattQty(e.name, -q);
+                                });
+                              } else {
+                                setBattQty(principal.name, 1);
+                              }
+                            }}
+                            style={{
+                              width: '100%', textAlign: 'left', padding: 0, border: 'none',
+                              background: st.bg, cursor: 'pointer', fontFamily: 'inherit',
+                            }}>
+                            <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                  <span style={{ fontSize: 22 }}>{st.icon}</span>
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: st.color, letterSpacing: 1, textTransform: 'uppercase' }}>{brand}</span>
+                                </div>
+                                <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.25, marginBottom: 4 }}>
+                                  {principal.name.replace(brand, '').trim() || 'Principal'}
+                                </div>
+                                <div style={{ fontSize: 18, fontWeight: 900, color: st.color }}>
+                                  {fmt(principal.precio)}
+                                </div>
+                              </div>
+                              <div style={{
+                                width: 28, height: 28, borderRadius: 14,
+                                background: isSelected ? st.color : 'rgba(255,255,255,0.7)',
+                                border: isSelected ? 'none' : `2px solid ${st.color}55`,
+                                color: '#fff', fontSize: 16, fontWeight: 900,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0,
+                              }}>{isSelected ? '✓' : ''}</div>
+                            </div>
+                          </button>
+
+                          {/* Panel extensiones — aparece solo si el principal está seleccionado */}
+                          {isSelected && extensions.length > 0 && (
+                            <div style={{ padding: '14px 18px 16px', background: '#fff', borderTop: '1px solid #e2e8f0' }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#0f2a5c', marginBottom: 4 }}>
+                                ¿Quieres añadir una extensión?
+                              </div>
+                              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+                                Suma capacidad con módulos {brand} adicionales.
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {extensions.map(ext => {
+                                  const q = selectedBatt[ext.name] || 0;
+                                  const on = q > 0;
+                                  const shortName = ext.name.replace(brand, '').trim();
+                                  return (
+                                    <div key={ext.name} style={{
+                                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                      gap: 8, padding: '8px 10px', borderRadius: 8,
+                                      background: on ? `${st.color}11` : '#f8fafc',
+                                      border: on ? `1px solid ${st.color}55` : '1px solid #e2e8f0',
+                                    }}>
+                                      <div style={{ minWidth: 0, flex: 1 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: on ? st.color : '#0f2a5c', lineHeight: 1.2 }}>
+                                          {shortName || ext.name}
+                                        </div>
+                                        <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>{fmt(ext.precio)}</div>
+                                      </div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <button type="button" onClick={() => setBattQty(ext.name, -1)} disabled={q === 0}
+                                          style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 800, cursor: q > 0 ? 'pointer' : 'default', opacity: q === 0 ? 0.35 : 1, color: '#0f2a5c' }}>−</button>
+                                        <div style={{ minWidth: 20, textAlign: 'center', fontSize: 13, fontWeight: 900, color: on ? st.color : '#94a3b8' }}>{q}</div>
+                                        <button type="button" onClick={() => setBattQty(ext.name, +1)}
+                                          style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', color: '#0f2a5c' }}>+</button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {extQtyTotal > 0 && (
+                                <div style={{ marginTop: 8, fontSize: 11, color: st.color, fontWeight: 700 }}>
+                                  + {extQtyTotal} extensión{extQtyTotal > 1 ? 'es' : ''} añadida{extQtyTotal > 1 ? 's' : ''}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
               {batPrecio > 0 && (
                 <div style={{ marginTop: 10, fontSize: 12, color: '#64748b' }}>
                   Total baterías: <strong style={{ color: '#1a3c8f' }}>{fmt(batPrecio)}</strong>
