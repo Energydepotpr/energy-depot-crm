@@ -131,20 +131,25 @@ export default function CotizarPage() {
       title: 'aGate + aPower S',
       description: '11.5kW Inverter / 15kWh Batería',
       warranty: '15 años equipo y labor',
+      hero: '/baterias/franklin.jpg',
+      heroPosition: 'center center',
     },
     'Tesla': {
       principalMatch: /^Tesla\s+(Gateway\s*3|PowerWall\s*3)\b/i,
       title: 'Gateway 3 + PowerWall 3',
       description: '11.5kW Inverter / 13.5kWh Batería',
       warranty: '10 años equipo y labor',
+      hero: '/baterias/tesla.jpg',
+      heroPosition: 'center 40%',
     },
     'EP Cube': {
-      // El principal es el de menor capacidad (5kWh) — gateway base
       principalMatch: /(5kWh|Gateway|\b10kWh\b)/i,
       principalPreferLowest: true,
       title: '2.0 Gateway + 5kWh',
       description: '11.5kW Inverter / 5kWh Batería',
       warranty: '10 años equipo y labor',
+      hero: '/baterias/epcube.jpg',
+      heroPosition: 'right center', // recortar la parte del marketing/texto del lado izq
     },
   };
   const brandLogo  = (b) => BRAND_LOGOS[b] || (
@@ -616,12 +621,41 @@ export default function CotizarPage() {
                             style={{
                               width: '100%', textAlign: 'left', padding: 0, border: 'none',
                               background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
+                              display: 'block',
                             }}>
-                            <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, height: 28 }}>
+                            {/* Hero image */}
+                            {cfg.hero && (
+                              <div style={{
+                                width: '100%', height: 140, position: 'relative',
+                                backgroundImage: `url(${cfg.hero})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: cfg.heroPosition || 'center center',
+                                backgroundColor: '#f1f5f9',
+                              }}>
+                                {/* Gradient overlay para legibilidad del logo */}
+                                <div style={{
+                                  position: 'absolute', inset: 0,
+                                  background: 'linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 50%)',
+                                }} />
+                                {/* Logo flotante encima del hero */}
+                                <div style={{
+                                  position: 'absolute', top: 10, left: 12,
+                                  background: 'rgba(255,255,255,0.92)',
+                                  borderRadius: 8, padding: '4px 10px',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                  display: 'flex', alignItems: 'center', height: 30,
+                                }}>
                                   {brandLogo(brand)}
                                 </div>
+                              </div>
+                            )}
+                            <div style={{ padding: '14px 18px 16px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                {!cfg.hero && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, height: 28 }}>
+                                    {brandLogo(brand)}
+                                  </div>
+                                )}
                                 <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', lineHeight: 1.3, marginBottom: 8 }}>
                                   {cfg.title || principal.name.replace(brand, '').trim() || 'Modelo principal'}
                                 </div>
