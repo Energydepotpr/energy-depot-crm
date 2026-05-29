@@ -3143,8 +3143,9 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         <button onClick={guardar} disabled={saving||!calc} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '12px 14px' : '6px 14px', fontSize: isMobile ? 14 : 12, fontWeight:600, color:'var(--text)', cursor:'pointer', opacity:!calc||saving?0.5:1, width: isMobile ? '100%' : 'auto' }}>
           {saving?'Guardando…':'Guardar Cotización'}
         </button>
-        <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '6px 10px' : '4px 10px', width: isMobile ? '100%' : 'auto' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '6px 10px' : '4px 10px', width: isMobile ? '100%' : 'auto' }}>
           <span style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>Descuento</span>
+          {/* Porcentaje */}
           <input
             type="number" min="0" max="100" step="0.5"
             value={descuentoPct || ''}
@@ -3152,6 +3153,20 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
             placeholder="0"
             style={{ width: 50, background:'transparent', border:'none', outline:'none', fontSize: isMobile ? 14 : 13, fontWeight:700, color:'#1a3c8f', textAlign:'right' }} />
           <span style={{ fontSize:13, color:'#1a3c8f', fontWeight:700 }}>%</span>
+          <span style={{ fontSize:11, color:'var(--muted)', fontWeight:600, marginLeft:4 }}>o</span>
+          {/* Monto en dólares */}
+          <span style={{ fontSize:13, color:'#1a3c8f', fontWeight:700 }}>$</span>
+          <input
+            type="number" min="0" step="50"
+            value={(calc && calc.descuentoAmt) ? calc.descuentoAmt : ''}
+            onChange={e => {
+              const amt = Number(e.target.value) || 0;
+              const base = calc?.subPreDescuento || 0;
+              const pct = base > 0 ? +(amt / base * 100).toFixed(2) : 0;
+              setDescuentoPct(Math.max(0, Math.min(100, pct)));
+            }}
+            placeholder="0"
+            style={{ width: 70, background:'transparent', border:'none', outline:'none', fontSize: isMobile ? 14 : 13, fontWeight:700, color:'#1a3c8f', textAlign:'right' }} />
         </div>
         <button onClick={generarPDF} disabled={!calc||pdfLoad} style={{ background:'#1a3c8f', border:'none', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '12px 14px' : '6px 14px', fontSize: isMobile ? 14 : 12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc||pdfLoad?0.5:1, display:'flex', alignItems:'center', justifyContent: 'center', gap:6, width: isMobile ? '100%' : 'auto' }}>
           <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
