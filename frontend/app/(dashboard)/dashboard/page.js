@@ -18,11 +18,13 @@ const fmt$ = (n) => CURRENCY.format(Number(n) || 0);
 const fmtN = (n) => new Intl.NumberFormat('es-PR').format(Number(n) || 0);
 
 const PERIODS = [
-  { key: 'mes', label: 'Mes actual' },
-  { key: '60',  label: '60 días' },
-  { key: '90',  label: '90 días' },
-  { key: '180', label: '6 meses' },
-  { key: '365', label: '1 año' },
+  { key: 'hoy',    label: 'Hoy' },
+  { key: 'mes',    label: 'Mes actual' },
+  { key: '60',     label: '60 días' },
+  { key: '90',     label: '90 días' },
+  { key: '180',    label: '6 meses' },
+  { key: 'anio',   label: 'Año actual' },
+  { key: '365',    label: '12 meses' },
   { key: 'custom', label: 'Personalizado' },
 ];
 
@@ -369,6 +371,102 @@ function PendientesTable({ pendientes }) {
   );
 }
 
+// ─── TABLA DE MÉTRICAS (totales/%/monto) ────────────────────────────
+function MetricasTabla({ kpis, isMobile }) {
+  if (!kpis) return null;
+  const totalLeads = kpis.leads?.count || 0;
+  const cotiz = kpis.cotizaciones || {};
+  const fin = kpis.financiamiento || {};
+  const ventas = kpis.ventas || {};
+  const efectivo = kpis.efectivo || { count: 0, monto: 0 };
+  const finFirmado = kpis.financiamientoFirmado || { count: 0, monto: 0 };
+
+  const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
+
+  const rows = [
+    { label: 'Total de leads',           count: totalLeads,   pct: 100, monto: 0,                color: NAVY,    bold: true },
+    { label: 'Se cotizaron',             count: cotiz.count,  pct: pct(cotiz.count, totalLeads),  monto: cotiz.monto || 0,  color: ORANGE },
+    { label: 'En financiamiento',        count: fin.count,    pct: pct(fin.count, totalLeads),    monto: fin.monto || 0,    color: PURPLE },
+    { label: 'Firmados — Efectivo',      count: efectivo.count, pct: pct(efectivo.count, totalLeads), monto: efectivo.monto, color: GREEN, indent: true },
+    { label: 'Firmados — Financiamiento', count: finFirmado.count, pct: pct(finFirmado.count, totalLeads), monto: finFirmado.monto, color: '#0ea5e9', indent: true },
+    { label: 'Total proyectos firmados', count: ventas.count, pct: pct(ventas.count, totalLeads), monto: ventas.monto || 0, color: GREEN, bold: true },
+  ];
+
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 18, marginBottom: 18 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        Métricas del período · números y conversión
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1.2fr', gap: 0, fontSize: 12 }}>
+        {/* Header */}
+        {!isMobile && (
+          <>
+            <div style={{ padding: '8px 10px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.08em', borderBottom: '2px solid var(--border)' }}>Métrica</div>
+            <div style={{ padding: '8px 10px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.08em', borderBottom: '2px solid var(--border)', textAlign: 'right' }}># Leads</div>
+            <div style={{ padding: '8px 10px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.08em', borderBottom: '2px solid var(--border)', textAlign: 'right' }}>% del total</div>
+            <div style={{ padding: '8px 10px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.08em', borderBottom: '2px solid var(--border)', textAlign: 'right' }}>Monto</div>
+          </>
+        )}
+        {rows.map((r, i) => (
+          <div key={i} style={{ display: 'contents' }}>
+            <div style={{
+              padding: isMobile ? '10px 10px 4px' : '10px',
+              color: 'var(--text)',
+              fontWeight: r.bold ? 800 : 600,
+              borderBottom: '1px solid var(--border)',
+              paddingLeft: r.indent ? (isMobile ? 22 : 24) : 10,
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
+              {r.label}
+            </div>
+            <div style={{
+              padding: isMobile ? '0 10px 4px' : '10px',
+              color: 'var(--text)',
+              fontWeight: r.bold ? 800 : 700,
+              textAlign: isMobile ? 'left' : 'right',
+              borderBottom: isMobile ? 'none' : '1px solid var(--border)',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {isMobile && <span style={{ color: 'var(--muted)', fontWeight: 600, marginRight: 8 }}>Leads:</span>}
+              {fmtN(r.count)}
+            </div>
+            <div style={{
+              padding: isMobile ? '0 10px 4px' : '10px',
+              color: r.color,
+              fontWeight: 700,
+              textAlign: isMobile ? 'left' : 'right',
+              borderBottom: isMobile ? 'none' : '1px solid var(--border)',
+              fontVariantNumeric: 'tabular-nums',
+              position: 'relative',
+            }}>
+              {isMobile && <span style={{ color: 'var(--muted)', fontWeight: 600, marginRight: 8 }}>%:</span>}
+              {r.pct}%
+              {/* mini bar */}
+              {!isMobile && (
+                <div style={{ height: 3, background: `${r.color}22`, borderRadius: 2, marginTop: 4, overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.min(100, r.pct)}%`, height: '100%', background: r.color, borderRadius: 2 }} />
+                </div>
+              )}
+            </div>
+            <div style={{
+              padding: isMobile ? '0 10px 10px' : '10px',
+              color: 'var(--text)',
+              fontWeight: 700,
+              textAlign: isMobile ? 'left' : 'right',
+              borderBottom: '1px solid var(--border)',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {isMobile && <span style={{ color: 'var(--muted)', fontWeight: 600, marginRight: 8 }}>Monto:</span>}
+              {r.monto > 0 ? fmt$(r.monto) : <span style={{ color: 'var(--muted)' }}>—</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── PAGE ───
 export default function DashboardPage() {
   const [period, setPeriod] = useState('mes');
@@ -571,6 +669,10 @@ export default function DashboardPage() {
               <Funnel funnel={data.funnel} conversions={data.conversions} />
               <TtfcBar minutes={data.timeToFirstContactMin} />
             </div>
+
+            {/* TABLA DE MÉTRICAS — totales, % y monto por etapa */}
+            <MetricasTabla kpis={data.kpis} isMobile={isMobile} />
+
 
             {/* SOURCE + PENDIENTES */}
             <div style={{

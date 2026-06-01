@@ -12,10 +12,13 @@ function resolvePeriod(period, fromStr, toStr) {
   if (period === 'custom' && fromStr) {
     from = new Date(fromStr);
     if (toStr) to.setTime(new Date(toStr).getTime());
+  } else if (period === 'hoy') {
+    // Día calendario actual en PR (UTC-4)
+    from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 4, 0, 0));
   } else if (period === 'mes') {
-    // Mes calendario en PR: día 1 del mes UTC-4
-    // Aproximación: primer día del mes UTC menos 4h, suficiente para PR
     from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 4, 0, 0));
+  } else if (period === 'anio' || period === 'año') {
+    from = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 4, 0, 0));
   } else {
     const days = ({ '60': 60, '90': 90, '180': 180, '365': 365 })[String(period)] || 30;
     from = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
@@ -187,26 +190,49 @@ async function pipelineKpis(from, to) {
   return { cotizCount, cotizMonto, finCount, finMonto, ventaCount, ventaMonto, stages };
 }
 
-// ── Ventas confirmadas (contratos_firma con signed_at) ────────────────────────
+// ── Ventas confirmadas (contratos_firma con signed_at), desglosadas por modalidad ──
 async function ventasFirmadas(from, to) {
   try {
     const q = `
-      SELECT COUNT(DISTINCT cf.lead_id)::int AS n,
-             COALESCE(SUM(
-               COALESCE(
-                 (cf.contrato_data->>'precio')::numeric,
-                 (cf.contrato_data->>'total')::numeric,
-                 0
-               )
-             ), 0)::numeric AS monto
+      SELECT
+        cf.contrato_data->>'modalidad' AS modalidad,
+        COUNT(DISTINCT cf.lead_id)::int AS n,
+        COALESCE(SUM(
+          COALESCE(
+            (cf.contrato_data->>'precio')::numeric,
+            (cf.contrato_data->>'total')::numeric,
+            0
+          )
+        ), 0)::numeric AS monto
       FROM contratos_firma cf
       WHERE cf.signed_at IS NOT NULL
         AND cf.signed_at >= $1 AND cf.signed_at < $2
+      GROUP BY 1
     `;
     const r = await pool.query(q, [from, to]);
-    return { count: r.rows[0]?.n || 0, monto: Number(r.rows[0]?.monto) || 0 };
+    let totalCount = 0, totalMonto = 0;
+    let efectivoCount = 0, efectivoMonto = 0;
+    let financCount = 0, financMonto = 0;
+    for (const row of r.rows) {
+      const n = row.n || 0;
+      const m = Number(row.monto) || 0;
+      totalCount += n;
+      totalMonto += m;
+      if ((row.modalidad || '').toLowerCase() === 'efectivo') {
+        efectivoCount += n;
+        efectivoMonto += m;
+      } else {
+        financCount += n;
+        financMonto += m;
+      }
+    }
+    return {
+      count: totalCount, monto: totalMonto,
+      efectivo: { count: efectivoCount, monto: efectivoMonto },
+      financiamiento: { count: financCount, monto: financMonto },
+    };
   } catch (e) {
-    return { count: 0, monto: 0 };
+    return { count: 0, monto: 0, efectivo: { count: 0, monto: 0 }, financiamiento: { count: 0, monto: 0 } };
   }
 }
 
@@ -270,6 +296,9 @@ async function overview(req, res) {
         cotizaciones:    { count: kpis.cotizCount, monto: kpis.cotizMonto, delta: delta(kpis.cotizCount, kpisPrev.cotizCount) },
         financiamiento:  { count: kpis.finCount,   monto: kpis.finMonto,   delta: delta(kpis.finCount, kpisPrev.finCount) },
         ventas:          { count: ventasCount,    monto: ventasMonto,     delta: delta(ventasCount, kpisPrev.ventaCount) },
+        // Desglose de cierres firmados por modalidad
+        efectivo:        ventasFirma.efectivo,
+        financiamientoFirmado: ventasFirma.financiamiento,
       },
       conversions,
       funnel,

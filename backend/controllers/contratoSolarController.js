@@ -944,6 +944,11 @@ async function postFirmaPublic(req, res) {
 
     // Al firmar contrato → mover a Financiamiento (etapa siguiente del pipeline solar)
     autoMoveStage(row.lead_id, ['financ']);
+    // Y duplicar lead al pipeline de Instalaciones (etapa "Instalación")
+    try {
+      const { duplicateLeadToInstallations } = require('../services/pipelineFlow');
+      duplicateLeadToInstallations(row.lead_id);
+    } catch (e) { console.error('[postFirma duplicate]', e.message); }
 
     res.json({ ok: true, signed_at: signedAt, email_sent: emailSent, email_error: emailError });
   } catch (e) {
