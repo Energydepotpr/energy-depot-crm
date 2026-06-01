@@ -289,13 +289,23 @@ async function createPublicLead(req, res) {
         return res.status(429).json({ error: 'Has alcanzado el límite de cotizaciones para este cliente. Contacta a un asesor: 787-627-8585.' });
       }
       const leadSource = source || 'autocotizar-web';
+      // Captura UTM / ad-click IDs si el payload los trae
+      const utm = req.body.utm || {};
+      const utm_source   = utm.utm_source   || req.body.utm_source   || null;
+      const utm_medium   = utm.utm_medium   || req.body.utm_medium   || null;
+      const utm_campaign = utm.utm_campaign || req.body.utm_campaign || null;
+      const utm_content  = utm.utm_content  || req.body.utm_content  || null;
+      const utm_term     = utm.utm_term     || req.body.utm_term     || null;
+      const fbclid       = utm.fbclid       || req.body.fbclid       || null;
+      const gclid        = utm.gclid        || req.body.gclid        || null;
       const leadR = await txClient.query(
-        `INSERT INTO leads (title, contact_id, pipeline_id, stage_id, value, solar_data, source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-        [title, contactId, pid, sid, value, JSON.stringify(solarData), leadSource]
+        `INSERT INTO leads (title, contact_id, pipeline_id, stage_id, value, solar_data, source,
+                            utm_source, utm_medium, utm_campaign, utm_content, utm_term, fbclid, gclid)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+        [title, contactId, pid, sid, value, JSON.stringify(solarData), leadSource,
+         utm_source, utm_medium, utm_campaign, utm_content, utm_term, fbclid, gclid]
       );
       leadId = leadR.rows[0].id;
-      // Tag automático "autocotizador" para identificar leads que se cotizaron solos
       await txClient.query(
         `INSERT INTO lead_tags (lead_id, tag, color) VALUES ($1, 'autocotizador', '#06b6d4') ON CONFLICT (lead_id, tag) DO NOTHING`,
         [leadId]

@@ -3006,6 +3006,8 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
 
   const descuentoPct = Number(active?.descuentoPct) || 0;
   const setDescuentoPct = (v) => updateActive({ descuentoPct: v === '' ? 0 : Math.max(0, Math.min(100, Number(v) || 0)) });
+  // Estado local para el input "$ descuento" — refleja lo que el usuario tipea aunque calc no esté listo
+  const [descuentoAmtRaw, setDescuentoAmtRaw] = useState('');
   useEffect(() => { setCalc(cotCalc(meses, batTotal, pricing, descuentoPct)); }, [meses, batTotal, pricing, descuentoPct]);
 
   const showMsg = t => { setMsg(t); setTimeout(()=>setMsg(''),3000); };
@@ -3158,15 +3160,20 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
           <span style={{ fontSize:13, color:'var(--text)', fontWeight:700 }}>$</span>
           <input
             type="number" min="0" step="50"
-            value={(calc && calc.descuentoAmt) ? calc.descuentoAmt : ''}
+            value={descuentoAmtRaw !== '' ? descuentoAmtRaw : (calc?.descuentoAmt ? calc.descuentoAmt : '')}
             onChange={e => {
-              const amt = Number(e.target.value) || 0;
+              const raw = e.target.value;
+              setDescuentoAmtRaw(raw);
+              const amt = Number(raw) || 0;
               const base = calc?.subPreDescuento || 0;
-              const pct = base > 0 ? +(amt / base * 100).toFixed(2) : 0;
-              setDescuentoPct(Math.max(0, Math.min(100, pct)));
+              if (base > 0) {
+                const pct = +(amt / base * 100).toFixed(2);
+                setDescuentoPct(Math.max(0, Math.min(100, pct)));
+              }
             }}
+            onBlur={() => setDescuentoAmtRaw('')}
             placeholder="0"
-            style={{ width: 70, background:'transparent', border:'none', outline:'none', fontSize: isMobile ? 14 : 13, fontWeight:700, color:'var(--text)', textAlign:'right' }} />
+            style={{ width: 80, background:'transparent', border:'none', outline:'none', fontSize: isMobile ? 14 : 13, fontWeight:700, color:'var(--text)', textAlign:'right' }} />
         </div>
         <button onClick={generarPDF} disabled={!calc||pdfLoad} style={{ background:'#1a3c8f', border:'none', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '12px 14px' : '6px 14px', fontSize: isMobile ? 14 : 12, fontWeight:700, color:'#fff', cursor:calc?'pointer':'default', opacity:!calc||pdfLoad?0.5:1, display:'flex', alignItems:'center', justifyContent: 'center', gap:6, width: isMobile ? '100%' : 'auto' }}>
           <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
