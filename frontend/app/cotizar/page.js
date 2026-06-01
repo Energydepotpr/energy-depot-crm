@@ -656,16 +656,12 @@ export default function CotizarPage() {
                             <div style={{ padding: '14px 18px 16px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', lineHeight: 1.3, marginBottom: 8 }}>
-                                  {cfg.title || principal.name.replace(brand, '').trim() || 'Modelo principal'}
+                                  {(principal.name || '').replace(brand, '').replace(/^\s*-\s*/, '').trim() || cfg.title || 'Modelo principal'}
                                 </div>
-                                {cfg.description && (
-                                  <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.4, marginBottom: 4 }}>
-                                    <span style={{ fontWeight: 700, color: '#0f2a5c' }}>Descripción:</span> {cfg.description}
-                                  </div>
-                                )}
-                                {cfg.warranty && (
-                                  <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.4, marginBottom: 10 }}>
-                                    <span style={{ fontWeight: 700, color: '#0f2a5c' }}>Garantía:</span> {cfg.warranty}
+                                {/* Descripción: priorizar la que el usuario puso en Settings (DB) sobre la hardcoded */}
+                                {(principal.description || cfg.description) && (
+                                  <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.45, marginBottom: 10 }}>
+                                    {principal.description || cfg.description}
                                   </div>
                                 )}
                                 <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontVariantNumeric: 'tabular-nums', letterSpacing: -0.5 }}>
@@ -696,19 +692,24 @@ export default function CotizarPage() {
                                 {extensions.map(ext => {
                                   const q = selectedBatt[ext.name] || 0;
                                   const on = q > 0;
-                                  const shortName = ext.name.replace(brand, '').trim();
+                                  const shortName = (ext.name || '').replace(brand, '').replace(/^\s*-\s*/, '').trim();
                                   return (
                                     <div key={ext.name} style={{
-                                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                      gap: 8, padding: '8px 10px', borderRadius: 6,
+                                      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+                                      gap: 8, padding: '10px 12px', borderRadius: 6,
                                       background: '#fff',
                                       border: on ? `1px solid ${color}` : '1px solid #e2e8f0',
                                     }}>
                                       <div style={{ minWidth: 0, flex: 1 }}>
-                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#0f2a5c', lineHeight: 1.2 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#0f2a5c', lineHeight: 1.2, marginBottom: 2 }}>
                                           {shortName || ext.name}
                                         </div>
-                                        <div style={{ fontSize: 10, color: '#64748b', marginTop: 1, fontVariantNumeric: 'tabular-nums' }}>{fmt(ext.precio)}</div>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: color, fontVariantNumeric: 'tabular-nums', marginBottom: ext.description ? 4 : 0 }}>{fmt(ext.precio)}</div>
+                                        {ext.description && (
+                                          <div style={{ fontSize: 10.5, color: '#64748b', lineHeight: 1.35 }}>
+                                            {ext.description}
+                                          </div>
+                                        )}
                                       </div>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                         <button type="button" onClick={() => setBattQty(ext.name, -1)} disabled={q === 0}
