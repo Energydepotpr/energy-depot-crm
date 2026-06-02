@@ -2742,7 +2742,7 @@ const MESES_LEN = 13;
 const cotFmt  = n => `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const cotFmtK = n => Number(n).toLocaleString('en-US');
 
-function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0) {
+function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0, descuentoAmtAbs = 0) {
   const { panelPrice, panelWatts, tarifaLuma, factorProduccion, pmt15 } = pricing;
   // Si hay 13 meses, usa los últimos 12 (excluye el más antiguo)
   const last12 = meses.length > 12 ? meses.slice(-12) : meses;
@@ -2758,8 +2758,15 @@ function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0) 
   // costBase = sistema FV completo (NO se descuenta). El descuento es una línea aparte.
   const costBase=Math.round(panels*panelPrice);
   const subPreDescuento=costBase+batPrecio;
-  const dPct = Math.max(0, Math.min(100, Number(descuentoPct) || 0));
-  const descuentoAmt = Math.round(subPreDescuento * (dPct / 100));
+  // Descuento: si viene monto en $ úsalo directo; si no, calcula desde %.
+  let descuentoAmt, dPct;
+  if (Number(descuentoAmtAbs) > 0) {
+    descuentoAmt = Math.min(Math.round(Number(descuentoAmtAbs)), subPreDescuento);
+    dPct = subPreDescuento > 0 ? +((descuentoAmt / subPreDescuento) * 100).toFixed(2) : 0;
+  } else {
+    dPct = Math.max(0, Math.min(100, Number(descuentoPct) || 0));
+    descuentoAmt = Math.round(subPreDescuento * (dPct / 100));
+  }
   const sub = subPreDescuento - descuentoAmt; // total final con descuento aplicado
   const pagoLuma=Math.round(avg*tarifaLuma);
   const offset=annCons>0?Math.round(annProd/annCons*100):0;
@@ -2789,6 +2796,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         mesLabels: Array.isArray(q.mesLabels) && q.mesLabels.length >= 12 ? q.mesLabels : null,
         batteries: Array.isArray(q.batteries) ? q.batteries : [],
         descuentoPct: Number(q.descuentoPct) || 0,
+        descuentoAmt: Number(q.descuentoAmt) || 0,
       }));
     }
     // Migración: legacy fields → 1 cotización
@@ -2854,6 +2862,7 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
       mesLabels: active?.mesLabels,
       batteries: byBrand[brand],
       descuentoPct: active?.descuentoPct || 0,
+      descuentoAmt: active?.descuentoAmt || 0,
     }));
     setQuotations(prev => {
       const idx = prev.findIndex(q => q.id === activeId);
@@ -3005,10 +3014,11 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
   };
 
   const descuentoPct = Number(active?.descuentoPct) || 0;
-  const setDescuentoPct = (v) => updateActive({ descuentoPct: v === '' ? 0 : Math.max(0, Math.min(100, Number(v) || 0)) });
-  // Estado local para el input "$ descuento" — refleja lo que el usuario tipea aunque calc no esté listo
-  const [descuentoAmtRaw, setDescuentoAmtRaw] = useState('');
-  useEffect(() => { setCalc(cotCalc(meses, batTotal, pricing, descuentoPct)); }, [meses, batTotal, pricing, descuentoPct]);
+  const descuentoAmtAbs = Number(active?.descuentoAmt) || 0;
+  // Editar % limpia el monto $ (y viceversa) para que solo uno sea la fuente de verdad.
+  const setDescuentoPct = (v) => updateActive({ descuentoPct: v === '' ? 0 : Math.max(0, Math.min(100, Number(v) || 0)), descuentoAmt: 0 });
+  const setDescuentoAmt = (v) => updateActive({ descuentoAmt: v === '' ? 0 : Math.max(0, Number(v) || 0), descuentoPct: 0 });
+  useEffect(() => { setCalc(cotCalc(meses, batTotal, pricing, descuentoPct, descuentoAmtAbs)); }, [meses, batTotal, pricing, descuentoPct, descuentoAmtAbs]);
 
   const showMsg = t => { setMsg(t); setTimeout(()=>setMsg(''),3000); };
 
@@ -3147,31 +3157,21 @@ function CotizarTab({ lead, leadId, onLeadUpdate, isMobile = false }) {
         </button>
         <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? 10 : 6, padding: isMobile ? '6px 10px' : '4px 10px', width: isMobile ? '100%' : 'auto' }}>
           <span style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>Descuento</span>
-          {/* Porcentaje */}
+          {/* Porcentaje — si el descuento está en modo $, muestra el % derivado */}
           <input
             type="number" min="0" max="100" step="0.5"
-            value={descuentoPct || ''}
+            value={descuentoAmtAbs > 0 ? (calc?.descuentoPct || '') : (descuentoPct || '')}
             onChange={e => setDescuentoPct(e.target.value)}
             placeholder="0"
             style={{ width: 50, background:'transparent', border:'none', outline:'none', fontSize: isMobile ? 14 : 13, fontWeight:700, color:'var(--text)', textAlign:'right' }} />
           <span style={{ fontSize:13, color:'var(--text)', fontWeight:700 }}>%</span>
           <span style={{ fontSize:11, color:'var(--muted)', fontWeight:600, marginLeft:4 }}>o</span>
-          {/* Monto en dólares */}
+          {/* Monto en dólares — campo guardado, fuente de verdad cuando se usa */}
           <span style={{ fontSize:13, color:'var(--text)', fontWeight:700 }}>$</span>
           <input
             type="number" min="0" step="50"
-            value={descuentoAmtRaw !== '' ? descuentoAmtRaw : (calc?.descuentoAmt ? calc.descuentoAmt : '')}
-            onChange={e => {
-              const raw = e.target.value;
-              setDescuentoAmtRaw(raw);
-              const amt = Number(raw) || 0;
-              const base = calc?.subPreDescuento || 0;
-              if (base > 0) {
-                const pct = +(amt / base * 100).toFixed(2);
-                setDescuentoPct(Math.max(0, Math.min(100, pct)));
-              }
-            }}
-            onBlur={() => setDescuentoAmtRaw('')}
+            value={descuentoAmtAbs > 0 ? descuentoAmtAbs : (descuentoPct > 0 && calc?.descuentoAmt ? calc.descuentoAmt : '')}
+            onChange={e => setDescuentoAmt(e.target.value)}
             placeholder="0"
             style={{ width: 80, background:'transparent', border:'none', outline:'none', fontSize: isMobile ? 14 : 13, fontWeight:700, color:'var(--text)', textAlign:'right' }} />
         </div>

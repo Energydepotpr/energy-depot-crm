@@ -271,27 +271,6 @@ app.post('/api/public/clientlog', (req, res) => {
 // Si se necesita debug, usar los endpoints autenticados o agregar uno
 // detrás de authMiddleware + requireAdmin.
 
-// Endpoint TEMPORAL diagnóstico — quién está en Instalaciones y por qué
-app.get('/api/public/_diag-install-7m2k', async (req, res) => {
-  if (req.query.k !== 'edpr-install-2026-06-01') return res.status(403).json({ error: 'nope' });
-  try {
-    const { pool: p } = require('./services/db');
-    const inst = await p.query(`
-      SELECT l.id, l.title, l.parent_lead_id, l.created_at,
-             c.name AS contact_name, c.phone, c.email,
-             ps.name AS stage_name,
-             cf.signed_at, cf.signed_name
-        FROM leads l
-        LEFT JOIN contacts c ON c.id = l.contact_id
-        LEFT JOIN pipeline_stages ps ON ps.id = l.stage_id
-        LEFT JOIN contratos_firma cf ON cf.lead_id = l.parent_lead_id AND cf.signed_at IS NOT NULL
-       WHERE l.pipeline_id = 2
-       ORDER BY l.created_at DESC
-    `);
-    res.json({ count: inst.rows.length, leads: inst.rows });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 // Protected
 app.use('/api', authMiddleware);
 
