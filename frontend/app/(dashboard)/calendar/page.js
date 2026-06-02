@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 
@@ -173,22 +174,29 @@ function NuevaTareaModal({ onClose, onCreated, agents }) {
 // ── Tarjeta de tarea ──────────────────────────────────────────────────────────
 function TaskCard({ task, onComplete, onDelete, isOverdue }) {
   const [hover, setHover] = useState(false);
+  const router = useRouter();
+  const goToLead = () => { if (task.lead_id) router.push(`/leads?open=${task.lead_id}`); };
+  const clickable = !!task.lead_id;
   return (
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      onClick={goToLead}
+      title={clickable ? 'Ver perfil del cliente' : undefined}
       style={{
-        background: S.surf, border:`1px solid ${isOverdue ? S.danger+'40' : S.brd}`,
+        border:`1px solid ${isOverdue ? S.danger+'40' : S.brd}`,
         borderLeft:`3px solid ${isOverdue ? S.danger : task.due_date ? S.accent : S.muted}`,
         borderRadius:8, padding:'10px 12px', marginBottom:8,
-        transition:'border-color 0.15s, background 0.15s',
+        transition:'border-color 0.15s, background 0.15s, box-shadow 0.15s',
         background: hover ? S.surf2 : S.surf,
+        cursor: clickable ? 'pointer' : 'default',
+        boxShadow: hover && clickable ? '0 2px 10px rgba(0,0,0,0.12)' : 'none',
       }}
     >
       <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
-        {/* Checkbox */}
+        {/* Checkbox — stopPropagation para no navegar al completar */}
         <button
-          onClick={() => onComplete(task.id)}
+          onClick={(e) => { e.stopPropagation(); onComplete(task.id); }}
           style={{ width:18, height:18, borderRadius:'50%', border:`2px solid ${isOverdue ? S.danger : S.accent}`, background:'transparent', flexShrink:0, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', marginTop:1 }}
         >
           {hover && <div style={{ width:8, height:8, borderRadius:'50%', background:isOverdue?S.danger:S.accent }} />}
@@ -197,12 +205,10 @@ function TaskCard({ task, onComplete, onDelete, isOverdue }) {
         <div style={{ flex:1, minWidth:0 }}>
           {/* Lead name */}
           {task.lead_title && (
-            <a href={`/leads?open=${task.lead_id}`} style={{ display:'block', color: S.accent, fontSize:12, fontWeight:700, textDecoration:'none', marginBottom:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}
-              onMouseEnter={e=>e.currentTarget.style.textDecoration='underline'}
-              onMouseLeave={e=>e.currentTarget.style.textDecoration='none'}
-            >
-              {task.lead_title}
-            </a>
+            <div style={{ display:'flex', alignItems:'center', gap:4, color: S.accent, fontSize:12, fontWeight:700, marginBottom:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              👤 {task.lead_title}
+              {hover && clickable && <span style={{ fontSize:10, opacity:0.7 }}>→</span>}
+            </div>
           )}
           {/* Fecha */}
           <div style={{ fontSize:11, color:isOverdue?S.danger:S.muted, marginBottom:5 }}>
@@ -220,9 +226,9 @@ function TaskCard({ task, onComplete, onDelete, isOverdue }) {
           )}
         </div>
 
-        {/* Delete */}
+        {/* Delete — stopPropagation */}
         {hover && (
-          <button onClick={() => onDelete(task.id)} style={{ background:'none', border:'none', cursor:'pointer', color:S.muted, fontSize:14, padding:'0 2px', lineHeight:1, flexShrink:0 }}>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} style={{ background:'none', border:'none', cursor:'pointer', color:S.muted, fontSize:14, padding:'0 2px', lineHeight:1, flexShrink:0 }}>
             ×
           </button>
         )}
