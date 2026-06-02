@@ -271,6 +271,10 @@ app.post('/api/public/clientlog', (req, res) => {
 // Si se necesita debug, usar los endpoints autenticados o agregar uno
 // detrás de authMiddleware + requireAdmin.
 
+// Webhook de Leadgogo (tiempo real) — público, validado por secret en la URL
+app.post('/api/public/leadgogo/webhook/:secret', require('./controllers/leadgogoWebhookController').receive);
+
+
 // Protected
 app.use('/api', authMiddleware);
 

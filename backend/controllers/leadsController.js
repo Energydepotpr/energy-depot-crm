@@ -216,6 +216,14 @@ async function moverEtapa(req, res) {
     await registrarActividad(req.params.id, req.user?.id || null, 'etapa_cambiada', stageR.rows[0]?.name || '');
     // Fire pipeline automations asynchronously
     ejecutarAutomaciones(req.params.id, stage_id).catch(() => {});
+    // Si el lead entró a un estado CERRADO (Firmado / Efectivo) → duplicar a Instalaciones
+    const stageName = (stageR.rows[0]?.name || '').toLowerCase();
+    if (/firmado|efectivo/.test(stageName)) {
+      try {
+        const { duplicateLeadToInstallations } = require('../services/pipelineFlow');
+        duplicateLeadToInstallations(req.params.id);
+      } catch (e) { console.error('[moverEtapa duplicate]', e.message); }
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error('[ERROR]', err.message);

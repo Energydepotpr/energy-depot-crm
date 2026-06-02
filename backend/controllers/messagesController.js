@@ -29,12 +29,12 @@ async function enviarMensaje(req, res) {
     if (!lead_id || !text?.trim()) return res.status(400).json({ error: 'lead_id y text requeridos' });
 
     const leadR = await pool.query(
-      `SELECT c.phone, l.contact_id FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id WHERE l.id = $1`,
+      `SELECT c.phone, l.contact_id, l.title, l.source FROM leads l LEFT JOIN contacts c ON c.id = l.contact_id WHERE l.id = $1`,
       [lead_id]
     );
     if (!leadR.rows[0]) return res.status(404).json({ error: 'Lead no encontrado' });
 
-    const { phone: telefono, contact_id } = leadR.rows[0];
+    const { phone: telefono, contact_id, title: leadTitle, source: leadSource } = leadR.rows[0];
 
     // Canal: usar el que manda el frontend, si no detectar del último mensaje entrante
     let canal = req.body.channel;
@@ -47,7 +47,23 @@ async function enviarMensaje(req, res) {
     }
 
     let twilio_sid = null;
-    if (telefono && (canal === 'sms' || canal === 'whatsapp')) {
+
+    // Lead de Leadgogo → responder por la API de Leadgogo (Facebook/Instagram/SMS)
+    if (canal === 'leadgogo') {
+      const m = String(leadTitle || '').match(/LG-(\d+)/);
+      const lgContactId = m ? m[1] : null;
+      if (!lgContactId) {
+        return res.status(400).json({ error: 'No se encontró el contacto de Leadgogo para este lead' });
+      }
+      try {
+        const lg = require('../services/leadgogoApi');
+        const { channel: usedCh } = await lg.replyToContact(lgContactId, text.trim());
+        console.log(`[MSG] enviado a Leadgogo contacto ${lgContactId} via ${usedCh}`);
+      } catch (e) {
+        console.error('[MSG] Error Leadgogo:', e.message);
+        return res.status(500).json({ error: 'Error enviando por Leadgogo: ' + e.message });
+      }
+    } else if (telefono && (canal === 'sms' || canal === 'whatsapp')) {
       try {
         // Puerto Rico usa SMS — enrutar siempre por SMS
         const result = await enviarSMS(telefono, text.trim());

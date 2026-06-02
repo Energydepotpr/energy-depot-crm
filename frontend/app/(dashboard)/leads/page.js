@@ -1285,6 +1285,22 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                     </select>
                   </div>
                 </div>
+                {/* Atribución de origen (Leadgogo / ads) */}
+                {(lead.utm_campaign || lead.utm_source) && (
+                  <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                    <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>📣 Origen:</span>
+                    {lead.utm_source && (
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: 'rgba(59,130,246,0.12)', color: '#3b82f6', fontWeight: 700, textTransform: 'capitalize' }}>
+                        {lead.utm_source}
+                      </span>
+                    )}
+                    {lead.utm_campaign && (
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: 'rgba(16,185,129,0.12)', color: '#10b981', fontWeight: 700 }}>
+                        {lead.utm_campaign}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               {/* Solar Data block */}
               {lead.solar_data?.calc && (
@@ -3955,6 +3971,15 @@ function KanbanColumn({ stage, leads, onMove, onEdit, onDelete, onOpen, selectMo
                 ) : null}
                 {fecha && <span style={{ marginLeft: 'auto' }}>{fecha}</span>}
               </div>
+
+              {/* Campaña de origen (ads) */}
+              {lead.utm_campaign && (
+                <div style={{ marginTop: 5 }}>
+                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: 'rgba(16,185,129,0.12)', color: '#10b981', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    📣 {lead.utm_campaign}
+                  </span>
+                </div>
+              )}
 
               {/* Tags */}
               {tags.length > 0 && (
