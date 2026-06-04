@@ -15,12 +15,31 @@ export const viewport = {
 // scroll vertical funciona bien en Android/Chrome. El zoom exacto lo calcula el
 // script de abajo según el ancho real de la pantalla.
 const RESPONSIVE_CSS = `
-  html, body { margin: 0; padding: 0; background: #E5E7EB; overflow-x: hidden; }
-  body { -webkit-overflow-scrolling: touch; }
+  html, body {
+    margin: 0; padding: 0; background: #E5E7EB;
+    overflow-x: hidden;
+    overflow-y: auto !important;
+    height: auto !important;
+    min-height: 100%;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y !important;   /* permite scroll vertical con UN dedo */
+  }
   @media (max-width: 820px) {
-    body { padding: 0 !important; gap: 8px !important; align-items: flex-start !important; }
-    .propuesta-wrapper { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 0; }
-    .propuesta-wrapper .page { box-shadow: none !important; margin: 0 !important; }
+    /* El template hace body{display:flex;align-items:center} — eso, junto con el
+       zoom, bloqueaba el scroll de un dedo (solo paneaba con dos). Forzamos
+       layout de bloque normal para que el documento scrollee nativo. */
+    body {
+      display: block !important;
+      padding: 0 !important;
+      overflow: visible !important;
+      touch-action: pan-y !important;
+    }
+    .propuesta-wrapper { display: block; width: 100%; padding: 0; touch-action: pan-y; }
+    .propuesta-wrapper .page {
+      box-shadow: none !important;
+      margin: 0 auto 8px !important;
+      touch-action: pan-y !important;
+    }
   }
 `;
 
