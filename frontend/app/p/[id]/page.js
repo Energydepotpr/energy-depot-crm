@@ -10,24 +10,40 @@ export const viewport = {
   userScalable: true,
 };
 
-// CSS responsivo: la propuesta está diseñada en 210mm (~793px). En móvil la
-// escalamos al ancho de la pantalla para que se vea completa sin scroll horizontal.
+// CSS responsivo: la propuesta está diseñada en 210mm (~793px). En móvil usamos
+// `zoom` (no transform) porque zoom SÍ reduce la altura real del layout, así el
+// scroll vertical funciona bien en Android/Chrome. El zoom exacto lo calcula el
+// script de abajo según el ancho real de la pantalla.
 const RESPONSIVE_CSS = `
   html, body { margin: 0; padding: 0; background: #E5E7EB; overflow-x: hidden; }
+  body { -webkit-overflow-scrolling: touch; }
   @media (max-width: 820px) {
-    /* CRÍTICO: el template original centra la página (align-items:center).
-       Como la página es 793px y el viewport ~375px, queda con borde izq en -209px
-       y al escalar desde top-left solo se ve la mitad derecha. Forzar flex-start. */
-    body { padding: 0 !important; gap: 0 !important; align-items: flex-start !important; }
-    .propuesta-wrapper { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 0; padding: 0; }
-    .propuesta-wrapper .page {
-      transform: scale(calc(100vw / 793px));
-      transform-origin: top left;
-      margin: 0 0 calc((100vw / 793px - 1) * 1122px) 0 !important;
-      box-shadow: none !important;
-    }
-    .propuesta-wrapper .page + .page { margin-top: 8px !important; }
+    body { padding: 0 !important; gap: 8px !important; align-items: flex-start !important; }
+    .propuesta-wrapper { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 0; }
+    .propuesta-wrapper .page { box-shadow: none !important; margin: 0 !important; }
   }
+`;
+
+// Aplica zoom = anchoPantalla / anchoPagina a cada .page. zoom reflowa el layout
+// (a diferencia de transform), por eso el documento tiene la altura correcta y
+// el scroll funciona en móvil. Se reaplica al rotar/redimensionar.
+const FIT_SCRIPT = `
+(function(){
+  function fit(){
+    if (window.innerWidth > 820) return;
+    var pages = document.querySelectorAll('.propuesta-wrapper .page');
+    if (!pages.length) return;
+    var pw = pages[0].getBoundingClientRect().width / (pages[0].style.zoom ? parseFloat(pages[0].style.zoom) : 1);
+    if (!pw || pw < 100) pw = 793;
+    var z = Math.min(1, (window.innerWidth - 8) / pw);
+    pages.forEach(function(p){ p.style.zoom = z; });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fit);
+  else fit();
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', function(){ setTimeout(fit, 300); });
+  setTimeout(fit, 400); setTimeout(fit, 1200);
+})();
 `;
 
 export default async function PropuestaPublicPage({ params, searchParams }) {
@@ -58,6 +74,7 @@ export default async function PropuestaPublicPage({ params, searchParams }) {
     <>
       <style dangerouslySetInnerHTML={{ __html: RESPONSIVE_CSS }} />
       <div className="propuesta-wrapper" dangerouslySetInnerHTML={{ __html: html }} />
+      <script dangerouslySetInnerHTML={{ __html: FIT_SCRIPT }} />
     </>
   );
 }

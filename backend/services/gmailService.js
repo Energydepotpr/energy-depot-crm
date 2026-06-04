@@ -149,15 +149,31 @@ async function sendEmail(opts) {
     throw new Error('sendEmail: provide at least "text" or "html"');
   }
 
-  const gmail = getGmailClient(from);
-  const raw = await buildRawMessage(opts);
-
-  const res = await gmail.users.messages.send({
-    userId: 'me',
-    requestBody: { raw },
-  });
-
-  return res.data;
+  try {
+    const gmail = getGmailClient(from);
+    const raw = await buildRawMessage(opts);
+    const res = await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
+    return res.data;
+  } catch (err) {
+    // Si la cuenta remitente no tiene Gmail habilitado (alias sin buzón),
+    // reintentar impersonando una cuenta real con Gmail (fallback).
+    const fallback = process.env.GMAIL_FALLBACK_SENDER || 'gil.diaz@energydepotpr.com';
+    const msg = String(err?.message || '');
+    const isMailNotEnabled = /mail service not enabled|not.*authorized|delegation denied|service.*not.*enabled|failedPrecondition/i.test(msg);
+    const currentFrom = extractEmail(from);
+    if (isMailNotEnabled && extractEmail(fallback) !== currentFrom) {
+      console.warn(`[gmail] "${msg}" enviando como ${currentFrom} → reintento con ${fallback}`);
+      // Reescribir el From al fallback, conservando el nombre visible si lo había
+      const nameMatch = String(from).match(/^(.*?)\s*</);
+      const displayName = nameMatch ? nameMatch[1].replace(/"/g, '').trim() : 'Energy Depot LLC';
+      const fbFrom = `"${displayName}" <${extractEmail(fallback)}>`;
+      const gmail2 = getGmailClient(fallback);
+      const raw2 = await buildRawMessage({ ...opts, from: fbFrom, replyTo: opts.replyTo || currentFrom });
+      const res2 = await gmail2.users.messages.send({ userId: 'me', requestBody: { raw: raw2 } });
+      return res2.data;
+    }
+    throw err;
+  }
 }
 
 /**
