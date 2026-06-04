@@ -3,6 +3,13 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-c4232
 
 export const dynamic = 'force-dynamic';
 
+// La propuesta está diseñada a 210mm (~794px) de ancho. Fijando el viewport a
+// ese ancho, el navegador (iPhone/Android) escala toda la página para que quepa
+// en la pantalla y permite scroll vertical nativo de un dedo. Sin hacks de zoom.
+export const viewport = {
+  width: 816,
+};
+
 export default async function PropuestaPublicPage({ params, searchParams }) {
   const { id } = await params;
   const sp = await searchParams;
