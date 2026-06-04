@@ -195,6 +195,7 @@ async function createPublicLead(req, res) {
     // Dedup: si el contacto ya tiene un lead abierto (no perdido/ganado), actualizar en vez de crear
     let leadId = null;
     let updated = false;
+    let isNewLead = false;
     try {
     if (contactId) {
       // why: usamos txClient + FOR UPDATE para evitar que 2 submissions paralelos
@@ -306,6 +307,7 @@ async function createPublicLead(req, res) {
          utm_source, utm_medium, utm_campaign, utm_content, utm_term, fbclid, gclid]
       );
       leadId = leadR.rows[0].id;
+      isNewLead = true;
       await txClient.query(
         `INSERT INTO lead_tags (lead_id, tag, color) VALUES ($1, 'autocotizador', '#06b6d4') ON CONFLICT (lead_id, tag) DO NOTHING`,
         [leadId]
@@ -318,6 +320,20 @@ async function createPublicLead(req, res) {
       throw txErr;
     }
     txClient.release();
+
+    // Crear contacto en Leadgogo para leads NUEVOS del cotizador web (fire-and-forget),
+    // así se les puede enviar SMS/mensajes desde el número 787-627-8585 (que vive en Leadgogo).
+    if (isNewLead) {
+      (async () => {
+        try {
+          const lg = require('../services/leadgogoApi');
+          if (lg.isConfigured()) {
+            const cid = await lg.ensureContact({ name, phone: phonenumber, email, city });
+            if (cid) console.log(`[publicLead] contacto Leadgogo asegurado ${cid} para lead ${leadId}`);
+          }
+        } catch (e) { console.error('[publicLead] ensureContact Leadgogo:', e.message); }
+      })();
+    }
 
     // Guardar factura LUMA (PDF + datos OCR) en lead_luma_bills si vino con la submission
     if (leadId && luma_factura && luma_factura.base64) {

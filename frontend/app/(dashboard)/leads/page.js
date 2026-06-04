@@ -4690,6 +4690,22 @@ export default function LeadsPage() {
               )}
             </button>
           </div>
+          {/* Selector de pipeline (móvil) */}
+          {pipelines.length > 1 && (
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 5, height: 20, borderRadius: 3, background: 'linear-gradient(180deg, #1a3c8f, #67e8f9)', flexShrink: 0 }} />
+              <select
+                value={activePipeline || ''}
+                onChange={e => { const pid = Number(e.target.value); setActivePipeline(pid); setActiveStage(null); cargar(pid); }}
+                style={{
+                  flex: 1, minHeight: 40, background: 'var(--bg)', border: '1px solid var(--border)',
+                  borderRadius: 10, padding: '0 12px', fontSize: 14, fontWeight: 800, color: '#1a3c8f',
+                  outline: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.03em',
+                }}>
+                {pipelines.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--surface)', color: 'var(--text)' }}>{p.name}</option>)}
+              </select>
+            </div>
+          )}
           <div style={{ marginTop: 6, fontSize: 11, color: 'var(--muted)', fontWeight: 500 }}>
             {loading ? '...' : `${leadsFiltrados.length} leads`}
           </div>

@@ -34,6 +34,51 @@ const getContactInteractions = (contactId, limit = 20) =>
 const listCampaigns = () => api(`/v1/company/${COMPANY_ID}/campaigns`);
 const listSources   = () => api(`/v1/company/${COMPANY_ID}/sources`);
 
+// Buscar un contacto por teléfono (keywords). Devuelve el id o null.
+async function findContactByPhone(phone) {
+  if (!phone) return null;
+  const digits = String(phone).replace(/\D/g, '');
+  const tries = [phone, digits, digits.slice(-10)].filter(Boolean);
+  for (const q of tries) {
+    try {
+      const r = await api(`/v1/company/${COMPANY_ID}/contacts/search`, {
+        method: 'POST',
+        body: JSON.stringify({ query: { operator: 'AND', value: [{ field: 'keywords', operator: '_all', value: q }] } }),
+      });
+      if (r?.data?.length) return r.data[0].id;
+    } catch { /* siguiente intento */ }
+  }
+  return null;
+}
+
+// Crear un contacto en Leadgogo
+async function createContact({ name, phone, email, city }) {
+  const parts = String(name || '').trim().split(/\s+/);
+  const first_name = parts[0] || 'Lead';
+  const last_name = parts.slice(1).join(' ') || 'Web';
+  const body = { first_name, last_name };
+  if (phone) body.primary_phone = phone.startsWith('+') ? phone : `+1${String(phone).replace(/\D/g, '').slice(-10)}`;
+  if (email) body.primary_email = email;
+  if (city) body.city = city;
+  return api(`/v1/company/${COMPANY_ID}/contacts`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+// Garantiza que el contacto exista en Leadgogo: busca por teléfono, crea si no.
+// Devuelve el id del contacto Leadgogo (o null si falla).
+async function ensureContact({ name, phone, email, city }) {
+  try {
+    if (phone) {
+      const found = await findContactByPhone(phone);
+      if (found) return found;
+    }
+    const created = await createContact({ name, phone, email, city });
+    return created?.id || null;
+  } catch (e) {
+    console.error('[LG ensureContact]', e.message);
+    return null;
+  }
+}
+
 // ── Escritura: mandar mensaje a un contacto ────────────────────────────────
 const getSendOptions = (contactId) =>
   api(`/v1/contacts/${contactId}/communication-interactions/messages/options`);
@@ -109,6 +154,7 @@ async function campaignName(id) {
 module.exports = {
   COMPANY_ID, isConfigured: () => !!API_KEY,
   getContact, getCampaign, getSource, listContacts, getContactInteractions,
-  listCampaigns, listSources, sendMessage, getSendOptions, replyToContact,
+  listCampaigns, listSources, sendMessage, getSendOptions, replyToContact, findContactByPhone,
+  createContact, ensureContact,
   listWebhooks, createWebhook, deleteWebhook, sourceName, campaignName,
 };

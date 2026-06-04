@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '../../../lib/api';
 
 const STATUS_OPTS = [
@@ -70,6 +70,7 @@ export default function CitasPage() {
 
   // Si la URL trae ?id= (push notification) → enfocar esa cita: mover cursor al mes, abrir el día
   const searchParams = useSearchParams();
+  const router = useRouter();
   const focusId = searchParams?.get('id');
   useEffect(() => {
     if (!focusId || !appts.length) return;
@@ -319,19 +320,23 @@ export default function CitasPage() {
               if (e.kind === 'cita') {
                 const a = e.appt;
                 const st = STATUS_COLORS[a.status] || STATUS_COLORS.pending;
+                const goLead = () => { if (a.lead_id) router.push(`/leads?open=${a.lead_id}`); };
                 return (
-                  <div key={i} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                  <div key={i} onClick={goLead} title={a.lead_id ? 'Ver perfil del cliente' : undefined}
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 8, cursor: a.lead_id ? 'pointer' : 'default' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{e.time} {a.type === 'llamada' ? '📞' : '🏠'}</div>
                       <span style={{ background: st.bg, color: st.color, padding: '2px 8px', borderRadius: 8, fontSize: 10, fontWeight: 700 }}>{st.label}</span>
                     </div>
-                    <Link href={`/leads?id=${a.lead_id}`} style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>{a.contact_name}</Link>
+                    <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      👤 {a.contact_name} {a.lead_id && <span style={{ fontSize: 11, opacity: 0.6 }}>→</span>}
+                    </div>
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{a.reason_label}</div>
                     <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
-                      {a.status === 'pending' && <button onClick={() => updateStatus(a.id, 'confirmed')} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>Confirmar</button>}
+                      {a.status === 'pending' && <button onClick={(ev) => { ev.stopPropagation(); updateStatus(a.id, 'confirmed'); }} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>Confirmar</button>}
                       {(a.status === 'pending' || a.status === 'confirmed') && <>
-                        <button onClick={() => updateStatus(a.id, 'completed')} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>✓ Listo</button>
-                        <button onClick={() => { if (confirm('¿Cancelar?')) updateStatus(a.id, 'cancelled'); }} style={{ background: 'transparent', color: '#ef4444', border: '1px solid var(--border)', padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>✕</button>
+                        <button onClick={(ev) => { ev.stopPropagation(); updateStatus(a.id, 'completed'); }} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>✓ Listo</button>
+                        <button onClick={(ev) => { ev.stopPropagation(); if (confirm('¿Cancelar?')) updateStatus(a.id, 'cancelled'); }} style={{ background: 'transparent', color: '#ef4444', border: '1px solid var(--border)', padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>✕</button>
                       </>}
                     </div>
                   </div>
@@ -350,7 +355,7 @@ export default function CitasPage() {
                       <button onClick={() => deleteTask(tk.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: 14, cursor: 'pointer', padding: 0, lineHeight: 1 }} title="Eliminar">×</button>
                     </div>
                     <div style={{ fontSize: 13, color: tk.completed ? 'var(--muted)' : 'var(--text)', marginTop: 2, textDecoration: tk.completed ? 'line-through' : 'none' }}>{tk.title}</div>
-                    {tk.lead_id && <Link href={`/leads?id=${tk.lead_id}`} style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none', marginTop: 4, display: 'inline-block' }}>Ver lead →</Link>}
+                    {tk.lead_id && <button onClick={() => router.push(`/leads?open=${tk.lead_id}`)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, color: 'var(--accent)', textDecoration: 'none', marginTop: 4, display: 'inline-block', cursor: 'pointer', fontWeight: 600 }}>👤 Ver perfil del cliente →</button>}
                   </div>
                 </div>
               );

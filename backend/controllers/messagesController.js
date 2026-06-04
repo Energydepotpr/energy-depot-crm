@@ -46,32 +46,40 @@ async function enviarMensaje(req, res) {
       canal = canalR.rows[0]?.channel || 'sms';
     }
 
+    // TODO el envío sale por Leadgogo — el número de Energy Depot (787-627-8585)
+    // vive en Leadgogo, NO en Twilio. Buscamos el contacto de Leadgogo por:
+    //   1) ID en el título (LG-<id>)   2) teléfono del lead (búsqueda)
+    const lg = require('../services/leadgogoApi');
+    const lgMatch = String(leadTitle || '').match(/LG-(\d+)/);
+    let lgContactId = lgMatch ? lgMatch[1] : null;
+
     let twilio_sid = null;
 
-    // Lead de Leadgogo → responder por la API de Leadgogo (Facebook/Instagram/SMS)
-    if (canal === 'leadgogo') {
-      const m = String(leadTitle || '').match(/LG-(\d+)/);
-      const lgContactId = m ? m[1] : null;
-      if (!lgContactId) {
-        return res.status(400).json({ error: 'No se encontró el contacto de Leadgogo para este lead' });
-      }
+    if (!lgContactId && telefono) {
+      try { lgContactId = await lg.findContactByPhone(telefono); }
+      catch (e) { console.error('[MSG] búsqueda Leadgogo', e.message); }
+    }
+
+    if (lgContactId) {
       try {
-        const lg = require('../services/leadgogoApi');
         const { channel: usedCh } = await lg.replyToContact(lgContactId, text.trim());
+        canal = 'leadgogo';
         console.log(`[MSG] enviado a Leadgogo contacto ${lgContactId} via ${usedCh}`);
       } catch (e) {
         console.error('[MSG] Error Leadgogo:', e.message);
         return res.status(500).json({ error: 'Error enviando por Leadgogo: ' + e.message });
       }
     } else if (telefono && (canal === 'sms' || canal === 'whatsapp')) {
+      // Fallback Twilio solo si NO se encontró el contacto en Leadgogo
       try {
-        // Puerto Rico usa SMS — enrutar siempre por SMS
         const result = await enviarSMS(telefono, text.trim());
         twilio_sid = result.sid;
       } catch (e) {
         console.error('[MSG] Error Twilio:', e.message);
-        return res.status(500).json({ error: 'Error enviando mensaje: ' + e.message });
+        return res.status(500).json({ error: 'No se encontró el contacto en Leadgogo y Twilio falló: ' + e.message });
       }
+    } else {
+      return res.status(400).json({ error: 'No se pudo enviar: el lead no tiene contacto en Leadgogo ni teléfono válido' });
     }
 
     const msg = await pool.query(
