@@ -332,6 +332,11 @@ export default function CitasPage() {
                       👤 {a.contact_name} {a.lead_id && <span style={{ fontSize: 11, opacity: 0.6 }}>→</span>}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{a.reason_label}</div>
+                    {a.notes && (
+                      <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 6, padding: '6px 9px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+                        📝 {a.notes}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
                       {a.status === 'pending' && <button onClick={(ev) => { ev.stopPropagation(); updateStatus(a.id, 'confirmed'); }} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>Confirmar</button>}
                       {(a.status === 'pending' || a.status === 'confirmed') && <>
