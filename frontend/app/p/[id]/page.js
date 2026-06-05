@@ -12,9 +12,7 @@ export const viewport = {
   width: 816,
 };
 
-// CSS extra SOLO para Android: Chrome móvil con viewport de ancho fijo a veces
-// bloquea el scroll vertical de un dedo. Esto lo habilita sin tocar el render de
-// iPhone (Safari ya scrollea bien y no recibe este estilo).
+// CSS extra SOLO para Android.
 const ANDROID_SCROLL_FIX = `
   html, body {
     overflow-x: hidden !important;
@@ -24,6 +22,22 @@ const ANDROID_SCROLL_FIX = `
     touch-action: pan-y !important;
     -webkit-overflow-scrolling: touch;
   }
+`;
+
+// El layout raíz pone <meta viewport ... maximum-scale=1, user-scalable=no> que
+// IMPIDE a Android escalar la propuesta (794px) para que quepa → se ve gigante.
+// iPhone Safari ignora user-scalable=no, por eso allí sí funciona. Solo en Android
+// reemplazamos el viewport por uno limpio (width=816) que permite escalar a la pantalla.
+const ANDROID_VIEWPORT_FIX = `
+(function(){
+  try {
+    document.querySelectorAll('meta[name="viewport"]').forEach(function(m){ m.parentNode.removeChild(m); });
+    var m = document.createElement('meta');
+    m.name = 'viewport';
+    m.setAttribute('content', 'width=816, user-scalable=yes');
+    document.head.appendChild(m);
+  } catch(e){}
+})();
 `;
 
 export default async function PropuestaPublicPage({ params, searchParams }) {
@@ -56,6 +70,7 @@ export default async function PropuestaPublicPage({ params, searchParams }) {
   return (
     <>
       {isAndroid && <style dangerouslySetInnerHTML={{ __html: ANDROID_SCROLL_FIX }} />}
+      {isAndroid && <script dangerouslySetInnerHTML={{ __html: ANDROID_VIEWPORT_FIX }} />}
       <div dangerouslySetInnerHTML={{ __html: html }} />
     </>
   );
