@@ -64,12 +64,21 @@ async function fetchInvoice(id) {
 }
 
 async function renderAndStorePDF(invoice) {
-  const cliente = await getLeadCliente(invoice.lead_id);
+  let cliente = invoice.lead_id ? await getLeadCliente(invoice.lead_id) : null;
+  // Factura manual sin lead: usar los datos de cliente guardados en la propia factura
+  if (!cliente) {
+    cliente = {
+      nombre:   invoice.cliente_nombre   || 'Cliente',
+      email:    invoice.cliente_email    || '',
+      telefono: invoice.cliente_telefono || '',
+      direccion: '',
+    };
+  }
   const empresa = await getEmpresa();
   const banco   = await getConfigValue('invoice_banco_info', '');
   const html = buildFacturaHTML({
     invoice,
-    cliente: cliente || { nombre:'Cliente' },
+    cliente,
     empresa,
     banco,
   });
@@ -393,6 +402,66 @@ async function markPaid(req, res) {
   }
 }
 
+// POST /api/project-invoices — crear factura manual con items
+async function create(req, res) {
+  try {
+    const { ensureProjectInvoicesTable } = require('../services/projectInvoices');
+    await ensureProjectInvoicesTable();
+    const {
+      lead_id, cliente_nombre, cliente_email, cliente_telefono,
+      items = [], fecha_vencimiento, notes,
+    } = req.body || {};
+
+    const cleanItems = (Array.isArray(items) ? items : [])
+      .filter(it => it && (it.description || it.concepto))
+      .map(it => {
+        const qty = Number(it.qty || 1);
+        const unit = Number(it.unit_price || 0);
+        return {
+          description: String(it.description || it.concepto).trim(),
+          qty,
+          unit_price: unit,
+          total: +(qty * unit).toFixed(2),
+        };
+      });
+    if (!cleanItems.length) return res.status(400).json({ error: 'Agrega al menos un item' });
+
+    // Resolver nombre del cliente: del lead o manual
+    let nombre = cliente_nombre, email = cliente_email, telefono = cliente_telefono;
+    if (lead_id) {
+      const c = await getLeadCliente(lead_id);
+      if (c) { nombre = nombre || c.nombre; email = email || c.email; telefono = telefono || c.telefono; }
+    }
+    if (!nombre) return res.status(400).json({ error: 'Falta el nombre del cliente' });
+
+    const monto = cleanItems.reduce((s, it) => s + it.total, 0);
+
+    // Número consecutivo
+    const { rows: nr } = await pool.query(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(numero FROM '\\d+$') AS INT)),0)+1 AS n
+         FROM project_invoices WHERE numero LIKE $1`,
+      [`ED-INV-${new Date().getFullYear()}-%`]
+    );
+    const numero = `ED-INV-${new Date().getFullYear()}-${String(nr[0].n).padStart(5,'0')}`;
+
+    const ins = await pool.query(
+      `INSERT INTO project_invoices
+         (lead_id, numero, concepto, monto, items, cliente_nombre, cliente_email, cliente_telefono,
+          fecha_vencimiento, status, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pendiente',$10) RETURNING *`,
+      [lead_id || null, numero, cleanItems.map(i=>i.description).join(', ').slice(0,200),
+       monto, JSON.stringify(cleanItems), nombre, email || null, telefono || null,
+       fecha_vencimiento || null, notes || null]
+    );
+    const invoice = ins.rows[0];
+    try { await renderAndStorePDF(invoice); } catch (e) { console.error('[invoice PDF]', e.message); }
+    res.json({ ok: true, invoice });
+  } catch (e) {
+    console.error('[project-invoice create]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
 module.exports = {
   listForLead,
   listAll,
@@ -403,4 +472,5 @@ module.exports = {
   softDelete,
   send,
   markPaid,
+  create,
 };

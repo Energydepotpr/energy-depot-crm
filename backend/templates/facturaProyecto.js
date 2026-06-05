@@ -122,24 +122,46 @@ ${isPaid ? `<div class="paid-stamp">
       <div class="item"><div class="l">Estado</div><div class="v" style="color:${isPaid?'#16a34a':'#b45309'}">${isPaid ? 'PAGADA' : 'PENDIENTE'}</div></div>
     </div>
 
-    <table class="items">
-      <thead>
-        <tr>
+    ${(() => {
+      // Facturas manuales con líneas múltiples (items[]); si no, fila única legacy.
+      const items = Array.isArray(invoice.items) ? invoice.items : null;
+      if (items && items.length) {
+        const rows = items.map(it => {
+          const qty = Number(it.qty || 1);
+          const unit = Number(it.unit_price || 0);
+          const tot = it.total != null ? Number(it.total) : qty * unit;
+          return `<tr>
+            <td>${esc(it.description || it.concepto || '')}</td>
+            <td style="text-align:center">${qty}</td>
+            <td style="text-align:right">${fmtMoney(unit)}</td>
+            <td>${fmtMoney(tot)}</td>
+          </tr>`;
+        }).join('');
+        return `<table class="items">
+          <thead><tr>
+            <th style="width:54%">Descripción</th>
+            <th style="width:12%;text-align:center">Cant.</th>
+            <th style="width:17%;text-align:right">Precio</th>
+            <th style="width:17%">Total</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      }
+      return `<table class="items">
+        <thead><tr>
           <th style="width:55%">Descripción</th>
           <th style="width:20%">Etapa</th>
           <th style="width:10%;text-align:center">%</th>
           <th style="width:15%">Monto</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
+        </tr></thead>
+        <tbody><tr>
           <td>${esc(invoice.concepto || invoice.etapa || 'Servicios profesionales')}</td>
           <td>${esc(invoice.etapa || '')}</td>
           <td style="text-align:center">${invoice.porcentaje != null ? Number(invoice.porcentaje).toFixed(0) + '%' : '—'}</td>
           <td>${fmtMoney(invoice.monto)}</td>
-        </tr>
-      </tbody>
-    </table>
+        </tr></tbody>
+      </table>`;
+    })()}
 
     <div class="total-row">
       <div class="total-box">

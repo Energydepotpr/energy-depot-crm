@@ -394,6 +394,7 @@ export const api = {
 
   // Project invoices (auto desde contrato)
   projectInvoices:        (q = '')           => req('GET',    `/api/project-invoices${q}`),
+  createProjectInvoice:   (data)             => req('POST',   '/api/project-invoices', data),
   projectInvoicesByLead:  (leadId)           => req('GET',    `/api/leads/${leadId}/project-invoices`),
   projectInvoice:         (id)               => req('GET',    `/api/project-invoices/${id}`),
   projectInvoiceUpdate:   (id, data)         => req('PATCH',  `/api/project-invoices/${id}`, data),

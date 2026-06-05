@@ -136,12 +136,18 @@ export default function FacturasPage() {
             Facturas generadas automáticamente desde los contratos firmados.
           </div>
         </div>
-        {isMobile && (
-          <button onClick={() => setShowFilters(true)}
-            style={{ background:'#1a3c8f', color:'#fff', border:'none', borderRadius:8, padding:'9px 14px', fontSize:13, fontWeight:700, cursor:'pointer', minHeight:38, display:'inline-flex', alignItems:'center', gap:6 }}>
-            Filtros{activeFilterCount > 0 && <span style={{ background:'#67e8f9', color:'#0f2558', borderRadius:99, padding:'1px 7px', fontSize:11 }}>{activeFilterCount}</span>}
+        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+          <button onClick={() => setModal({ type:'new' })}
+            style={{ background:'#10b981', color:'#fff', border:'none', borderRadius:8, padding:'9px 16px', fontSize:13, fontWeight:700, cursor:'pointer', minHeight:38, display:'inline-flex', alignItems:'center', gap:6 }}>
+            + Nueva Factura
           </button>
-        )}
+          {isMobile && (
+            <button onClick={() => setShowFilters(true)}
+              style={{ background:'#1a3c8f', color:'#fff', border:'none', borderRadius:8, padding:'9px 14px', fontSize:13, fontWeight:700, cursor:'pointer', minHeight:38, display:'inline-flex', alignItems:'center', gap:6 }}>
+              Filtros{activeFilterCount > 0 && <span style={{ background:'#67e8f9', color:'#0f2558', borderRadius:99, padding:'1px 7px', fontSize:11 }}>{activeFilterCount}</span>}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* KPI */}
@@ -292,7 +298,166 @@ export default function FacturasPage() {
       {modal?.type === 'send' && (
         <SendModal invoice={modal.invoice} onClose={() => { setModal(null); load(); }} isMobile={isMobile} />
       )}
+      {modal?.type === 'new' && (
+        <NewInvoiceModal onClose={() => setModal(null)} onSaved={() => { setModal(null); load(); }} isMobile={isMobile} />
+      )}
     </div>
+  );
+}
+
+// ── Nueva factura manual con items del catálogo ─────────────────────────────
+function NewInvoiceModal({ onClose, onSaved, isMobile }) {
+  const [catalog, setCatalog] = useState([]);
+  const [cliente, setCliente] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadResults, setLeadResults] = useState([]);
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [items, setItems] = useState([{ description:'', qty:1, unit_price:0 }]);
+  const [vencimiento, setVencimiento] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.settings().then(cfg => {
+      let inv = cfg?.invoice_items;
+      if (typeof inv === 'string') { try { inv = JSON.parse(inv); } catch { inv = []; } }
+      setCatalog((Array.isArray(inv) ? inv : []).filter(i => i && i.name && i.active !== false));
+    }).catch(() => {});
+  }, []);
+
+  // Búsqueda de lead
+  useEffect(() => {
+    if (!leadSearch.trim() || selectedLead) { setLeadResults([]); return; }
+    const t = setTimeout(() => {
+      api.leads(`?search=${encodeURIComponent(leadSearch)}&limit=6`)
+        .then(r => setLeadResults(Array.isArray(r) ? r.slice(0,6) : [])).catch(() => {});
+    }, 300);
+    return () => clearTimeout(t);
+  }, [leadSearch, selectedLead]);
+
+  const setItem = (i, campo, val) => setItems(items.map((it, idx) => idx === i ? { ...it, [campo]: (campo==='description') ? val : (Number(val)||0) } : it));
+  const addItem = () => setItems([...items, { description:'', qty:1, unit_price:0 }]);
+  const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
+  const pickCatalog = (i, name) => {
+    const c = catalog.find(x => x.name === name);
+    if (c) setItems(items.map((it, idx) => idx === i ? { ...it, description: c.name, unit_price: Number(c.precio)||0 } : it));
+  };
+
+  const total = items.reduce((s, it) => s + (Number(it.qty)||0) * (Number(it.unit_price)||0), 0);
+
+  const guardar = async () => {
+    const clean = items.filter(it => it.description.trim());
+    if (!clean.length) return alert('Agrega al menos un item con descripción');
+    if (!selectedLead && !cliente.trim()) return alert('Selecciona un lead o escribe el nombre del cliente');
+    setSaving(true);
+    try {
+      await api.createProjectInvoice({
+        lead_id: selectedLead?.id || null,
+        cliente_nombre: selectedLead ? (selectedLead.contact_name || selectedLead.title) : cliente.trim(),
+        cliente_email: email.trim() || undefined,
+        cliente_telefono: phone.trim() || undefined,
+        items: clean,
+        fecha_vencimiento: vencimiento || undefined,
+        notes: notes.trim() || undefined,
+      });
+      onSaved();
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { setSaving(false); }
+  };
+
+  const inp = { width:'100%', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, padding:'9px 11px', fontSize:14, color:'var(--text)', outline:'none', boxSizing:'border-box' };
+
+  return (
+    <ModalShell title="Nueva factura" onClose={onClose} isMobile={isMobile}>
+      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        {/* Cliente */}
+        <div>
+          <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, marginBottom:5 }}>CLIENTE</div>
+          {selectedLead ? (
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, padding:'9px 11px' }}>
+              <span style={{ fontSize:14, color:'var(--text)', fontWeight:600 }}>👤 {selectedLead.contact_name || selectedLead.title}</span>
+              <button onClick={() => { setSelectedLead(null); setLeadSearch(''); }} style={{ background:'none', border:'none', color:'#ef4444', fontSize:12, cursor:'pointer' }}>cambiar</button>
+            </div>
+          ) : (
+            <>
+              <input value={leadSearch} onChange={e => setLeadSearch(e.target.value)} placeholder="Buscar lead existente…" style={inp} />
+              {leadResults.length > 0 && (
+                <div style={{ border:'1px solid var(--border)', borderRadius:8, marginTop:4, overflow:'hidden' }}>
+                  {leadResults.map(l => (
+                    <button key={l.id} onClick={() => { setSelectedLead(l); setLeadResults([]); setLeadSearch(''); }}
+                      style={{ display:'block', width:'100%', textAlign:'left', padding:'9px 11px', background:'var(--surface)', border:'none', borderBottom:'1px solid var(--border)', color:'var(--text)', fontSize:13, cursor:'pointer' }}>
+                      {l.contact_name || l.title}{l.contact_phone ? ` · ${l.contact_phone}` : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div style={{ fontSize:11, color:'var(--muted)', margin:'8px 0 4px' }}>…o cliente manual:</div>
+              <input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nombre del cliente" style={inp} />
+              <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (opcional)" style={inp} />
+                <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Teléfono (opcional)" style={inp} />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Items */}
+        <div>
+          <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, marginBottom:5 }}>ITEMS</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {items.map((it, i) => (
+              <div key={i} style={{ border:'1px solid var(--border)', borderRadius:8, padding:10, background:'var(--bg)' }}>
+                <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6 }}>
+                  {catalog.length > 0 && (
+                    <select onChange={e => pickCatalog(i, e.target.value)} value=""
+                      style={{ ...inp, width:'auto', flex:'0 0 auto', padding:'7px 8px', fontSize:12 }}>
+                      <option value="">📋 Catálogo…</option>
+                      {catalog.map(c => <option key={c.name} value={c.name}>{c.name} (${Number(c.precio).toLocaleString()})</option>)}
+                    </select>
+                  )}
+                  <input value={it.description} onChange={e => setItem(i, 'description', e.target.value)} placeholder="Descripción" style={{ ...inp, flex:1 }} />
+                  {items.length > 1 && <button onClick={() => removeItem(i)} style={{ background:'none', border:'none', color:'#ef4444', fontSize:16, cursor:'pointer', flexShrink:0 }}>✕</button>}
+                </div>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <div style={{ flex:'0 0 90px' }}>
+                    <div style={{ fontSize:10, color:'var(--muted)' }}>Cant.</div>
+                    <input type="number" min="0" value={it.qty} onChange={e => setItem(i, 'qty', e.target.value)} style={inp} />
+                  </div>
+                  <div style={{ flex:'1' }}>
+                    <div style={{ fontSize:10, color:'var(--muted)' }}>Precio unitario</div>
+                    <input type="number" min="0" step="0.01" value={it.unit_price} onChange={e => setItem(i, 'unit_price', e.target.value)} style={inp} />
+                  </div>
+                  <div style={{ flex:'0 0 auto', textAlign:'right', alignSelf:'flex-end', paddingBottom:8 }}>
+                    <div style={{ fontSize:10, color:'var(--muted)' }}>Total</div>
+                    <div style={{ fontSize:14, fontWeight:800, color:'#1a3c8f' }}>{fmtMoney((Number(it.qty)||0)*(Number(it.unit_price)||0))}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={addItem} style={{ marginTop:8, background:'rgba(26,60,143,0.1)', color:'#1a3c8f', border:'1px dashed #1a3c8f', borderRadius:8, padding:'8px 14px', fontSize:13, fontWeight:700, cursor:'pointer', width:'100%' }}>+ Agregar item</button>
+        </div>
+
+        {/* Vencimiento + total */}
+        <div style={{ display:'flex', gap:10, alignItems:'flex-end' }}>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, marginBottom:5 }}>VENCIMIENTO</div>
+            <input type="date" value={vencimiento} onChange={e => setVencimiento(e.target.value)} style={inp} />
+          </div>
+          <div style={{ textAlign:'right' }}>
+            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700 }}>TOTAL</div>
+            <div style={{ fontSize:24, fontWeight:900, color:'#10b981' }}>{fmtMoney(total)}</div>
+          </div>
+        </div>
+
+        <button onClick={guardar} disabled={saving}
+          style={{ background:'#10b981', color:'#fff', border:'none', borderRadius:10, padding:'13px', fontSize:15, fontWeight:800, cursor:'pointer', opacity: saving ? 0.6 : 1 }}>
+          {saving ? 'Generando…' : '✓ Crear factura y generar PDF'}
+        </button>
+      </div>
+    </ModalShell>
   );
 }
 

@@ -1009,6 +1009,7 @@ app.delete('/api/contratos-firma/:id',    authMiddleware, deleteContratoFirma);
 // Project invoices (auto-generadas desde contrato solar)
 app.get   ('/api/leads/:id/project-invoices',         projectInvoicesCtrl.listForLead);
 app.get   ('/api/project-invoices',                   projectInvoicesCtrl.listAll);
+app.post  ('/api/project-invoices',                   projectInvoicesCtrl.create);
 app.get   ('/api/project-invoices/:id',               projectInvoicesCtrl.getOne);
 app.get   ('/api/project-invoices/:id/pdf',           projectInvoicesCtrl.downloadPDF);
 app.patch ('/api/project-invoices/:id',               projectInvoicesCtrl.update);

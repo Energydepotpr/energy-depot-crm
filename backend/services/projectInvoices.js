@@ -33,6 +33,12 @@ async function ensureProjectInvoicesTable() {
       updated_at TIMESTAMP DEFAULT NOW()
     )
   `);
+  // Soporte de facturas manuales con múltiples líneas + cliente sin lead
+  await pool.query(`ALTER TABLE project_invoices ADD COLUMN IF NOT EXISTS items JSONB`);
+  await pool.query(`ALTER TABLE project_invoices ADD COLUMN IF NOT EXISTS cliente_nombre TEXT`);
+  await pool.query(`ALTER TABLE project_invoices ADD COLUMN IF NOT EXISTS cliente_email TEXT`);
+  await pool.query(`ALTER TABLE project_invoices ADD COLUMN IF NOT EXISTS cliente_telefono TEXT`);
+  await pool.query(`ALTER TABLE project_invoices ALTER COLUMN lead_id DROP NOT NULL`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_pi_lead     ON project_invoices(lead_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_pi_contrato ON project_invoices(contrato_firma_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_pi_status   ON project_invoices(status)`);

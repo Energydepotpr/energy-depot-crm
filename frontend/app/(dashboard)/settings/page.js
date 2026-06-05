@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { api } from '../../../lib/api';
 import PermissionsPanel from './PermissionsPanel';
-import { loadBaterias, saveBaterias, DEFAULT_BATERIAS, loadPricing, savePricing, DEFAULT_PRICING, calcPmtFactor } from '../../../lib/baterias';
+import { loadBaterias, saveBaterias, DEFAULT_BATERIAS, loadPricing, savePricing, DEFAULT_PRICING, calcPmtFactor, loadInvoiceItems, saveInvoiceItems } from '../../../lib/baterias';
 import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
 import { EMAIL_TEMPLATES } from '../../../lib/email-templates';
@@ -1425,11 +1425,83 @@ const TABS = [
   { id: 'general',         label: 'General',        icon: '⚙' },
   { id: 'cotizaciones',    label: 'Cotizaciones',   icon: '☀' },
   { id: 'financiamiento',  label: 'Financiamiento', icon: '💰' },
+  { id: 'facturacion',     label: 'Facturación',    icon: '🧾' },
   { id: 'bot',             label: 'Bot IA',         icon: '🤖' },
   { id: 'comunicacion',    label: 'Comunicación',   icon: '📨' },
   { id: 'pipeline',        label: 'Pipeline',       icon: '🔧' },
   { id: 'permisos',        label: 'Permisos',       icon: '👥' },
 ];
+
+function InvoiceItemsSection() {
+  const [list, setList] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [ok, setOk] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevoPrecio, setNuevoPrecio] = useState('');
+
+  useEffect(() => { loadInvoiceItems().then(i => { setList(i); setLoaded(true); }); }, []);
+
+  const guardar = async (next) => {
+    setSaving(true); setOk(false);
+    try { await saveInvoiceItems(next); setList(next); setOk(true); setTimeout(() => setOk(false), 2000); }
+    catch (e) { alert(e.message); }
+    setSaving(false);
+  };
+  const editar = (i, campo, valor) => setList(list.map((b, idx) => idx === i ? { ...b, [campo]: campo === 'precio' ? (Number(valor) || 0) : valor } : b));
+  const eliminar = (i) => { if (confirm('¿Eliminar este item?')) guardar(list.filter((_, idx) => idx !== i)); };
+  const mover = (i, delta) => { const j = i + delta; if (j < 0 || j >= list.length) return; const next = [...list]; [next[i], next[j]] = [next[j], next[i]]; guardar(next); };
+  const agregar = () => {
+    const name = nuevoNombre.trim();
+    if (!name) return alert('Nombre requerido');
+    guardar([...list, { name, precio: Number(nuevoPrecio) || 0, active: true }]);
+    setNuevoNombre(''); setNuevoPrecio('');
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <SeccionCard title="Items de factura" desc="Catálogo de items con precio que puedes añadir a las facturas. Edita el nombre o el precio aquí.">
+      <div className="space-y-2 mb-4">
+        {list.length === 0 && <p className="text-xs text-muted text-center py-3">No hay items. Agrega uno abajo.</p>}
+        {list.map((b, i) => (
+          <div key={i} className="flex items-center gap-2 px-3 py-2 bg-bg rounded-lg border border-border" style={{ opacity: b.active === false ? 0.55 : 1 }}>
+            <div className="flex flex-col flex-shrink-0">
+              <button onClick={() => mover(i, -1)} disabled={i === 0} className="text-xs text-muted hover:text-white disabled:opacity-30" style={{ lineHeight: 1, padding: '0 4px' }}>▲</button>
+              <button onClick={() => mover(i, +1)} disabled={i === list.length - 1} className="text-xs text-muted hover:text-white disabled:opacity-30" style={{ lineHeight: 1, padding: '0 4px' }}>▼</button>
+            </div>
+            <button
+              onClick={() => guardar(list.map((x, j) => j === i ? { ...x, active: x.active === false } : x))}
+              title={b.active === false ? 'Activar' : 'Desactivar'}
+              style={{ width: 36, height: 20, borderRadius: 999, background: b.active === false ? '#475569' : '#10b981', border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+              <span style={{ position: 'absolute', top: 2, left: b.active === false ? 2 : 18, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.15s' }} />
+            </button>
+            <input className="input text-xs flex-1" value={b.name} onChange={e => editar(i, 'name', e.target.value)} onBlur={() => guardar(list)} placeholder="Nombre del item" />
+            <div className="flex items-center gap-1">
+              <span className="text-muted text-xs">$</span>
+              <input className="input text-xs" style={{ width: 100, textAlign: 'right' }} type="number" value={b.precio} onChange={e => editar(i, 'precio', e.target.value)} onBlur={() => guardar(list)} placeholder="0" />
+            </div>
+            <button onClick={() => eliminar(i)} className="text-xs text-muted hover:text-danger px-2 flex-shrink-0">✕</button>
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-border pt-4">
+        <div className="text-xs text-muted mb-2">Agregar nuevo item</div>
+        <div className="flex items-center gap-2">
+          <input className="input text-xs flex-1" placeholder="Ej: Instalación de paneles" value={nuevoNombre} onChange={e => setNuevoNombre(e.target.value)} />
+          <div className="flex items-center gap-1">
+            <span className="text-muted text-xs">$</span>
+            <input className="input text-xs" style={{ width: 100, textAlign: 'right' }} type="number" placeholder="Precio" value={nuevoPrecio} onChange={e => setNuevoPrecio(e.target.value)} />
+          </div>
+          <button onClick={agregar} className="btn-primary text-xs px-4 py-2 flex-shrink-0">+ Agregar</button>
+        </div>
+      </div>
+      <div className="flex items-center justify-end mt-4 pt-3 border-t border-border">
+        <span className="text-[11px] text-muted">{saving ? 'Guardando…' : ok ? <span className="text-success">✓ Guardado</span> : `${list.length} items`}</span>
+      </div>
+    </SeccionCard>
+  );
+}
 
 function CooperativasSection() {
   const [coops, setCoops] = useState([]);
@@ -1714,6 +1786,12 @@ export default function SettingsPage() {
         return (
           <div className="space-y-6">
             <CooperativasSection />
+          </div>
+        );
+      case 'facturacion':
+        return (
+          <div className="space-y-6">
+            <InvoiceItemsSection />
           </div>
         );
       case 'bot':

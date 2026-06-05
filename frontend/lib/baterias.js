@@ -29,6 +29,26 @@ export async function saveBaterias(list) {
   return api.saveSetting('solar_batteries', JSON.stringify(list));
 }
 
+// ── Catálogo de items de factura (nombre + precio), editable en Configuración ──
+export async function loadInvoiceItems() {
+  try {
+    const cfg = await api.settings();
+    if (cfg.invoice_items) {
+      const parsed = typeof cfg.invoice_items === 'string' ? JSON.parse(cfg.invoice_items) : cfg.invoice_items;
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter(i => i && i.name)
+          .map(i => ({ name: String(i.name), precio: Number(i.precio) || 0, active: i.active !== false }));
+      }
+    }
+  } catch {}
+  return [];
+}
+
+export async function saveInvoiceItems(list) {
+  return api.saveSetting('invoice_items', JSON.stringify(list));
+}
+
 export const DEFAULT_PRICING = {
   panelPrice: 1084,
   panelWatts: 550,
