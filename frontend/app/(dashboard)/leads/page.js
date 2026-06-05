@@ -9,6 +9,7 @@ import { useLang } from '../../../lib/lang-context';
 import { t } from '../../../lib/lang';
 import { ProjectInvoicesLeadTab } from '../facturas/page';
 import SignaturePad from '../../components/SignaturePad';
+import NewInvoiceModal from '../../components/NewInvoiceModal';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -728,6 +729,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   const aiBottomRef = useRef(null);
   // Invoice state
   const [leadInvoice, setLeadInvoice] = useState(null);
+  const [leadInvoices, setLeadInvoices] = useState([]);
+  const [invModal, setInvModal] = useState(null); // { type:'new'|'edit', invoice? }
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceGenerating, setInvoiceGenerating] = useState(false);
   const [lumaBillsCount, setLumaBillsCount] = useState(0);
@@ -779,11 +782,11 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
     api.leadInternalNotes(leadId).then(n => setInternalNotes(Array.isArray(n) ? n : [])).catch(() => {});
     // Load emails for this lead
     api.emails(`?lead_id=${leadId}&page=1`).then(d => setLeadEmails(Array.isArray(d?.emails) ? d.emails : [])).catch(() => {});
-    // Load linked invoice
+    // Load facturas del proyecto (project-invoices)
     setInvoiceLoading(true);
-    api.invoices(`?lead_id=${leadId}`).then(d => {
-      setLeadInvoice(d?.data?.[0] || null);
-    }).catch(() => {}).finally(() => setInvoiceLoading(false));
+    api.projectInvoicesByLead(leadId).then(d => {
+      setLeadInvoices(Array.isArray(d?.data) ? d.data : (Array.isArray(d) ? d : []));
+    }).catch(() => setLeadInvoices([])).finally(() => setInvoiceLoading(false));
   };
 
   useEffect(() => { cargarTodo(); }, [leadId]);
@@ -1195,7 +1198,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   { key: 'tareas',    icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>), label: 'Tareas', count: tasks.filter(tk => !tk.completed).length },
                   { key: 'llamadas',  icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>), label: 'Llamadas', count: callLogs.length },
                   { key: 'actividad', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>), label: 'Actividad', count: 0 },
-                  { key: 'factura',   icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-3-7 3V5a2 2 0 012-2h10a2 2 0 012 2v16z"/>), label: 'Factura', count: leadInvoice ? 1 : 0 },
+                  { key: 'factura',   icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-3-7 3V5a2 2 0 012-2h10a2 2 0 012 2v16z"/>), label: 'Factura', count: leadInvoices.length },
                   { key: 'contactos', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2a4 4 0 100-8 4 4 0 000 8z"/>), label: 'Contactos', count: leadContacts.length },
                   { key: 'notas-int', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>), label: 'Notas internas', count: internalNotes.length },
                   { key: 'ai',        icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>), label: 'Bot IA', count: 0 },
@@ -1470,7 +1473,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             { key: 'llamadas',  full: t('leads.tab.calls', lang), count: callLogs.length },
             { key: 'actividad', full: t('leads.tab.activity', lang), count: 0 },
             { key: 'extra',     full: t('leads.tab.extra', lang), count: customFields.length },
-            { key: 'factura',   full: 'Factura', count: leadInvoice ? 1 : 0 },
+            { key: 'factura',   full: 'Factura', count: leadInvoices.length },
             { key: 'contactos', full: t('leads.tab.contacts', lang), count: leadContacts.length },
             { key: 'notas-int', full: t('leads.tab.intNotes', lang), count: internalNotes.length },
             { key: 'ai',        full: t('leads.tab.ai', lang), count: 0 },
@@ -2298,91 +2301,74 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
 
           {/* FACTURA */}
           {tab === 'factura' && (
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-3">
+              <button
+                onClick={() => setInvModal({ type: 'new' })}
+                style={{ width: '100%', background: '#10b981', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                + Nueva factura
+              </button>
+
               {invoiceLoading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: 32, color: 'var(--muted)', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'center', padding: 24, color: 'var(--muted)', gap: 8 }}>
                   <div style={{ width: 14, height: 14, border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
                   Cargando...
                 </div>
-              ) : leadInvoice ? (
-                <div>
-                  {/* Invoice card */}
-                  <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{leadInvoice.invoice_number}</span>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                        background: leadInvoice.status === 'paid' ? 'rgba(16,185,129,0.15)' : leadInvoice.status === 'sent' ? 'rgba(59,130,246,0.15)' : 'rgba(245,158,11,0.15)',
-                        color: leadInvoice.status === 'paid' ? '#10b981' : leadInvoice.status === 'sent' ? '#1a3c8f' : '#f59e0b',
-                      }}>
-                        {leadInvoice.status === 'paid' ? '✓ Pagada' : leadInvoice.status === 'sent' ? '📤 Enviada' : '📋 Borrador'}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{leadInvoice.client_name}</div>
-                    {leadInvoice.service_date && (
-                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                        📅 {new Date(leadInvoice.service_date).toLocaleDateString('es-PR')}
-                      </div>
-                    )}
-                    <div style={{ fontSize: 18, fontWeight: 700, color: '#00c9a7', marginTop: 8 }}>
-                      ${Number(leadInvoice.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </div>
-                    {leadInvoice.payment_link && (
-                      <a href={leadInvoice.payment_link} target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 11, color: '#1a3c8f', textDecoration: 'none', background: 'rgba(59,130,246,0.1)', padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(59,130,246,0.25)' }}>
-                        💳 Link de pago
-                      </a>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button
-                      onClick={async () => {
-                        setInvoiceGenerating(true);
-                        try {
-                          const r = await api.invoiceFromLead(leadId);
-                          setLeadInvoice(r.data);
-                          alert('Factura actualizada con los datos más recientes del lead.');
-                        } catch (e) { alert(e.message); }
-                        setInvoiceGenerating(false);
-                      }}
-                      disabled={invoiceGenerating}
-                      style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: '#1a3c8f', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
-                    >
-                      {invoiceGenerating ? <span style={{ width: 10, height: 10, border: '2px solid #1a3c8f', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} /> : '🔄'}
-                      Actualizar factura
-                    </button>
-                    <a href="/facturas" style={{ background: 'rgba(0,201,167,0.1)', border: '1px solid rgba(0,201,167,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: '#00c9a7', textDecoration: 'none', fontWeight: 600 }}>
-                      🧾 Ver en Facturas
-                    </a>
-                  </div>
+              ) : leadInvoices.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px 16px', color: 'var(--muted)' }}>
+                  <div style={{ fontSize: 34, marginBottom: 6, opacity: 0.4 }}>🧾</div>
+                  <p style={{ fontSize: 13 }}>Este lead no tiene facturas todavía.</p>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-                  <div style={{ fontSize: 36, marginBottom: 8, opacity: 0.4 }}>🧾</div>
-                  <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
-                    Este lead no tiene una factura generada aún.
-                  </p>
-                  <button
-                    onClick={async () => {
-                      setInvoiceGenerating(true);
-                      try {
-                        const r = await api.invoiceFromLead(leadId);
-                        setLeadInvoice(r.data);
-                      } catch (e) { alert(e.message); }
-                      setInvoiceGenerating(false);
-                    }}
-                    disabled={invoiceGenerating}
-                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 13, color: '#fff', cursor: invoiceGenerating ? 'not-allowed' : 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, opacity: invoiceGenerating ? 0.7 : 1 }}
-                  >
-                    {invoiceGenerating ? <span style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.5)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} /> : '🧾'}
-                    {invoiceGenerating ? 'Generando...' : 'Generar Factura'}
-                  </button>
-                  <p style={{ color: 'var(--muted)', fontSize: 11, marginTop: 10 }}>
-                    Se usarán los datos del lead: cliente, check-in, valor total.
-                  </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {leadInvoices.map(inv => {
+                    const isPaid = inv.status === 'pagada';
+                    const isCancel = inv.status === 'cancelada';
+                    return (
+                      <div key={inv.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{inv.numero}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                            background: isPaid ? 'rgba(16,185,129,0.15)' : isCancel ? 'rgba(100,116,139,0.15)' : 'rgba(245,158,11,0.15)',
+                            color: isPaid ? '#10b981' : isCancel ? '#64748b' : '#b45309' }}>
+                            {isPaid ? '✓ Pagada' : isCancel ? 'Cancelada' : 'Pendiente'}
+                          </span>
+                        </div>
+                        {inv.concepto && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4, lineHeight: 1.4 }}>{inv.concepto}</div>}
+                        <div style={{ fontSize: 18, fontWeight: 800, color: '#10b981', marginBottom: 10 }}>
+                          ${Number(inv.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button onClick={async () => {
+                              try { const d = await api.downloadProjectInvoicePdf(inv.id); window.open(d.url, '_blank'); }
+                              catch(e){ alert('Error: ' + e.message); }
+                            }}
+                            style={{ background: '#1a3c8f', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>PDF</button>
+                          <button onClick={() => setInvModal({ type: 'edit', invoice: inv })}
+                            style={{ background: 'rgba(245,158,11,0.15)', color: '#b45309', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Editar</button>
+                          <button onClick={async () => {
+                              if (!confirm(`¿Eliminar la factura ${inv.numero}?`)) return;
+                              try { await api.projectInvoiceDelete(inv.id + '?hard=1'); cargarTodo(); }
+                              catch(e){ alert('Error: ' + e.message); }
+                            }}
+                            style={{ background: 'rgba(239,68,68,0.12)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.35)', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Eliminar</button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
+          )}
+
+          {/* Modal Nueva/Editar factura */}
+          {invModal && (
+            <NewInvoiceModal
+              isMobile={isMobile}
+              invoice={invModal.type === 'edit' ? invModal.invoice : null}
+              lockedLead={invModal.type === 'new' ? { id: leadId, contact_name: lead?.contact_name, title: lead?.title } : null}
+              onClose={() => setInvModal(null)}
+              onSaved={() => { setInvModal(null); cargarTodo(); }}
+            />
           )}
 
           {/* CONTACTOS - Extra Contacts */}

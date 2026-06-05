@@ -225,12 +225,26 @@ async function publicPDF(req, res) {
 // PATCH /api/project-invoices/:id
 async function update(req, res) {
   try {
-    const allowed = ['monto','etapa','concepto','fecha_emision','fecha_vencimiento','status','notes','paid_method','paid_reference'];
+    // Si vienen items[], recalcular monto, concepto y guardar JSONB
+    let body = { ...req.body };
+    if (Array.isArray(body.items)) {
+      const cleanItems = body.items
+        .filter(it => it && (it.description || it.concepto))
+        .map(it => {
+          const qty = Number(it.qty || 1);
+          const unit = Number(it.unit_price || 0);
+          return { description: String(it.description || it.concepto).trim(), qty, unit_price: unit, total: +(qty*unit).toFixed(2) };
+        });
+      body.items = JSON.stringify(cleanItems);
+      body.monto = cleanItems.reduce((s, it) => s + it.total, 0);
+      body.concepto = cleanItems.map(i => i.description).join(', ').slice(0, 200);
+    }
+    const allowed = ['monto','etapa','concepto','items','cliente_nombre','cliente_email','cliente_telefono','fecha_emision','fecha_vencimiento','status','notes','paid_method','paid_reference'];
     const sets = [];
     const params = [];
     for (const k of allowed) {
-      if (req.body[k] !== undefined) {
-        params.push(req.body[k]);
+      if (body[k] !== undefined) {
+        params.push(body[k]);
         sets.push(`${k} = $${params.length}`);
       }
     }
@@ -242,6 +256,8 @@ async function update(req, res) {
       params
     );
     if (!rows.length) return res.status(404).json({ error: 'No encontrada' });
+    // Regenerar PDF con los datos nuevos
+    try { await renderAndStorePDF(rows[0]); } catch (e) { console.error('[invoice update PDF]', e.message); }
     res.json({ ok: true, data: rows[0] });
   } catch (e) {
     console.error('[projectInvoices update]', e.message);
@@ -249,9 +265,15 @@ async function update(req, res) {
   }
 }
 
-// DELETE /api/project-invoices/:id  (soft delete)
+// DELETE /api/project-invoices/:id
+// ?hard=1 → borrado real; por defecto cancela (soft)
 async function softDelete(req, res) {
   try {
+    if (req.query.hard === '1') {
+      const { rows } = await pool.query(`DELETE FROM project_invoices WHERE id=$1 RETURNING id`, [req.params.id]);
+      if (!rows.length) return res.status(404).json({ error: 'No encontrada' });
+      return res.json({ ok: true, deleted: true });
+    }
     const { rows } = await pool.query(
       `UPDATE project_invoices SET status='cancelada', updated_at=NOW() WHERE id=$1 RETURNING id`,
       [req.params.id]
