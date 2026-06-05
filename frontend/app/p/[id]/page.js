@@ -1,4 +1,6 @@
 // Server component — fetch backend HTML y renderiza en el cliente sin iframe
+import { headers } from 'next/headers';
+
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-c4232.up.railway.app';
 
 export const dynamic = 'force-dynamic';
@@ -10,12 +12,29 @@ export const viewport = {
   width: 816,
 };
 
+// CSS extra SOLO para Android: Chrome móvil con viewport de ancho fijo a veces
+// bloquea el scroll vertical de un dedo. Esto lo habilita sin tocar el render de
+// iPhone (Safari ya scrollea bien y no recibe este estilo).
+const ANDROID_SCROLL_FIX = `
+  html, body {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    height: auto !important;
+    min-height: 100% !important;
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch;
+  }
+`;
+
 export default async function PropuestaPublicPage({ params, searchParams }) {
   const { id } = await params;
   const sp = await searchParams;
   const token = sp?.token || '';
   const q = sp?.q || '';
   const url = `${API}/api/public/leads/${id}/propuesta?token=${encodeURIComponent(token)}${q ? `&q=${encodeURIComponent(q)}` : ''}`;
+
+  const ua = (await headers()).get('user-agent') || '';
+  const isAndroid = /Android/i.test(ua);
 
   let html = '';
   try {
@@ -34,5 +53,10 @@ export default async function PropuestaPublicPage({ params, searchParams }) {
     return <div style={{ padding: 40, color: '#ef4444' }}>Error: {e.message}</div>;
   }
 
-  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <>
+      {isAndroid && <style dangerouslySetInnerHTML={{ __html: ANDROID_SCROLL_FIX }} />}
+      <div dangerouslySetInnerHTML={{ __html: html }} />
+    </>
+  );
 }
