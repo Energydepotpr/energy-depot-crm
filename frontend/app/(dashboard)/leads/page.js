@@ -650,6 +650,15 @@ function Field({ label, value, onChange, placeholder }) {
 
 function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], onNavigate, lang = 'es', isMobile = false }) {
   const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
+  // Catálogo de precios/costos para el análisis de ganancia (solo admin)
+  const [profitPricing, setProfitPricing] = useState(DEFAULT_PRICING);
+  const [profitBaterias, setProfitBaterias] = useState([]);
+  useEffect(() => {
+    if (!isAdmin) return;
+    loadPricing().then(setProfitPricing).catch(() => {});
+    loadBaterias().then(setProfitBaterias).catch(() => {});
+  }, [isAdmin]);
   const [lead, setLead] = useState(null);
   const [tab, setTab] = useState('chat');
   const [mobileTab, setMobileTab] = useState('chat'); // 'chat' | 'info'
@@ -1199,6 +1208,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   { key: 'llamadas',  icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>), label: 'Llamadas', count: callLogs.length },
                   { key: 'actividad', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>), label: 'Actividad', count: 0 },
                   { key: 'factura',   icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-3-7 3V5a2 2 0 012-2h10a2 2 0 012 2v16z"/>), label: 'Factura', count: leadInvoices.length },
+                  ...(isAdmin ? [{ key: 'ganancia', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18M7 14l4-4 3 3 5-6"/>), label: 'Análisis de Ganancia', count: 0 }] : []),
                   { key: 'contactos', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2a4 4 0 100-8 4 4 0 000 8z"/>), label: 'Contactos', count: leadContacts.length },
                   { key: 'notas-int', icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>), label: 'Notas internas', count: internalNotes.length },
                   { key: 'ai',        icon: iconWrap(<path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>), label: 'Bot IA', count: 0 },
@@ -1474,6 +1484,7 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             { key: 'actividad', full: t('leads.tab.activity', lang), count: 0 },
             { key: 'extra',     full: t('leads.tab.extra', lang), count: customFields.length },
             { key: 'factura',   full: 'Factura', count: leadInvoices.length },
+            ...(isAdmin ? [{ key: 'ganancia', full: '📈 Análisis de Ganancia', count: 0 }] : []),
             { key: 'contactos', full: t('leads.tab.contacts', lang), count: leadContacts.length },
             { key: 'notas-int', full: t('leads.tab.intNotes', lang), count: internalNotes.length },
             { key: 'ai',        full: t('leads.tab.ai', lang), count: 0 },
@@ -2371,6 +2382,86 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             />
           )}
 
+          {/* ANÁLISIS DE GANANCIA (solo admin) */}
+          {tab === 'ganancia' && isAdmin && (() => {
+            const sd = lead?.solar_data || {};
+            const quotations = Array.isArray(sd.quotations) ? sd.quotations : [];
+            const activeId = sd.activeQuotationId;
+            const fmt$ = n => `$${Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+            if (!quotations.length) {
+              return (
+                <div className="p-4">
+                  <div style={{ background:'rgba(245,158,11,0.1)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:10, padding:16, color:'#b45309', fontSize:13 }}>
+                    Este lead aún no tiene cotizaciones. Crea una en el tab Cotizar.
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className="p-4 space-y-3">
+                <div style={{ fontSize:11, color:'var(--muted)', background:'rgba(26,60,143,0.08)', border:'1px solid rgba(26,60,143,0.2)', borderRadius:8, padding:'8px 12px' }}>
+                  🔒 Solo visible para administradores. Precio de venta vs costo (de Configuración → Cotizaciones) = ganancia neta.
+                </div>
+                {quotations.map(q => {
+                  const a = analizarCotizacion(q, profitPricing, profitBaterias);
+                  const elegida = q.id === activeId;
+                  if (!a) return null;
+                  return (
+                    <div key={q.id} style={{
+                      background:'var(--surface)', borderRadius:12,
+                      border: elegida ? '2px solid #10b981' : '1px solid var(--border)',
+                      padding:'14px 16px', position:'relative',
+                    }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                        <span style={{ fontWeight:700, color:'var(--text)', fontSize:14 }}>{q.name || 'Cotización'}</span>
+                        {elegida && <span style={{ fontSize:10, fontWeight:800, color:'#fff', background:'#10b981', padding:'3px 10px', borderRadius:99 }}>✓ ELEGIDA POR EL CLIENTE</span>}
+                      </div>
+                      <div style={{ fontSize:12, color:'var(--muted)', marginBottom:10 }}>{a.kw} kW · {a.panels} paneles{(q.batteries||[]).filter(b=>b.qty>0).length ? ' · con batería' : ''}</div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, textAlign:'center' }}>
+                        <div style={{ background:'rgba(16,185,129,0.08)', borderRadius:8, padding:'10px 6px' }}>
+                          <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:0.5 }}>Precio venta</div>
+                          <div style={{ fontSize:15, fontWeight:800, color:'#10b981', marginTop:2 }}>{fmt$(a.precio)}</div>
+                        </div>
+                        <div style={{ background:'rgba(245,158,11,0.08)', borderRadius:8, padding:'10px 6px' }}>
+                          <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:0.5 }}>Costo</div>
+                          <div style={{ fontSize:15, fontWeight:800, color:'#f59e0b', marginTop:2 }}>{fmt$(a.costo)}</div>
+                        </div>
+                        <div style={{ background:'rgba(26,60,143,0.08)', borderRadius:8, padding:'10px 6px' }}>
+                          <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:0.5 }}>Ganancia</div>
+                          <div style={{ fontSize:15, fontWeight:800, color: a.ganancia>=0 ? '#1a3c8f' : '#ef4444', marginTop:2 }}>{fmt$(a.ganancia)}</div>
+                          <div style={{ fontSize:10, color:'var(--muted)' }}>{a.margen}% margen</div>
+                        </div>
+                      </div>
+                      {a.sinCosto && (
+                        <div style={{ marginTop:8, fontSize:11, color:'#b45309' }}>⚠️ Falta configurar el costo del panel/baterías en Configuración → Cotizaciones.</div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Reporte final de la cotización elegida */}
+                {(() => {
+                  const chosen = quotations.find(q => q.id === activeId);
+                  const a = chosen ? analizarCotizacion(chosen, profitPricing, profitBaterias) : null;
+                  if (!a) return (
+                    <div style={{ fontSize:12, color:'var(--muted)', textAlign:'center', padding:'10px' }}>
+                      Cuando el cliente elija una cotización, aquí aparece el reporte final.
+                    </div>
+                  );
+                  return (
+                    <div style={{ background:'linear-gradient(135deg,#0f2558,#1a3c8f)', borderRadius:12, padding:'18px', color:'#fff', marginTop:6 }}>
+                      <div style={{ fontSize:11, color:'#67e8f9', fontWeight:700, textTransform:'uppercase', letterSpacing:1, marginBottom:8 }}>📋 Reporte final — cotización elegida</div>
+                      <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>{chosen.name}</div>
+                      <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.15)' }}><span style={{ opacity:0.85 }}>Precio de venta</span><b>{fmt$(a.precio)}</b></div>
+                      <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.15)' }}><span style={{ opacity:0.85 }}>Costo del proyecto</span><b style={{ color:'#fdba74' }}>−{fmt$(a.costo)}</b></div>
+                      <div style={{ display:'flex', justifyContent:'space-between', fontSize:16, padding:'10px 0 0', fontWeight:900 }}><span>Ganancia neta</span><span style={{ color:'#67e8f9' }}>{fmt$(a.ganancia)} ({a.margen}%)</span></div>
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })()}
+
           {/* CONTACTOS - Extra Contacts */}
           {tab === 'contactos' && (
             <div className="p-4 space-y-3">
@@ -2773,6 +2864,33 @@ function cotCalc(meses, batPrecio, pricing = DEFAULT_PRICING, descuentoPct = 0, 
   const pagoLuma=Math.round(avg*tarifaLuma);
   const offset=annCons>0?Math.round(annProd/annCons*100):0;
   return { avg:Math.round(avg), annCons, panels, kw, annProd, costBase, sub, subPreDescuento, descuentoPct: dPct, descuentoAmt, pagoLuma, annSav:pagoLuma*12, roi:pagoLuma*12>0?Math.round(costBase/(pagoLuma*12)):0, offset, pagoFV:Math.round(costBase*pmt15), pagoBat:Math.round(sub*pmt15) };
+}
+
+// Análisis de ganancia de una cotización (precio venta vs costo). Solo admin.
+function analizarCotizacion(q, pricing, baterias) {
+  if (!q) return null;
+  let battPrecio = 0, battCosto = 0;
+  (q.batteries || []).forEach(b => {
+    const cat = (baterias || []).find(x => x.name === b.name);
+    if (cat) {
+      battPrecio += (Number(cat.precio) || 0) * (b.qty || 0);
+      battCosto  += (Number(cat.costo)  || 0) * (b.qty || 0);
+    }
+  });
+  const calc = cotCalc(q.meses || [], battPrecio, pricing, q.descuentoPct || 0, q.descuentoAmt || 0);
+  if (!calc) return null;
+  const precio = calc.sub; // FV + baterías − descuento (lo que paga el cliente)
+  const panelCost = Number(pricing.panelCost) || 0;
+  const costoFV = Math.round(calc.panels * panelCost);
+  const costo = costoFV + battCosto;
+  const ganancia = precio - costo;
+  return {
+    precio, costo, ganancia,
+    costoFV, battCosto, battPrecio,
+    panels: calc.panels, kw: calc.kw,
+    margen: precio > 0 ? +((ganancia / precio) * 100).toFixed(1) : 0,
+    sinCosto: panelCost === 0 && battCosto === 0,
+  };
 }
 
 // Marca extraída del primer token del nombre. Items de distinta marca → cotizaciones separadas.
