@@ -103,22 +103,39 @@ async function handleInteraction(payload) {
   let lead = leadR.rows[0];
   if (!lead) { await handleContactCreated({ id: contactId }); return; } // crea si no existe
 
-  // Texto del mensaje
+  // Extraer texto según el tipo de interacción
+  const c = payload.content || {};
+  const tipo = String(payload.type || payload.channel || '').toUpperCase();
   let text = '';
-  if (payload.content?.fields) {
-    text = payload.content.fields.map(f => `${f.label || f.key}: ${f.value}`).join('\n');
-  } else if (typeof payload.content === 'string') {
-    text = payload.content;
-  } else if (payload.content?.text || payload.content?.body) {
-    text = payload.content.text || payload.content.body;
+  if (c.fields) {
+    text = c.fields.map(f => `${f.label || f.key}: ${f.value}`).join('\n');
+  } else if (typeof c === 'string') {
+    text = c;
+  } else if (c.text || c.body || c.message) {
+    const m = c.text || c.body || c.message;
+    text = typeof m === 'string' ? m : (m?.content || m?.text || JSON.stringify(m));
+  } else if (/CALL/.test(tipo)) {
+    const dur = payload.details?.duration;
+    const rec = c.attachment?.url;
+    text = `📞 Llamada entrante${dur ? ` (${Math.round(dur/60)} min)` : ''}${rec ? `\n🎧 Grabación: ${rec}` : ''}`;
   }
-  if (!text) text = `[${payload.channel || 'mensaje'}]`;
+  if (!text) text = `[${tipo || 'mensaje'} entrante]`;
+
+  // Evitar duplicados por reintentos del webhook (mismo lead+texto en <60s)
+  const dup = await pool.query(
+    `SELECT id FROM messages WHERE lead_id=$1 AND direction='inbound' AND text=$2 AND created_at > NOW() - INTERVAL '2 minutes' LIMIT 1`,
+    [lead.id, text]
+  );
+  if (dup.rows.length) { console.log('[LG webhook] mensaje duplicado, omitido'); return; }
 
   await pool.query(
     `INSERT INTO messages (lead_id, contact_id, direction, text, channel) VALUES ($1,$2,'inbound',$3,'leadgogo')`,
     [lead.id, lead.contact_id, text]
   ).catch(e => console.error('[LG webhook] msg', e.message));
+  // Alerta + SSE para que aparezca en el inbox en tiempo real
+  await pool.query(`INSERT INTO alerts (lead_id, type, message) VALUES ($1,'mensaje',$2)`, [lead.id, `Nuevo mensaje de ${lead.contact_id ? 'cliente' : 'Leadgogo'}`]).catch(() => {});
   sse.broadcast('new_message', { lead_id: lead.id, direction: 'inbound' });
+  console.log(`[LG webhook] mensaje inbound guardado en lead ${lead.id}`);
 }
 
 // ── Endpoint principal del webhook ──────────────────────────────────────────
@@ -130,14 +147,17 @@ async function receive(req, res) {
 
   try {
     const body = req.body || {};
-    const event = body.event || body.type || '';
-    const data = body.data || body.payload || body;
-    console.log('[LG webhook] evento:', event);
+    // Estructura real de Leadgogo: { event:{type}, data:{object,...}, actor:{...} }
+    const eventType = body.event?.type || (typeof body.event === 'string' ? body.event : '') || body.type || '';
+    const obj = body.data?.object || body.data || body.payload || body;
+    console.log('[LG webhook] evento:', eventType, '| obj type:', obj?.type, '| dir:', obj?.direction);
 
-    if (event === 'contact.created') {
-      await handleContactCreated(data.contact || data);
-    } else if (event === 'communication-interaction.received' || event === 'communication-interaction.sent') {
-      await handleInteraction(data.interaction || data);
+    if (eventType === 'contact.created') {
+      await handleContactCreated(obj.contact || obj);
+    } else if (eventType === 'communication-interaction.received' || eventType === 'communication-interaction.sent') {
+      // Solo nos interesan las ENTRANTES del cliente
+      if (obj.direction && String(obj.direction).toUpperCase() === 'OUTBOUND') return;
+      await handleInteraction(obj);
     }
   } catch (e) {
     console.error('[LG webhook] error procesando:', e.message);
