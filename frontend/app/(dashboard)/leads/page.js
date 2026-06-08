@@ -2390,11 +2390,19 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             const fmt$ = n => `$${Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
             // Analizar también las FACTURAS creadas (no dependen de la cotización)
             const facturas = (Array.isArray(leadInvoices) ? leadInvoices : []).filter(f => f.status !== 'cancelada');
+            // Costo solar del lead (placas + baterías) según su cotización — para
+            // facturas de proyectos solares que no itemizan el costo.
+            const solarCostLead = (() => {
+              const q = quotations.length ? (quotations.find(x=>x.id===activeId) || quotations[0]) : null;
+              const a = q ? analizarCotizacion(q, profitPricing, profitBaterias) : null;
+              return a ? a.costo : 0;
+            })();
             const analizarFactura = (f) => {
               const items = Array.isArray(f.items) ? f.items : [];
               const ingreso = Number(f.monto) || 0;
               const costoItems = items.reduce((s,it)=> s + (Number(it.unit_cost||0) * Number(it.qty||1)), 0);
-              const costo = f.costo_manual != null ? Number(f.costo_manual) : costoItems;
+              const costo = f.costo_manual != null ? Number(f.costo_manual)
+                          : (costoItems > 0 ? costoItems : solarCostLead);
               const ganancia = ingreso - costo;
               return { ingreso, costo, ganancia, margen: ingreso>0 ? +((ganancia/ingreso)*100).toFixed(1) : 0, sinCosto: costo === 0 };
             };
