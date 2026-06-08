@@ -2388,11 +2388,21 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             const quotations = Array.isArray(sd.quotations) ? sd.quotations : [];
             const activeId = sd.activeQuotationId;
             const fmt$ = n => `$${Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-            if (!quotations.length) {
+            // Analizar también las FACTURAS creadas (no dependen de la cotización)
+            const facturas = (Array.isArray(leadInvoices) ? leadInvoices : []).filter(f => f.status !== 'cancelada');
+            const analizarFactura = (f) => {
+              const items = Array.isArray(f.items) ? f.items : [];
+              const ingreso = Number(f.monto) || 0;
+              const costoItems = items.reduce((s,it)=> s + (Number(it.unit_cost||0) * Number(it.qty||1)), 0);
+              const costo = f.costo_manual != null ? Number(f.costo_manual) : costoItems;
+              const ganancia = ingreso - costo;
+              return { ingreso, costo, ganancia, margen: ingreso>0 ? +((ganancia/ingreso)*100).toFixed(1) : 0, sinCosto: costo === 0 };
+            };
+            if (!quotations.length && !facturas.length) {
               return (
                 <div className="p-4">
                   <div style={{ background:'rgba(245,158,11,0.1)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:10, padding:16, color:'#b45309', fontSize:13 }}>
-                    Este lead aún no tiene cotizaciones. Crea una en el tab Cotizar.
+                    Este lead aún no tiene cotizaciones ni facturas. Crea una en el tab Cotizar o Factura.
                   </div>
                 </div>
               );
@@ -2400,8 +2410,48 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
             return (
               <div className="p-4 space-y-3">
                 <div style={{ fontSize:11, color:'var(--muted)', background:'rgba(26,60,143,0.08)', border:'1px solid rgba(26,60,143,0.2)', borderRadius:8, padding:'8px 12px' }}>
-                  🔒 Solo visible para administradores. Precio de venta vs costo (de Configuración → Cotizaciones) = ganancia neta.
+                  🔒 Solo visible para administradores. Precio de venta vs costo = ganancia neta.
                 </div>
+
+                {/* FACTURAS creadas */}
+                {facturas.length > 0 && (
+                  <>
+                    <div style={{ fontSize:12, fontWeight:800, color:'var(--text)', textTransform:'uppercase', letterSpacing:0.5, marginTop:4 }}>🧾 Facturas</div>
+                    {facturas.map(f => {
+                      const a = analizarFactura(f);
+                      return (
+                        <div key={'f'+f.id} style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', padding:'14px 16px' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                            <span style={{ fontWeight:700, color:'var(--text)', fontSize:14 }}>{f.numero}</span>
+                            <span style={{ fontSize:11, color:'var(--muted)' }}>{f.concepto ? f.concepto.slice(0,40) : ''}</span>
+                          </div>
+                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, textAlign:'center' }}>
+                            <div style={{ background:'rgba(16,185,129,0.08)', borderRadius:8, padding:'10px 6px' }}>
+                              <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:0.5 }}>Precio</div>
+                              <div style={{ fontSize:15, fontWeight:800, color:'#10b981', marginTop:2 }}>{fmt$(a.ingreso)}</div>
+                            </div>
+                            <div style={{ background:'rgba(245,158,11,0.08)', borderRadius:8, padding:'10px 6px' }}>
+                              <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:0.5 }}>Costo</div>
+                              <div style={{ fontSize:15, fontWeight:800, color:'#f59e0b', marginTop:2 }}>{fmt$(a.costo)}</div>
+                            </div>
+                            <div style={{ background:'rgba(26,60,143,0.08)', borderRadius:8, padding:'10px 6px' }}>
+                              <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:0.5 }}>Ganancia</div>
+                              <div style={{ fontSize:15, fontWeight:800, color: a.ganancia>=0 ? '#1a3c8f' : '#ef4444', marginTop:2 }}>{fmt$(a.ganancia)}</div>
+                              <div style={{ fontSize:10, color:'var(--muted)' }}>{a.margen}% margen</div>
+                            </div>
+                          </div>
+                          {a.sinCosto && (
+                            <div style={{ marginTop:8, fontSize:11, color:'#b45309' }}>⚠️ Esta factura no tiene costo asignado. Ponle costo a los items (Configuración → Facturación) o edita el costo en Contabilidad → Ganancia por proyecto.</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+
+                {quotations.length > 0 && (
+                  <div style={{ fontSize:12, fontWeight:800, color:'var(--text)', textTransform:'uppercase', letterSpacing:0.5, marginTop:8 }}>☀️ Cotizaciones</div>
+                )}
                 {quotations.map(q => {
                   const a = analizarCotizacion(q, profitPricing, profitBaterias);
                   const elegida = q.id === activeId;
@@ -2439,8 +2489,8 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
                   );
                 })}
 
-                {/* Reporte final de la cotización elegida */}
-                {(() => {
+                {/* Reporte final de la cotización elegida (solo si hay cotizaciones) */}
+                {quotations.length > 0 && (() => {
                   const chosen = quotations.find(q => q.id === activeId);
                   const a = chosen ? analizarCotizacion(chosen, profitPricing, profitBaterias) : null;
                   if (!a) return (
