@@ -18,7 +18,7 @@ export async function loadBaterias() {
       if (Array.isArray(parsed) && parsed.length) {
         return parsed
           .filter(b => b && b.name)
-          .map(b => ({ name: String(b.name), precio: Number(b.precio) || 0, description: b.description ? String(b.description) : '', active: b.active !== false }));
+          .map(b => ({ name: String(b.name), precio: Number(b.precio) || 0, costo: Number(b.costo) || 0, description: b.description ? String(b.description) : '', active: b.active !== false }));
       }
     }
   } catch {}
@@ -51,6 +51,7 @@ export async function saveInvoiceItems(list) {
 
 export const DEFAULT_PRICING = {
   panelPrice: 1084,
+  panelCost: 0,      // costo (lo que le cuesta a Energy Depot cada panel instalado)
   panelWatts: 550,
   tarifaLuma: 0.26,
   factorProduccion: 1460,

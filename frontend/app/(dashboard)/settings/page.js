@@ -681,7 +681,8 @@ function ParametrosSolaresSection() {
   if (!loaded) return null;
 
   const fields = [
-    { key: 'panelPrice',       label: 'Precio por panel solar', unit: '$ / panel',  step: 0.5,   desc: 'Costo unitario instalado de cada panel fotovoltaico' },
+    { key: 'panelPrice',       label: 'Precio por panel solar', unit: '$ / panel',  step: 0.5,   desc: 'Precio de venta unitario de cada panel fotovoltaico (lo que paga el cliente)' },
+    { key: 'panelCost',        label: 'Costo por panel solar',  unit: '$ / panel',  step: 0.5,   desc: 'Costo real para Energy Depot de cada panel instalado (para calcular ganancia)' },
     { key: 'panelWatts',       label: 'Vatios por panel',       unit: 'W',          step: 5,     desc: 'Potencia nominal de cada panel (típicamente 550W)' },
     { key: 'tarifaLuma',       label: 'Tarifa LUMA',            unit: '$ / kWh',    step: 0.01,  desc: 'Tarifa actual de LUMA Energy por kilovatio-hora' },
     { key: 'factorProduccion', label: 'Factor de producción',   unit: 'kWh / kW año', step: 10,  desc: 'Producción anual estimada por cada kW instalado en PR' },
@@ -742,6 +743,7 @@ function BateriasSolaresSection() {
   const [ok, setOk] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoPrecio, setNuevoPrecio] = useState('');
+  const [nuevoCosto, setNuevoCosto] = useState('');
   const [nuevaDesc, setNuevaDesc] = useState('');
 
   useEffect(() => {
@@ -760,7 +762,7 @@ function BateriasSolaresSection() {
   };
 
   const editar = (i, campo, valor) => {
-    const next = list.map((b, idx) => idx === i ? { ...b, [campo]: campo === 'precio' ? Number(valor) || 0 : valor } : b);
+    const next = list.map((b, idx) => idx === i ? { ...b, [campo]: (campo === 'precio' || campo === 'costo') ? Number(valor) || 0 : valor } : b);
     setList(next);
   };
 
@@ -781,8 +783,8 @@ function BateriasSolaresSection() {
     const name = nuevoNombre.trim();
     const precio = Number(nuevoPrecio) || 0;
     if (!name) return alert('Nombre requerido');
-    guardar([...list, { name, precio, description: nuevaDesc.trim() }]);
-    setNuevoNombre(''); setNuevoPrecio(''); setNuevaDesc('');
+    guardar([...list, { name, precio, costo: Number(nuevoCosto) || 0, description: nuevaDesc.trim() }]);
+    setNuevoNombre(''); setNuevoPrecio(''); setNuevoCosto(''); setNuevaDesc('');
   };
 
   const restaurar = () => {
@@ -839,16 +841,28 @@ function BateriasSolaresSection() {
                 placeholder="Nombre"
                 style={{ textDecoration: b.active === false ? 'line-through' : 'none' }}
               />
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" title="Precio de venta">
                 <span className="text-muted text-xs">$</span>
                 <input
                   className="input text-xs"
-                  style={{ width: 100, textAlign: 'right' }}
+                  style={{ width: 90, textAlign: 'right' }}
                   type="number"
                   value={b.precio}
                   onChange={e => editar(i, 'precio', e.target.value)}
                   onBlur={() => guardar(list)}
-                  placeholder="0"
+                  placeholder="Precio"
+                />
+              </div>
+              <div className="flex items-center gap-1" title="Costo (lo que le cuesta a Energy Depot)">
+                <span className="text-muted text-xs">↓$</span>
+                <input
+                  className="input text-xs"
+                  style={{ width: 90, textAlign: 'right' }}
+                  type="number"
+                  value={b.costo || ''}
+                  onChange={e => editar(i, 'costo', e.target.value)}
+                  onBlur={() => guardar(list)}
+                  placeholder="Costo"
                 />
               </div>
               <button
@@ -880,15 +894,26 @@ function BateriasSolaresSection() {
             value={nuevoNombre}
             onChange={e => setNuevoNombre(e.target.value)}
           />
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" title="Precio de venta">
             <span className="text-muted text-xs">$</span>
             <input
               className="input text-xs"
-              style={{ width: 100, textAlign: 'right' }}
+              style={{ width: 90, textAlign: 'right' }}
               type="number"
               placeholder="Precio"
               value={nuevoPrecio}
               onChange={e => setNuevoPrecio(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-1" title="Costo">
+            <span className="text-muted text-xs">↓$</span>
+            <input
+              className="input text-xs"
+              style={{ width: 90, textAlign: 'right' }}
+              type="number"
+              placeholder="Costo"
+              value={nuevoCosto}
+              onChange={e => setNuevoCosto(e.target.value)}
             />
           </div>
           <button onClick={agregar} className="btn-primary text-xs px-4 py-2 flex-shrink-0">
