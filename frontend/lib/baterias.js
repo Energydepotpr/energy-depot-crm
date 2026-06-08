@@ -38,7 +38,7 @@ export async function loadInvoiceItems() {
       if (Array.isArray(parsed)) {
         return parsed
           .filter(i => i && i.name)
-          .map(i => ({ name: String(i.name), precio: Number(i.precio) || 0, active: i.active !== false }));
+          .map(i => ({ name: String(i.name), precio: Number(i.precio) || 0, costo: Number(i.costo) || 0, active: i.active !== false }));
       }
     }
   } catch {}

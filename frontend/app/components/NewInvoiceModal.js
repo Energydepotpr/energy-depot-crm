@@ -23,8 +23,8 @@ export default function NewInvoiceModal({ onClose, onSaved, isMobile, lockedLead
   );
   const [items, setItems] = useState(
     (Array.isArray(invoice?.items) && invoice.items.length)
-      ? invoice.items.map(it => ({ description: it.description || it.concepto || '', qty: Number(it.qty)||1, unit_price: Number(it.unit_price)||0 }))
-      : [{ description:'', qty:1, unit_price:0 }]
+      ? invoice.items.map(it => ({ description: it.description || it.concepto || '', qty: Number(it.qty)||1, unit_price: Number(it.unit_price)||0, unit_cost: Number(it.unit_cost)||0 }))
+      : [{ description:'', qty:1, unit_price:0, unit_cost:0 }]
   );
   const [vencimiento, setVencimiento] = useState(invoice?.fecha_vencimiento ? String(invoice.fecha_vencimiento).slice(0,10) : '');
   const [notes, setNotes] = useState(invoice?.notes || '');
@@ -49,11 +49,11 @@ export default function NewInvoiceModal({ onClose, onSaved, isMobile, lockedLead
   }, [leadSearch, selectedLead, lockedLead]);
 
   const setItem = (i, campo, val) => setItems(items.map((it, idx) => idx === i ? { ...it, [campo]: (campo==='description') ? val : (Number(val)||0) } : it));
-  const addItem = () => setItems([...items, { description:'', qty:1, unit_price:0 }]);
+  const addItem = () => setItems([...items, { description:'', qty:1, unit_price:0, unit_cost:0 }]);
   const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
   const pickCatalog = (i, name) => {
     const c = catalog.find(x => x.name === name);
-    if (c) setItems(items.map((it, idx) => idx === i ? { ...it, description: c.name, unit_price: Number(c.precio)||0 } : it));
+    if (c) setItems(items.map((it, idx) => idx === i ? { ...it, description: c.name, unit_price: Number(c.precio)||0, unit_cost: Number(c.costo)||0 } : it));
   };
 
   const total = items.reduce((s, it) => s + (Number(it.qty)||0) * (Number(it.unit_price)||0), 0);

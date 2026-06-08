@@ -43,6 +43,14 @@ export const api = {
   stats:        ()                   => req('GET',  '/api/stats'),
   statsOverview:(q = '')             => req('GET',  `/api/stats/overview${q}`),
   statsBreakdown:(q = '')            => req('GET',  `/api/stats/breakdown${q}`),
+  // Contabilidad
+  acctProfit:    (q = '')            => req('GET',  `/api/accounting/profit${q}`),
+  acctReport:    (q = '')            => req('GET',  `/api/accounting/report${q}`),
+  acctSetCost:   (id, costo_manual)  => req('PATCH', `/api/accounting/project/${id}/cost`, { costo_manual }),
+  acctExpenses:  ()                  => req('GET',  '/api/accounting/expenses'),
+  acctCreateExpense: (data)          => req('POST', '/api/accounting/expenses', data),
+  acctUpdateExpense: (id, data)      => req('PATCH','/api/accounting/expenses/' + id, data),
+  acctDeleteExpense: (id)            => req('DELETE','/api/accounting/expenses/' + id),
   weather:      (city = 'San Juan,PR,US') => req('GET', `/api/weather?city=${encodeURIComponent(city)}`),
   assistant:    (messages, leadId) => req('POST', '/api/assistant', { messages, ...(leadId ? { leadId } : {}) }),
 

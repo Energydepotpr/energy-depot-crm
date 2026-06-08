@@ -390,6 +390,15 @@ app.post  ('/api/ads/spend',     adsCtrl.crear);
 app.patch ('/api/ads/spend/:id', adsCtrl.actualizar);
 app.delete('/api/ads/spend/:id', adsCtrl.eliminar);
 app.get   ('/api/stats/ads-roi', adsCtrl.roi);
+// Contabilidad
+const acctCtrl = require('./controllers/accountingController');
+app.get   ('/api/accounting/profit',          acctCtrl.profitByProject);
+app.patch ('/api/accounting/project/:id/cost', acctCtrl.setProjectCost);
+app.get   ('/api/accounting/report',           acctCtrl.report);
+app.get   ('/api/accounting/expenses',         acctCtrl.listExpenses);
+app.post  ('/api/accounting/expenses',         acctCtrl.createExpense);
+app.patch ('/api/accounting/expenses/:id',     acctCtrl.updateExpense);
+app.delete('/api/accounting/expenses/:id',     acctCtrl.deleteExpense);
 
 // Source of truth para constantes solares (consumido por frontend para no duplicar)
 app.get('/api/config/solar', async (req, res) => {

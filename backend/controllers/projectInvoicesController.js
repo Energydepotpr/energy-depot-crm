@@ -233,7 +233,7 @@ async function update(req, res) {
         .map(it => {
           const qty = Number(it.qty || 1);
           const unit = Number(it.unit_price || 0);
-          return { description: String(it.description || it.concepto).trim(), qty, unit_price: unit, total: +(qty*unit).toFixed(2) };
+          return { description: String(it.description || it.concepto).trim(), qty, unit_price: unit, unit_cost: Number(it.unit_cost || 0), total: +(qty*unit).toFixed(2) };
         });
       body.items = JSON.stringify(cleanItems);
       body.monto = cleanItems.reduce((s, it) => s + it.total, 0);
@@ -443,6 +443,7 @@ async function create(req, res) {
           description: String(it.description || it.concepto).trim(),
           qty,
           unit_price: unit,
+          unit_cost: Number(it.unit_cost || 0),
           total: +(qty * unit).toFixed(2),
         };
       });

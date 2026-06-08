@@ -1439,6 +1439,7 @@ function InvoiceItemsSection() {
   const [ok, setOk] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoPrecio, setNuevoPrecio] = useState('');
+  const [nuevoCosto, setNuevoCosto] = useState('');
 
   useEffect(() => { loadInvoiceItems().then(i => { setList(i); setLoaded(true); }); }, []);
 
@@ -1448,14 +1449,14 @@ function InvoiceItemsSection() {
     catch (e) { alert(e.message); }
     setSaving(false);
   };
-  const editar = (i, campo, valor) => setList(list.map((b, idx) => idx === i ? { ...b, [campo]: campo === 'precio' ? (Number(valor) || 0) : valor } : b));
+  const editar = (i, campo, valor) => setList(list.map((b, idx) => idx === i ? { ...b, [campo]: (campo === 'precio' || campo === 'costo') ? (Number(valor) || 0) : valor } : b));
   const eliminar = (i) => { if (confirm('¿Eliminar este item?')) guardar(list.filter((_, idx) => idx !== i)); };
   const mover = (i, delta) => { const j = i + delta; if (j < 0 || j >= list.length) return; const next = [...list]; [next[i], next[j]] = [next[j], next[i]]; guardar(next); };
   const agregar = () => {
     const name = nuevoNombre.trim();
     if (!name) return alert('Nombre requerido');
-    guardar([...list, { name, precio: Number(nuevoPrecio) || 0, active: true }]);
-    setNuevoNombre(''); setNuevoPrecio('');
+    guardar([...list, { name, precio: Number(nuevoPrecio) || 0, costo: Number(nuevoCosto) || 0, active: true }]);
+    setNuevoNombre(''); setNuevoPrecio(''); setNuevoCosto('');
   };
 
   if (!loaded) return null;
@@ -1477,9 +1478,13 @@ function InvoiceItemsSection() {
               <span style={{ position: 'absolute', top: 2, left: b.active === false ? 2 : 18, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.15s' }} />
             </button>
             <input className="input text-xs flex-1" value={b.name} onChange={e => editar(i, 'name', e.target.value)} onBlur={() => guardar(list)} placeholder="Nombre del item" />
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1" title="Precio de venta">
               <span className="text-muted text-xs">$</span>
-              <input className="input text-xs" style={{ width: 100, textAlign: 'right' }} type="number" value={b.precio} onChange={e => editar(i, 'precio', e.target.value)} onBlur={() => guardar(list)} placeholder="0" />
+              <input className="input text-xs" style={{ width: 90, textAlign: 'right' }} type="number" value={b.precio} onChange={e => editar(i, 'precio', e.target.value)} onBlur={() => guardar(list)} placeholder="Precio" />
+            </div>
+            <div className="flex items-center gap-1" title="Costo (lo que te cuesta a ti)">
+              <span className="text-muted text-xs">↓$</span>
+              <input className="input text-xs" style={{ width: 90, textAlign: 'right' }} type="number" value={b.costo || ''} onChange={e => editar(i, 'costo', e.target.value)} onBlur={() => guardar(list)} placeholder="Costo" />
             </div>
             <button onClick={() => eliminar(i)} className="text-xs text-muted hover:text-danger px-2 flex-shrink-0">✕</button>
           </div>
@@ -1489,9 +1494,13 @@ function InvoiceItemsSection() {
         <div className="text-xs text-muted mb-2">Agregar nuevo item</div>
         <div className="flex items-center gap-2">
           <input className="input text-xs flex-1" placeholder="Ej: Instalación de paneles" value={nuevoNombre} onChange={e => setNuevoNombre(e.target.value)} />
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" title="Precio de venta">
             <span className="text-muted text-xs">$</span>
-            <input className="input text-xs" style={{ width: 100, textAlign: 'right' }} type="number" placeholder="Precio" value={nuevoPrecio} onChange={e => setNuevoPrecio(e.target.value)} />
+            <input className="input text-xs" style={{ width: 90, textAlign: 'right' }} type="number" placeholder="Precio" value={nuevoPrecio} onChange={e => setNuevoPrecio(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-1" title="Costo">
+            <span className="text-muted text-xs">↓$</span>
+            <input className="input text-xs" style={{ width: 90, textAlign: 'right' }} type="number" placeholder="Costo" value={nuevoCosto} onChange={e => setNuevoCosto(e.target.value)} />
           </div>
           <button onClick={agregar} className="btn-primary text-xs px-4 py-2 flex-shrink-0">+ Agregar</button>
         </div>
