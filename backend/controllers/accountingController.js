@@ -49,9 +49,14 @@ function resolvePeriod(period, fromStr, toStr) {
   return { from, to };
 }
 
-function costoItems(items) {
+function costoItems(items, catalog) {
   if (!Array.isArray(items)) return 0;
-  return items.reduce((s, it) => s + (Number(it.unit_cost || it.costo || 0) * Number(it.qty || 1)), 0);
+  const cat = catalog || {};
+  return items.reduce((s, it) => {
+    let unit = Number(it.unit_cost || it.costo || 0);
+    if (!unit) unit = cat[String(it.description || '').trim().toLowerCase()] || 0; // fallback por nombre
+    return s + unit * Number(it.qty || 1);
+  }, 0);
 }
 
 // Carga config solar (costo por panel + costos de baterías) una vez por request.
@@ -63,10 +68,16 @@ async function loadSolarCostConfig() {
   if (typeof bats === 'string') { try { bats = JSON.parse(bats); } catch { bats = []; } }
   const battCost = {};
   (Array.isArray(bats) ? bats : []).forEach(b => { if (b && b.name) battCost[b.name] = Number(b.costo) || 0; });
+  // Catálogo de items de factura → costo por nombre (fallback)
+  let invItems = await getConfigValue('invoice_items', []);
+  if (typeof invItems === 'string') { try { invItems = JSON.parse(invItems); } catch { invItems = []; } }
+  const itemCost = {};
+  (Array.isArray(invItems) ? invItems : []).forEach(i => { if (i && i.name) itemCost[String(i.name).trim().toLowerCase()] = Number(i.costo) || 0; });
   return {
     panelCost: Number(pricing.panelCost) || 0,
     panelWatts: Number(pricing.panelWatts) || 550,
     battCost,
+    itemCost,
   };
 }
 
@@ -135,7 +146,7 @@ async function profitByProject(req, res) {
       const totalMonto = grp.reduce((s, g) => s + (Number(g.monto) || 0), 0);
       grp.forEach(g => {
         // solo asignar costo solar si la factura no tiene costo propio
-        const propio = g.costo_manual != null || costoItems(g.items) > 0;
+        const propio = g.costo_manual != null || costoItems(g.items, cfg.itemCost) > 0;
         if (propio) return;
         solarShare[g.id] = totalMonto > 0 ? Math.round(sc * (Number(g.monto) || 0) / totalMonto) : (grp.length === 1 ? sc : Math.round(sc / grp.length));
       });
@@ -144,7 +155,7 @@ async function profitByProject(req, res) {
     let totalIngreso = 0, totalCosto = 0;
     const projects = r.rows.map(row => {
       const ingreso = Number(row.monto) || 0;
-      const costoItm = costoItems(row.items);
+      const costoItm = costoItems(row.items, cfg.itemCost);
       const costo = row.costo_manual != null ? Number(row.costo_manual)
                   : (costoItm > 0 ? costoItm : (solarShare[row.id] || 0));
       const ganancia = ingreso - costo;
@@ -202,12 +213,12 @@ async function report(req, res) {
       const g = grp[lid]; const sc = solarProjectCost(g[0].solar_data, cfg);
       if (sc <= 0) continue;
       const tot = g.reduce((s, x) => s + (Number(x.monto) || 0), 0);
-      g.forEach(x => { if (x.costo_manual == null && costoItems(x.items) === 0) solarShare[x.id] = tot > 0 ? Math.round(sc * (Number(x.monto)||0) / tot) : Math.round(sc / g.length); });
+      g.forEach(x => { if (x.costo_manual == null && costoItems(x.items, cfg.itemCost) === 0) solarShare[x.id] = tot > 0 ? Math.round(sc * (Number(x.monto)||0) / tot) : Math.round(sc / g.length); });
     }
     let ingreso = 0, costoProyectos = 0;
     for (const row of inv.rows) {
       ingreso += Number(row.monto) || 0;
-      const ci = costoItems(row.items);
+      const ci = costoItems(row.items, cfg.itemCost);
       costoProyectos += row.costo_manual != null ? Number(row.costo_manual) : (ci > 0 ? ci : (solarShare[row.id] || 0));
     }
     const gananciaBruta = ingreso - costoProyectos;

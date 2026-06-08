@@ -190,6 +190,29 @@ async function pipelineKpis(from, to) {
   return { cotizCount, cotizMonto, finCount, finMonto, ventaCount, ventaMonto, stages };
 }
 
+// ── Ocupación ACTUAL del pipeline (leads que están HOY en cada etapa,
+//    sin importar cuándo se crearon). Para los KPIs de Cotización/Financiamiento. ──
+async function currentStageOccupancy() {
+  const q = `
+    SELECT l.solar_data, l.value, ps.name AS stage_name
+      FROM leads l
+      LEFT JOIN pipeline_stages ps ON ps.id = l.stage_id
+      LEFT JOIN pipelines p ON p.id = l.pipeline_id
+     WHERE (ps.name IS NOT NULL)
+       AND (p.name IS NULL OR p.name NOT ILIKE '%instalac%')  -- evitar duplicar con pipeline Instalaciones
+  `;
+  const r = await pool.query(q);
+  let cotizCount = 0, cotizMonto = 0, finCount = 0, finMonto = 0;
+  for (const row of r.rows) {
+    const stage = (row.stage_name || '').toLowerCase();
+    const sd = row.solar_data || {};
+    const lowest = lowestQuotationAmount(sd);
+    if (stage.includes('cotiz')) { cotizCount++; cotizMonto += lowest; }
+    if (stage.includes('financ')) { finCount++; finMonto += lowest || safeNum(row.value); }
+  }
+  return { cotizCount, cotizMonto, finCount, finMonto };
+}
+
 // ── Ventas confirmadas (contratos_firma con signed_at), desglosadas por modalidad ──
 async function ventasFirmadas(from, to) {
   try {
@@ -251,6 +274,7 @@ async function overview(req, res) {
       ttfc,
       bySource,
       pendientes,
+      occupancy,
     ] = await Promise.all([
       countLeadsReales(range.from, range.to),
       countLeadsReales(range.prevFrom, range.prevTo),
@@ -260,7 +284,12 @@ async function overview(req, res) {
       avgTimeToFirstContact(range.from, range.to),
       leadsBySource(range.from, range.to),
       topLeadsSinRespuesta(5),
+      currentStageOccupancy(),
     ]);
+
+    // Cotización/Financiamiento = ocupación ACTUAL del pipeline (no por fecha de creación).
+    kpis.cotizCount = occupancy.cotizCount; kpis.cotizMonto = occupancy.cotizMonto;
+    kpis.finCount = occupancy.finCount;     kpis.finMonto = occupancy.finMonto;
 
     // Si hay contratos firmados, preferir esa cifra para "ventas"
     const ventasCount = Math.max(kpis.ventaCount, ventasFirma.count);

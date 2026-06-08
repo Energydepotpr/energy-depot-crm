@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '../../../lib/api';
-import { loadBaterias, DEFAULT_BATERIAS, loadPricing, DEFAULT_PRICING } from '../../../lib/baterias';
+import { loadBaterias, DEFAULT_BATERIAS, loadPricing, DEFAULT_PRICING, loadInvoiceItems } from '../../../lib/baterias';
 import { EMAIL_TEMPLATES } from '../../../lib/email-templates';
 import { useAuth } from '../../../lib/auth';
 import { useLang } from '../../../lib/lang-context';
@@ -654,10 +654,12 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
   // Catálogo de precios/costos para el análisis de ganancia (solo admin)
   const [profitPricing, setProfitPricing] = useState(DEFAULT_PRICING);
   const [profitBaterias, setProfitBaterias] = useState([]);
+  const [profitItems, setProfitItems] = useState([]); // catálogo de items de factura (costo por nombre)
   useEffect(() => {
     if (!isAdmin) return;
     loadPricing().then(setProfitPricing).catch(() => {});
     loadBaterias().then(setProfitBaterias).catch(() => {});
+    loadInvoiceItems().then(setProfitItems).catch(() => {});
   }, [isAdmin]);
   const [lead, setLead] = useState(null);
   const [tab, setTab] = useState('chat');
@@ -2397,10 +2399,16 @@ function LeadPanel({ leadId, pipelines, agents, onClose, onUpdated, leads = [], 
               const a = q ? analizarCotizacion(q, profitPricing, profitBaterias) : null;
               return a ? a.costo : 0;
             })();
+            // Mapa nombre→costo del catálogo de items (fallback si la factura no guardó unit_cost)
+            const itemCostByName = {};
+            (profitItems || []).forEach(it => { if (it && it.name) itemCostByName[it.name.trim().toLowerCase()] = Number(it.costo) || 0; });
             const analizarFactura = (f) => {
               const items = Array.isArray(f.items) ? f.items : [];
               const ingreso = Number(f.monto) || 0;
-              const costoItems = items.reduce((s,it)=> s + (Number(it.unit_cost||0) * Number(it.qty||1)), 0);
+              const costoItems = items.reduce((s,it)=> {
+                const unit = Number(it.unit_cost || 0) || (itemCostByName[String(it.description||'').trim().toLowerCase()] || 0);
+                return s + unit * Number(it.qty||1);
+              }, 0);
               const costo = f.costo_manual != null ? Number(f.costo_manual)
                           : (costoItems > 0 ? costoItems : solarCostLead);
               const ganancia = ingreso - costo;
